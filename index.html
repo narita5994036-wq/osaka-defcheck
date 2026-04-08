@@ -216,6 +216,10 @@
   .mkup-done:active{opacity:.8}
   .mkup-undo{padding:10px 14px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer}
   .mkup-text-input{position:fixed;left:-9999px;top:0;font-size:16px;opacity:0;pointer-events:none}
+  .mkup-label-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#222;flex-shrink:0;border-top:1px solid #333}
+  .mkup-label-lbl{font-size:9px;letter-spacing:2px;color:#666;flex-shrink:0;white-space:nowrap}
+  .mkup-label-inp{flex:1;background:#1a1a1a;border:1.5px solid #444;color:#ef5350;font-size:13px;font-weight:600;padding:8px 12px;border-radius:6px;outline:none;font-family:inherit}
+  .mkup-label-inp:focus{border-color:#ef5350}
   /* PHOTO VIEWER */
   .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .photo-viewer img{max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px}
@@ -238,6 +242,10 @@
   .mu-text-overlay{position:absolute;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:10}
   .mu-text-inp{background:rgba(0,0,0,.7);border:1px solid var(--red);color:var(--red);font-size:15px;font-weight:600;padding:6px 10px;border-radius:4px;outline:none;font-family:inherit;min-width:120px}
   .mu-text-ok{padding:6px 14px;background:var(--red);color:#fff;border:none;border-radius:4px;font-size:10px;letter-spacing:2px;cursor:pointer;font-family:inherit}
+  .mu-label-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#1a1a1a;flex-shrink:0;border-top:1px solid #333}
+  .mu-label-bar label{font-size:9px;letter-spacing:2px;color:#666;flex-shrink:0}
+  .mu-label-inp{flex:1;background:#2a2a2a;border:1px solid #444;color:#ef5350;font-size:13px;font-weight:600;padding:7px 10px;border-radius:4px;outline:none;font-family:inherit}
+  .mu-label-inp:focus{border-color:#ef5350}
   /* STAMP SCREEN */
   .stamp-card{margin:0 20px 12px;border:1px solid var(--g200);border-radius:6px;padding:14px 16px}
   .stamp-card-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
@@ -676,7 +684,7 @@ function openMarkup(no,idx){
   // Build auto-label: position + first word of name
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
   const autoLabel=pos+'.'+( it.name||'');
-  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,selectedIdx:null,dragStart:null};
+  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,labelText:autoLabel,selectedIdx:null,dragStart:null,strokes:[]};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
@@ -1121,6 +1129,10 @@ function render(){
         <div class="mkup-canvas-wrap" id="mkup-wrap">
           <canvas id="mkup-canvas"></canvas>
         </div>
+        <div class="mkup-label-bar">
+          <span class="mkup-label-lbl">LABEL</span>
+          <input class="mkup-label-inp" id="mkup-label-inp" type="text" value="${esc(S.markup.labelText!==undefined?S.markup.labelText:(S.markup.autoLabel||''))}" placeholder="Label text..." oninput="S.markup.labelText=this.value" enterkeyhint="done">
+        </div>
         <div class="mkup-tools">
           <button class="mkup-tool${S.markup.tool==='circle'?' active':''}" onclick="setMarkupTool('circle')">◯</button>
           <button class="mkup-tool${S.markup.tool==='text'?' active':''}" onclick="setMarkupTool('text')">T</button>
@@ -1283,7 +1295,8 @@ function addMarkupEvents(){
 
 function confirmMarkupText(){
   const inp=document.getElementById('mkup-text-inp');
-  const txt=inp?inp.value.trim():'';
+  const labelInp=document.getElementById('mkup-label-inp');
+  const txt=(labelInp?labelInp.value:inp?inp.value:'').trim();
   if(!txt||!S.markup.textPos)return;
   S.markup.strokes.push({type:'text',text:txt,x:S.markup.textPos.x,y:S.markup.textPos.y});
   S.markup.textPos=null;

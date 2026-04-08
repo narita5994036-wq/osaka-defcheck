@@ -218,7 +218,7 @@
   .mkup-text-input{position:fixed;left:-9999px;top:0;font-size:16px;opacity:0;pointer-events:none}
   .mkup-label-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#222;flex-shrink:0;border-top:1px solid #333}
   .mkup-label-lbl{font-size:9px;letter-spacing:2px;color:#666;flex-shrink:0;white-space:nowrap}
-  .mkup-label-inp{flex:1;background:#1a1a1a;border:1.5px solid #444;color:#ef5350;font-size:13px;font-weight:600;padding:8px 12px;border-radius:6px;outline:none;font-family:inherit}
+  .mkup-label-inp{flex:1;background:#1a1a1a;border:1.5px solid #444;color:#ef5350;font-size:16px;font-weight:600;padding:8px 12px;border-radius:6px;outline:none;font-family:inherit}
   .mkup-label-inp:focus{border-color:#ef5350}
   /* PHOTO VIEWER */
   .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -684,7 +684,7 @@ function openMarkup(no,idx){
   // Build auto-label: position + first word of name
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
   const autoLabel=pos+'.'+( it.name||'');
-  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,labelText:autoLabel,selectedIdx:null,dragStart:null,strokes:[]};
+  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,selectedIdx:null,dragStart:null,strokes:[],_sel:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
@@ -921,6 +921,7 @@ function muClose(){S.markup=null;render();}
 
 /* RENDER */
 function render(){
+  const _sy=window.scrollY||0;
   const inv=S.invoice;
   const pend=inv?inv.items.filter(i=>i.status==='pending').length:0;
   const ok=inv?inv.items.filter(i=>i.status==='ok').length:0;
@@ -1150,6 +1151,7 @@ function render(){
       <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()" title="戻る">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="resetApp()">x</button>`:''}</div>
     </div>
     ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}`;
+  if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
 }
 
 load();render();
@@ -1323,7 +1325,13 @@ function setMarkupTool(tool){
   render(); requestAnimationFrame(initMarkupCanvas);
 }
 function undoMarkup(){
-  if(S.markup&&S.markup.strokes.length){S.markup.strokes.pop();MK.selIdx=null;S.markup._sel=null;redrawMarkup();}
+  if(!S.markup||!S.markup.strokes.length)return;
+  S.markup.strokes.pop();
+  MK.selIdx=null; S.markup._sel=null;
+  // ensure ctx is still valid
+  const c=document.getElementById('mkup-canvas');
+  if(c) MK.canvas=c, MK.ctx=c.getContext('2d');
+  redrawMarkup();
 }
 function doneMarkup(){
   if(!MK.canvas||!S.markup)return;

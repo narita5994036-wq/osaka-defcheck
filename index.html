@@ -675,9 +675,8 @@ function openMarkup(no,idx){
   if(!it)return;
   // Build auto-label: position + first word of name
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
-  const modelName=(it.name||'').split(' ')[0];
-  const autoLabel=pos+'.'+modelName;
-  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel};
+  const autoLabel=pos+'.'+( it.name||'');
+  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,selectedIdx:null,dragStart:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
@@ -749,70 +748,91 @@ function initMarkupCanvas(){
   const img=new Image();
   img.onload=()=>{
     MU.img=img;
-    // Fit canvas to screen
     const wrap=canvas.parentElement;
-    const maxW=wrap.clientWidth;
-    const maxH=wrap.clientHeight;
-    const scale=Math.min(maxW/img.width, maxH/img.height, 1);
-    canvas.width=img.width;
-    canvas.height=img.height;
+    const scale=Math.min(wrap.clientWidth/img.width, wrap.clientHeight/img.height, 1);
+    canvas.width=img.width; canvas.height=img.height;
     canvas.style.width=Math.round(img.width*scale)+'px';
     canvas.style.height=Math.round(img.height*scale)+'px';
     MU.scale=scale;
     drawMarkup();
   };
   img.src=S.markup.src;
-
-  // Touch events
   canvas.addEventListener('touchstart',muTouchStart,{passive:false});
   canvas.addEventListener('touchmove',muTouchMove,{passive:false});
   canvas.addEventListener('touchend',muTouchEnd,{passive:false});
-  // Mouse events for desktop testing
   canvas.addEventListener('mousedown',e=>muTouchStart({touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:()=>{}}));
-  canvas.addEventListener('mousemove',e=>{if(MU.drawing)muTouchMove({touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:()=>{}})});
+  canvas.addEventListener('mousemove',e=>{if(MU.drawing||S.markup.dragStart)muTouchMove({touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:()=>{}})});
   canvas.addEventListener('mouseup',e=>muTouchEnd({changedTouches:[{clientX:e.clientX,clientY:e.clientY}]}));
 }
 
 function muCoord(touch){
   const rect=MU.canvas.getBoundingClientRect();
-  return{
-    x:(touch.clientX-rect.left)/MU.scale,
-    y:(touch.clientY-rect.top)/MU.scale
-  };
+  return{x:(touch.clientX-rect.left)/MU.scale, y:(touch.clientY-rect.top)/MU.scale};
+}
+
+function muHitTest(x,y){
+  const ann=S.markup.annotations;
+  const fs=Math.max(36,Math.round((MU.img?MU.img.width:1000)*0.045));
+  for(let i=ann.length-1;i>=0;i--){
+    const a=ann[i];
+    if(a.type==='circle'){
+      const dist=Math.sqrt((x-a.cx)**2+(y-a.cy)**2);
+      if(Math.abs(dist-a.r)<Math.max(24,a.r*0.18)||dist<a.r*0.3) return i;
+    } else if(a.type==='text'){
+      const tw=a.text.length*fs*0.55;
+      if(x>=a.x-10&&x<=a.x+tw&&y>=a.y-fs&&y<=a.y+12) return i;
+    }
+  }
+  return -1;
 }
 
 function muTouchStart(e){
   e.preventDefault();
+  const {x,y}=muCoord(e.touches[0]);
   if(S.markup.tool==='text'){
-    const {x,y}=muCoord(e.touches[0]);
     S.markup.textInput={x,y,text:S.markup.autoLabel||''};
+    S.markup.selectedIdx=null;
     render();
-    requestAnimationFrame(()=>{
-      const inp=document.getElementById('mu-text-inp');
-      if(inp){inp.focus();inp.select();}
-    });
+    requestAnimationFrame(()=>{const inp=document.getElementById('mu-text-inp');if(inp){inp.focus();inp.select();}});
     return;
   }
-  const {x,y}=muCoord(e.touches[0]);
-  MU.drawing=true;
-  MU.startX=x; MU.startY=y;
+  if(S.markup.tool==='select'){
+    const hit=muHitTest(x,y);
+    S.markup.selectedIdx=hit>=0?hit:null;
+    if(hit>=0) S.markup.dragStart={x,y};
+    else S.markup.dragStart=null;
+    drawMarkup();
+    render();
+    requestAnimationFrame(initMarkupCanvas);
+    return;
+  }
+  MU.drawing=true; MU.startX=x; MU.startY=y;
 }
 function muTouchMove(e){
   e.preventDefault();
-  if(!MU.drawing)return;
   const {x,y}=muCoord(e.touches[0]);
-  MU.curX=x; MU.curY=y;
+  if(S.markup.tool==='select'&&S.markup.dragStart!==null&&S.markup.selectedIdx!==null){
+    const dx=x-S.markup.dragStart.x, dy=y-S.markup.dragStart.y;
+    const a=S.markup.annotations[S.markup.selectedIdx];
+    if(a){
+      if(a.type==='circle'){a.cx+=dx;a.cy+=dy;}
+      else if(a.type==='text'){a.x+=dx;a.y+=dy;}
+    }
+    S.markup.dragStart={x,y};
+    drawMarkup();
+    return;
+  }
+  if(!MU.drawing)return;
   drawMarkup({preview:{x,y}});
 }
 function muTouchEnd(e){
+  S.markup.dragStart=null;
   if(!MU.drawing)return;
   MU.drawing=false;
   const {x,y}=muCoord(e.changedTouches[0]);
-  const dx=x-MU.startX, dy=y-MU.startY;
+  const dx=x-MU.startX,dy=y-MU.startY;
   const r=Math.sqrt(dx*dx+dy*dy);
-  if(r>8){
-    S.markup.annotations.push({type:"circle",cx:MU.startX,cy:MU.startY,r});
-  }
+  if(r>10) S.markup.annotations.push({type:'circle',cx:MU.startX,cy:MU.startY,r});
   drawMarkup();
 }
 
@@ -821,24 +841,28 @@ function drawMarkup(opts){
   if(!ctx||!MU.img)return;
   ctx.clearRect(0,0,MU.canvas.width,MU.canvas.height);
   ctx.drawImage(MU.img,0,0);
-  const COLOR="#ef5350";
-  ctx.strokeStyle=COLOR; ctx.fillStyle=COLOR; ctx.lineWidth=4;
-  const fontSize=Math.max(36, Math.round(MU.img.width*0.045));
-  ctx.font="bold "+fontSize+"px Montserrat, Arial, sans-serif";
-  ctx.shadowColor="rgba(0,0,0,0.6)"; ctx.shadowBlur=8;
-  (S.markup.annotations||[]).forEach(a=>{
-    if(a.type==="circle"){
-      ctx.lineWidth=Math.max(4,Math.round(MU.img.width*0.006)); ctx.beginPath(); ctx.arc(a.cx,a.cy,a.r,0,Math.PI*2); ctx.stroke();
-    } else if(a.type==="text"){
+  const COLOR='#ef5350';
+  const fs=Math.max(36,Math.round(MU.img.width*0.045));
+  const lw=Math.max(4,Math.round(MU.img.width*0.006));
+  ctx.font='bold '+fs+'px Montserrat, Arial, sans-serif';
+  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=8;
+  (S.markup.annotations||[]).forEach((a,i)=>{
+    const isSel=S.markup.tool==='select'&&i===S.markup.selectedIdx;
+    ctx.strokeStyle=isSel?'#ff8a80':COLOR;
+    ctx.fillStyle=isSel?'#ff8a80':COLOR;
+    ctx.lineWidth=isSel?lw+3:lw;
+    if(a.type==='circle'){
+      ctx.beginPath();ctx.arc(a.cx,a.cy,a.r,0,Math.PI*2);ctx.stroke();
+    } else if(a.type==='text'){
       ctx.fillText(a.text,a.x,a.y);
     }
   });
-  ctx.shadowColor='transparent'; ctx.shadowBlur=0;
-  if(opts?.preview&&MU.drawing){
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;
+  if(opts&&opts.preview&&MU.drawing){
     const dx=opts.preview.x-MU.startX,dy=opts.preview.y-MU.startY;
     const r=Math.sqrt(dx*dx+dy*dy);
-    ctx.globalAlpha=0.6;
-    ctx.beginPath(); ctx.arc(MU.startX,MU.startY,r,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha=0.5;ctx.strokeStyle=COLOR;ctx.lineWidth=lw;
+    ctx.beginPath();ctx.arc(MU.startX,MU.startY,r,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=1;
   }
 }
@@ -846,6 +870,15 @@ function drawMarkup(opts){
 function muSetTool(t){
   S.markup.tool=t;
   S.markup.textInput=null;
+  S.markup.selectedIdx=null;
+  S.markup.dragStart=null;
+  render();
+  requestAnimationFrame(initMarkupCanvas);
+}
+function muDeleteSelected(){
+  if(S.markup.selectedIdx===null)return;
+  S.markup.annotations.splice(S.markup.selectedIdx,1);
+  S.markup.selectedIdx=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
 }

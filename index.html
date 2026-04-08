@@ -144,7 +144,7 @@
   .eacts .btn.s{flex-shrink:0;width:auto;padding:13px 16px;font-size:10px}
   .bot{height:max(60px,env(safe-area-inset-bottom))}
   /* DEFECT PICKER */
-  .dpick{margin-top:10px;margin-left:32px;background:#fff8f8;border:1px solid var(--redM);border-radius:6px;padding:12px 14px;position:relative;z-index:51}
+  .dpick{margin-top:10px;margin-left:32px;background:#fff8f8;border:1px solid var(--redM);border-radius:6px;padding:12px 14px}
   .dpick-row{margin-bottom:10px}
   .dpick-row:last-child{margin-bottom:0}
   .dpick-label{font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:7px}
@@ -258,6 +258,7 @@
 </head>
 <body>
 <div id="app"></div>
+<input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onCameraChange(this)">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -688,12 +689,17 @@ async function capturePhoto(no){
   const inp=document.getElementById('cam-'+no);
   if(inp) inp.click();
 }
+let _cameraNo=null;
 function triggerCamera(no, e){
-  if(e) e.stopPropagation();
-  const inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*'; inp.capture='environment';
-  inp.onchange=()=>{ if(inp.files[0]) handlePhoto(no, inp.files[0]); };
+  if(e){e.stopPropagation();e.preventDefault();}
+  _cameraNo=no;
+  const inp=document.getElementById('camera-input');
+  inp.value='';
   inp.click();
+}
+function onCameraChange(inp){
+  if(inp.files[0]&&_cameraNo) handlePhoto(_cameraNo, inp.files[0]);
+  _cameraNo=null;
 }
 async function handlePhoto(no, file){
   if(!file)return;
@@ -1061,10 +1067,7 @@ function render(){
       </div>
     </div>`:'';
 
-  const anyPickerOpen=Object.keys(S.pickerOpen).length>0;
-  const pickerBackdrop=anyPickerOpen
-    ?`<div style="position:fixed;inset:0;z-index:50;background:transparent" onclick="closeAllPickers()"></div>`
-    :'';
+  const pickerBackdrop='';
   const photoViewer=S.viewPhoto
     ?`<div class="photo-viewer">
         <button class="photo-viewer-close" onclick="S.viewPhoto=null;render()">×</button>
@@ -1103,6 +1106,21 @@ function render(){
 }
 
 load();render();
+
+// iOS-safe outside-tap detection for picker close
+(function(){
+  function onDocTouch(e){
+    if(!Object.keys(S.pickerOpen).length)return;
+    const t=e.target;
+    if(t.closest('.dpick'))return;
+    if(t.closest('.def-inline'))return;
+    if(t.closest('.photo-add-btn'))return;
+    if(t.id==='camera-input')return;
+    closeAllPickers();
+  }
+  document.addEventListener('touchstart', onDocTouch, {passive:true});
+  document.addEventListener('mousedown', onDocTouch);
+})();
 
 /* ────── MARKUP CANVAS ENGINE ────── */
 let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,snapshot:null};

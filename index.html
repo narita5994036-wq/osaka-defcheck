@@ -638,10 +638,7 @@ function defAreaHtml(it){
           <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
           <button class="photo-del" onclick="event.stopPropagation();removePhoto('${no}',${i})">×</button>
         </div>`).join('')}
-      <label class="photo-add-btn" onclick="event.stopPropagation()">
-        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto('${no}',this.files[0]);this.value=''">
-        +
-      </label>
+      <button class="photo-add-btn" onclick="triggerCamera('${no}',event)">+</button>
     </div>`:``;
   if(isOpen){
     return defPickerHtml(it)+`
@@ -653,10 +650,7 @@ function defAreaHtml(it){
               <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
               <button class="photo-del" onclick="removePhoto('${no}',${i})">×</button>
             </div>`).join('')}
-          <label class="photo-add-btn">
-            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto('${no}',this.files[0]);this.value=''">
-            +
-          </label>
+          <button class="photo-add-btn" onclick="triggerCamera('${no}',event)">+</button>
         </div>
       </div>`;
   }
@@ -693,6 +687,13 @@ async function capturePhoto(no){
   // Use file input trick for iOS camera
   const inp=document.getElementById('cam-'+no);
   if(inp) inp.click();
+}
+function triggerCamera(no, e){
+  if(e) e.stopPropagation();
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  inp.onchange=()=>{ if(inp.files[0]) handlePhoto(no, inp.files[0]); };
+  inp.click();
 }
 async function handlePhoto(no, file){
   if(!file)return;

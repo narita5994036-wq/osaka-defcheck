@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MYKITA — Defective Check</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{color-scheme:light only;--w:#ffffff;--k:#000000;--g50:#fafafa;--g100:#f5f5f5;--g200:#eeeeee;--g400:#bdbdbd;--g600:#757575;--g800:#424242;--red:#c62828;--redL:#ffebee;--redM:#ef9a9a;--blue:#1565c0;--blueL:#e3f2fd;--green:#2e7d32;--greenL:#e8f5e9;--amber:#e65100;--amberL:#fff3e0;--teal:#00695c;--tealL:#e0f2f1}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{color-scheme:light only!important;forced-color-adjust:none!important}
+  html,body{height:100%;background:#ffffff!important;font-family:'Montserrat',sans-serif;color:#000000!important}
+  @media(prefers-color-scheme:dark){
+    html,body{background:#ffffff!important;color:#000000!important}
+    .hdr{background:#ffffff!important;border-color:#eeeeee!important}
+    .stat{background:#f5f5f5!important}
+    .item-name,.ti,.inv-no{color:#000000!important}
+    .ey,.inv-ct,.inv-dt,.item-no,.stat-l,.item-code,.up-sub{color:#bdbdbd!important}
+    .up-tit{color:#424242!important}
+    .sbtn{background:#ffffff!important;color:#757575!important;border-color:#eeeeee!important}
+    .sbtn.ok{background:#e8f5e9!important;color:#2e7d32!important;border-color:#2e7d32!important}
+    .sbtn.def{background:#ffebee!important;color:#c62828!important;border-color:#c62828!important}
+    .sbtn.war{background:#e3f2fd!important;color:#1565c0!important;border-color:#1565c0!important}
+    .def-sum{background:#ffebee!important}
+    .def-sum-tit,.def-li-rm{color:#c62828!important}
+    .def-li-hd,.def-li-no{color:#000000!important}
+    .war-sum{background:#e3f2fd!important}
+    .war-sum-tit{color:#1565c0!important}
+    .war-li{color:#000000!important}
+    .alert{background:#fff3e0!important;color:#e65100!important}
+    .tag.parts{background:#e0f2f1!important;color:#00695c!important}
+    .tag.sun{background:#fff3e0!important;color:#e65100!important}
+    .tag.rx{background:#e3f2fd!important;color:#1565c0!important}
+    .tag.qty{background:#f5f5f5!important;color:#757575!important}
+    .rmk-inp{background:#ffebee!important;color:#c62828!important;border-color:#ef9a9a!important}
+    .rawbox{background:#fafafa!important;color:#424242!important}
+    .upzone,.nlz{border-color:#bdbdbd!important;background:#ffffff!important}
+    .upzone:active,.nlz:active{background:#fafafa!important}
+    .sheet,.ef input,.ef textarea,.mfield input,.mrow input{background:#ffffff!important;color:#000000!important;border-color:#eeeeee!important}
+    .sheet{background:#ffffff!important}
+    .sheet-tit{color:#000000!important}
+    .ef label,.mfield label{color:#bdbdbd!important}
+    .btn.blk{background:#000000!important;color:#ffffff!important}
+    .btn.out{background:#ffffff!important;color:#757575!important;border-color:#eeeeee!important}
+    .tab{color:#757575!important}
+    .tab.act{color:#000000!important;border-color:#000000!important}
+    .tabs{border-color:#eeeeee!important}
+    .item{border-color:#f5f5f5!important}
+    .prog-bar{background:#eeeeee!important}
+    .prog-fill{background:#000000!important}
+  }
+  .hdr{position:sticky;top:0;z-index:100;background:var(--w);border-bottom:1px solid var(--g200);padding:max(14px,env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;justify-content:space-between}
+  .ey{font-size:9px;letter-spacing:4px;color:var(--g400)}
+  .ti{font-size:13px;font-weight:600;letter-spacing:3px}
+  .hdr-acts{display:flex;gap:10px}
+  .ibtn{background:none;border:none;cursor:pointer;padding:6px;color:var(--g600);font-size:16px;border-radius:6px}
+  .ibtn:active{background:var(--g100)}
+  .upzone{margin:28px 20px;border:1px dashed var(--g400);border-radius:4px;padding:44px 20px;text-align:center;cursor:pointer;position:relative;transition:background .15s}
+  .upzone:active{background:var(--g50)}
+  .upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .up-icon{font-size:32px;margin-bottom:12px}
+  .up-tit{font-size:11px;letter-spacing:3px;color:var(--g800);font-weight:500}
+  .up-sub{font-size:10px;color:var(--g400);margin-top:6px;letter-spacing:1px}
+  .lbar{height:2px;background:var(--g200);margin:0 20px;border-radius:1px;overflow:hidden}
+  .lfill{height:100%;background:var(--k);animation:ld 1.2s ease-in-out infinite}
+  @keyframes ld{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+  .ltxt{text-align:center;font-size:10px;letter-spacing:2px;color:var(--g600);padding:12px 20px 0}
+  .nlz{margin:10px 20px 0;border:1px dashed var(--g200);border-radius:4px;padding:11px 16px;text-align:center;cursor:pointer;position:relative}
+  .nlz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .nlz span{font-size:10px;letter-spacing:2px;color:var(--g400)}
+  .inv-hdr{padding:20px 20px 0}
+  .inv-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:3px}
+  .inv-no{font-size:19px;font-weight:500;letter-spacing:1.5px}
+  .inv-ct{font-size:10px;color:var(--g400);letter-spacing:1px}
+  .inv-dt{font-size:10px;color:var(--g400);letter-spacing:1px}
+  .prog-wrap{padding:14px 20px 4px}
+  .prog-bar{height:1px;background:var(--g200);border-radius:1px}
+  .prog-fill{height:100%;background:var(--k);border-radius:1px;transition:width .4s}
+  .stats{display:flex;gap:6px;padding:12px 20px}
+  .stat{flex:1;background:var(--g50);border-radius:4px;padding:9px 6px;text-align:center}
+  .stat-n{font-size:18px;font-weight:500}
+  .stat-l{font-size:9px;letter-spacing:1px;color:var(--g600);margin-top:1px}
+  .stat.pend .stat-n{color:var(--g400)}.stat.ok .stat-n{color:var(--green)}.stat.def .stat-n{color:var(--red)}.stat.war .stat-n{color:var(--blue)}
+  .tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--g200);overflow-x:auto}
+  .tab{flex-shrink:0;padding:10px 14px;font-size:9px;letter-spacing:2px;color:var(--g600);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-weight:500}
+  .tab.act{color:var(--k);border-bottom-color:var(--k)}
+  .cl{padding:0 20px}
+  .item{border-bottom:1px solid var(--g100);padding:13px 0}
+  .item-row{display:flex;align-items:center;gap:10px}
+  .item-no{min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500}
+  .item-body{flex:1;min-width:0}
+  .item-tags{display:flex;gap:5px;margin-bottom:3px;align-items:center}
+  .tag{font-size:9px;letter-spacing:1px;padding:2px 7px;border-radius:2px;font-weight:500}
+  .tag.parts{background:var(--tealL);color:var(--teal)}.tag.sun{background:var(--amberL);color:var(--amber)}.tag.rx{background:var(--blueL);color:var(--blue)}.tag.qty{background:var(--g100);color:var(--g600)}
+  .item-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item-code{font-size:10px;color:var(--g600);font-family:monospace;letter-spacing:.5px;margin-top:1px}
+  .sbtn{flex-shrink:0;min-width:64px;padding:8px 4px;border:1px solid var(--g200);font-size:9px;letter-spacing:1.5px;font-weight:600;border-radius:3px;cursor:pointer;font-family:inherit;background:var(--w);color:var(--g600);user-select:none}
+  .sbtn:active{opacity:.7}
+  .sbtn.ok{background:var(--greenL);color:var(--green);border-color:var(--green)}
+  .sbtn.def{background:var(--redL);color:var(--red);border-color:var(--red)}
+  .sbtn.war{background:var(--blueL);color:var(--blue);border-color:var(--blue)}
+  .rmk-row{margin-top:10px;margin-left:32px}
+  .rmk-inp{width:100%;padding:8px 12px;border:1px solid var(--redM);border-radius:3px;font-size:12px;font-family:inherit;background:var(--redL);color:var(--red);outline:none}
+  .rmk-inp::placeholder{color:var(--redM)}
+  .def-sum{margin:16px 20px;background:var(--redL);border-radius:4px;padding:16px}
+  .def-sum-tit{font-size:9px;letter-spacing:3px;color:var(--red);font-weight:600;margin-bottom:14px}
+  .def-li{margin-bottom:10px}
+  .def-li-hd{font-size:12px;font-weight:500}
+  .def-li-no{color:var(--g400);margin-right:5px;font-size:11px}
+  .def-li-rm{font-size:11px;color:var(--red);margin-top:2px}
+  .war-sum{margin:16px 20px;background:var(--blueL);border-radius:4px;padding:16px}
+  .war-sum-tit{font-size:9px;letter-spacing:3px;color:var(--blue);font-weight:600;margin-bottom:14px}
+  .war-li{font-size:12px;margin-bottom:6px;display:flex;gap:8px}
+  .war-li-no{color:var(--g400);min-width:24px;text-align:right}
+  .btn{width:100%;padding:13px;border:none;cursor:pointer;font-size:10px;letter-spacing:3px;font-weight:500;font-family:inherit;border-radius:3px;margin-top:12px}
+  .btn.blk{background:var(--k);color:var(--w)}.btn.blk:active{opacity:.8}
+  .btn.out{background:var(--w);color:var(--g600);border:1px solid var(--g200);margin-top:8px}.btn.out:active{background:var(--g50)}
+  .alert{margin:0 20px 16px;padding:12px 14px;background:var(--amberL);border-radius:4px;font-size:11px;color:var(--amber);letter-spacing:.3px}
+  .mpanel{margin:0 20px 20px}
+  .mpanel h3{font-size:10px;letter-spacing:3px;color:var(--g600);margin-bottom:12px;font-weight:500}
+  .mfield{margin-bottom:12px}
+  .mfield label{font-size:9px;letter-spacing:2px;color:var(--g400);display:block;margin-bottom:4px}
+  .mfield input{width:100%;padding:9px 12px;border:1px solid var(--g200);border-radius:3px;font-size:12px;font-family:monospace;background:var(--w);color:var(--k);outline:none}
+  .mfield input:focus{border-color:var(--k)}
+  .mrow{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+  .mrow input{padding:8px 10px;border:1px solid var(--g200);border-radius:3px;font-size:12px;font-family:monospace;outline:none;background:var(--w);color:var(--k)}
+  .mrow input:focus{border-color:var(--k)}
+  .fn{width:44px!important}.fc{width:100px!important}.fd{flex:1}
+  .delbtn{background:none;border:none;cursor:pointer;color:var(--g400);font-size:18px;padding:2px;flex-shrink:0}
+  details.raw{margin:0 20px 16px}
+  details.raw summary{font-size:10px;letter-spacing:2px;color:var(--g600);cursor:pointer;padding:10px 0;list-style:none}
+  details.raw summary::-webkit-details-marker{display:none}
+  .rawbox{background:var(--g50);border:1px solid var(--g200);padding:10px;font-size:10px;font-family:monospace;white-space:pre-wrap;max-height:180px;overflow-y:auto;color:var(--g800);border-radius:3px;margin-top:6px}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end}
+  .sheet{background:var(--w);width:100%;border-radius:12px 12px 0 0;padding:20px 20px max(20px,env(safe-area-inset-bottom));max-height:82vh;overflow-y:auto}
+  .sheet-tit{font-size:11px;letter-spacing:3px;font-weight:600;margin-bottom:16px}
+  .close-btn{float:right;background:none;border:none;cursor:pointer;color:var(--g400);font-size:22px;line-height:1}
+  .ef{margin-bottom:13px}
+  .ef label{font-size:9px;letter-spacing:2px;color:var(--g400);display:block;margin-bottom:5px}
+  .ef input,.ef textarea{width:100%;padding:10px 12px;border:1px solid var(--g200);border-radius:3px;font-size:12px;font-family:inherit;background:var(--w);color:var(--k);outline:none;resize:vertical}
+  .ef textarea{min-height:190px}
+  .eacts{display:flex;gap:10px;margin-top:12px}
+  .eacts .btn{margin-top:0}
+  .eacts .btn.s{flex-shrink:0;width:auto;padding:13px 16px;font-size:10px}
+  .bot{height:max(60px,env(safe-area-inset-bottom))}
+  /* DEFECT PICKER */
+  .dpick{margin-top:10px;margin-left:32px;background:#fff8f8;border:1px solid var(--redM);border-radius:6px;padding:12px 14px;position:relative;z-index:51}
+  .dpick-row{margin-bottom:10px}
+  .dpick-row:last-child{margin-bottom:0}
+  .dpick-label{font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:7px}
+  .dpick-pills{display:flex;flex-wrap:wrap;gap:6px}
+  .pill{padding:5px 11px;border-radius:999px;border:1px solid var(--redM);font-size:11px;font-weight:500;
+    cursor:pointer;background:#fff;color:var(--red);user-select:none;transition:background .1s}
+  .pill:active{opacity:.7}
+  .pill-wrap{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+  .pill-tip{font-size:8px;color:var(--redM);letter-spacing:.3px;white-space:nowrap}
+  .pill-wrap .pill.sel+.pill-tip{color:var(--red)}
+  .pill.sel{background:var(--red);color:#fff;border-color:var(--red)}
+  .pill-other{padding:5px 11px;border-radius:999px;border:1px dashed var(--redM);font-size:11px;
+    cursor:pointer;background:#fff;color:var(--redM);user-select:none}
+  .pill-other.sel{border-style:solid;color:var(--red)}
+  .dpick-other-input{margin-top:8px}
+  .dpick-other-input input{width:100%;padding:7px 11px;border:1px solid var(--redM);border-radius:20px;
+    font-size:12px;font-family:inherit;background:#fff;color:var(--red);outline:none}
+  .dpick-other-input input::placeholder{color:var(--redM)}
+  .dpick-entry{margin-bottom:0}
+  .dpick-entry-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .dpick-entry-num{font-size:9px;letter-spacing:2px;color:var(--redM);font-weight:600}
+  .dpick-del{background:none;border:none;cursor:pointer;font-size:10px;color:var(--redM);font-family:inherit;padding:2px 0;letter-spacing:.5px}
+  .dpick-del:active{color:var(--red)}
+  .dpick-divider{height:1px;background:var(--redM);opacity:.3;margin:12px 0}
+  .dpick-add{width:100%;margin-top:12px;padding:8px;background:none;border:1px dashed var(--redM);border-radius:4px;color:var(--red);font-size:10px;letter-spacing:2px;font-weight:600;cursor:pointer;font-family:inherit}
+  .dpick-add:active{background:var(--redL)}
+  @media(prefers-color-scheme:dark){
+    .dpick{background:#fff8f8!important;border-color:var(--redM)!important}
+    .pill{background:#fff!important;color:var(--red)!important}
+    .pill.sel{background:var(--red)!important;color:#fff!important}
+    .dpick-other-input input{background:#fff!important;color:var(--red)!important}
+  }
+  .grp-hdr{padding:12px 0 6px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--g200);margin-top:4px}
+  .grp-hdr-name{font-size:12px;font-weight:500}
+  .grp-hdr-code{font-size:10px;color:var(--g600);font-family:monospace;letter-spacing:.5px}
+  .grp-hdr-tags{display:flex;gap:5px;align-items:center;margin-left:auto}
+  .sub-item{border-bottom:1px solid var(--g100);padding:10px 0 10px 32px}
+  .sub-item-row{display:flex;align-items:center;gap:10px}
+  .sub-idx{min-width:32px;font-size:10px;color:var(--g400);text-align:right;font-weight:500}
+  .sub-bar{width:2px;background:var(--g200);border-radius:1px;align-self:stretch;flex-shrink:0;margin-right:2px}
+  .def-inline{display:flex;align-items:baseline;gap:6px;margin-top:4px;cursor:pointer}
+  .def-inline-txt{font-size:10px;color:var(--red);font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .def-inline-edit{font-size:9px;letter-spacing:1.5px;color:var(--redM);flex-shrink:0;padding:2px 6px;border:1px solid var(--redM);border-radius:3px;background:none;cursor:pointer;font-family:inherit;font-weight:500}
+  .def-inline-edit:active{background:var(--redL)}
+  .def-inline-empty{font-size:10px;color:var(--redM);font-style:italic}
+  /* PHOTOS */
+  .photo-section{margin-top:10px;margin-left:32px}
+  .photo-section-lbl{font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:7px}
+  .photo-strip{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:32px;margin-top:6px}
+  .photo-section .photo-strip{margin-left:0}
+  .photo-thumb-wrap{position:relative;flex-shrink:0}
+  .photo-thumb{width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--redM);cursor:pointer;display:block}
+  .photo-del{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:18px;text-align:center;padding:0}
+  .photo-add-btn{width:64px;height:64px;border:1px dashed var(--redM);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--redM);cursor:pointer;flex-shrink:0}
+  .photo-add-btn:active{background:var(--redL)}
+  /* MARKUP EDITOR */
+  .mkup{position:fixed;inset:0;z-index:400;background:#111;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+  .mkup-toolbar{display:flex;align-items:center;gap:0;padding:10px 16px;background:#1a1a1a;flex-shrink:0}
+  .mkup-title{flex:1;font-size:11px;letter-spacing:3px;color:#fff;text-align:center}
+  .mkup-tbtn{background:none;border:none;cursor:pointer;color:#888;font-size:22px;padding:6px 10px;border-radius:6px;font-family:inherit;line-height:1}
+  .mkup-tbtn:active{background:#333}
+  .mkup-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+  .mkup-canvas-wrap canvas{max-width:100%;max-height:100%;touch-action:none}
+  .mkup-tools{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px max(12px,env(safe-area-inset-bottom));background:#1a1a1a;flex-shrink:0}
+  .mkup-tool{padding:10px 18px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;min-width:56px}
+  .mkup-tool.active{border-color:#e53935;color:#fff;background:#e53935}
+  .mkup-tool:active{opacity:.7}
+  .mkup-done{padding:10px 24px;border-radius:6px;border:none;background:#fff;color:#000;font-size:11px;letter-spacing:2px;font-weight:600;cursor:pointer;font-family:inherit}
+  .mkup-done:active{opacity:.8}
+  .mkup-undo{padding:10px 14px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer}
+  .mkup-text-input{position:fixed;left:-9999px;top:0;font-size:16px;opacity:0;pointer-events:none}
+  /* PHOTO VIEWER */
+  .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .photo-viewer img{max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px}
+  .photo-viewer-close{position:absolute;top:max(16px,env(safe-area-inset-top));right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;line-height:1}
+  .photo-viewer-del{margin-top:16px;padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:4px;font-size:11px;letter-spacing:2px;cursor:pointer;font-family:inherit;font-weight:500}
+  @media(prefers-color-scheme:dark){
+    .photo-thumb{border-color:var(--redM)!important}
+    .photo-add-btn{border-color:var(--redM)!important;color:var(--redM)!important}
+  }
+  /* MARKUP EDITOR */
+  .mu{position:fixed;inset:0;background:#111;z-index:300;display:flex;flex-direction:column}
+  .mu-toolbar{display:flex;align-items:center;gap:8px;padding:max(14px,env(safe-area-inset-top)) 16px 10px;background:#1a1a1a;flex-shrink:0}
+  .mu-canvas-wrap{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .mu-canvas{touch-action:none;display:block;max-width:100%;max-height:100%}
+  .mu-btn{padding:8px 14px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;font-size:10px;letter-spacing:2px;cursor:pointer;font-family:inherit;font-weight:500;flex-shrink:0}
+  .mu-btn.active{background:var(--red);border-color:var(--red)}
+  .mu-btn.done{background:#fff;color:#000;border-color:#fff;margin-left:auto}
+  .mu-btn:active{opacity:.7}
+  .mu-undo{font-size:16px;padding:8px 10px}
+  .mu-text-overlay{position:absolute;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:10}
+  .mu-text-inp{background:rgba(0,0,0,.7);border:1px solid var(--red);color:var(--red);font-size:15px;font-weight:600;padding:6px 10px;border-radius:4px;outline:none;font-family:inherit;min-width:120px}
+  .mu-text-ok{padding:6px 14px;background:var(--red);color:#fff;border:none;border-radius:4px;font-size:10px;letter-spacing:2px;cursor:pointer;font-family:inherit}
+  /* STAMP SCREEN */
+  .stamp-card{margin:0 20px 12px;border:1px solid var(--g200);border-radius:6px;padding:14px 16px}
+  .stamp-card-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+  .stamp-pos{font-size:10px;color:var(--g400);font-weight:500;min-width:28px}
+  .stamp-name{font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stamp-remark{font-size:10px;color:var(--red);margin-bottom:10px;padding-left:36px}
+  .stamp-field label{font-size:9px;letter-spacing:2px;color:var(--g400);display:block;margin-bottom:5px}
+  .stamp-inp{width:100%;padding:10px 14px;border:1px solid var(--g200);border-radius:4px;
+    font-size:14px;font-family:monospace;letter-spacing:1px;background:var(--w);color:var(--k);outline:none}
+  .stamp-inp:focus{border-color:var(--k)}
+  .stamp-inp.filled{border-color:var(--green);background:var(--greenL);color:var(--green)}
+  @media(prefers-color-scheme:dark){
+    .stamp-card{background:#fff!important;border-color:#eee!important}
+    .stamp-inp{background:#fff!important;color:#000!important}
+    .stamp-inp.filled{background:var(--greenL)!important;color:var(--green)!important}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const SK='mykita_dc_v9';
+const STATS=['pending','ok','defective','warranty'];
+const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
+const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
+let S={screen:'upload',loading:false,rawText:'',parseErr:'',invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};
+
+function save(){if(S.invoice)localStorage.setItem(SK,JSON.stringify(S.invoice))}
+function newDefect(){return {part:'',partOther:null,side:'',cond:[],condOther:null};}
+function migrateItem(it){
+  // migrate old flat structure → defects array
+  if(!it.defects){
+    const legacy={part:it.defPart||'',partOther:it.defPartOther||null,side:it.defSide||'',cond:it.defCond||[],condOther:it.defCondOther||null};
+    const hasData=legacy.part||legacy.side||legacy.cond.length;
+    return {stampNo:'', ...it, defects: hasData?[legacy]:[newDefect()]};
+  }
+  return {stampNo:'', ...it};
+}
+function load(){
+  try{
+    const d=localStorage.getItem(SK);
+    if(d){
+      const inv=JSON.parse(d);
+      inv.items=inv.items.map(migrateItem);
+      S.invoice=inv;
+      S.screen='checklist';
+    }
+  }catch(e){localStorage.removeItem(SK);}
+}
+
+/* PDF EXTRACTION */
+async function handleFile(f){
+  if(!f)return;
+  S.loading=true;S.rawText='';S.parseErr='';render();
+  try{
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const ct=await pg.getTextContent();
+      const rows={};
+      ct.items.forEach(item=>{
+        const y=Math.round(item.transform[5]);
+        if(!rows[y])rows[y]=[];
+        rows[y].push({x:item.transform[4],t:item.str});
+      });
+      Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>{
+        const line=rows[y].sort((a,b)=>a.x-b.x).map(i=>i.t).join(' ').trim();
+        if(line)text+=line+'\n';
+      });
+    }
+    S.rawText=text;
+    const inv=parseMykita(text);
+    if(inv&&inv.items.length>0){S.invoice=inv;S.screen='checklist';save()}
+    else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
+  }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
+  S.loading=false;render();
+}
+
+/* MYKITA PROFORMA INVOICE PARSER
+   Columns: Position Qty Unit Item# Description [ColorCode] CustRef Order# Delivery# [SUN/RX] [Material] HS-Code DE UnitPrice TotalPrice JPY */
+function parseMykita(text){
+  // Invoice number: "Proforma Invoice 5000003270" or "Invoice No. 5000003270"
+  let number='';
+  const nm=text.match(/(?:Proforma\s+Invoice|Invoice\s+No\.?)\s+(\d{7,12})/i);
+  if(nm)number=nm[1];
+
+  // Date: "Date 30.03.2026"
+  let date='';
+  const dm=text.match(/\bDate\s+(\d{1,2}\.\d{1,2}\.\d{4})/i);
+  if(dm)date=dm[1];
+
+  // Item lines: anchor on Delivery# (8-digit, e.g. 81299521) then HS-Code (8-digit), DE, prices, JPY
+  // Columns: Position Qty Unit Item# [Description Color CustomerRef OrderNo] Delivery# [SUN/RX] [Material] HS-Code DE UnitPrice TotalPrice JPY
+  const re=/^[ \t]*(\d{1,2})[ \t]+(\d+)[ \t]+(PC|PA)[ \t]+(\d{8})[ \t]+(.+?)[ \t]+(\d{8})[ \t]+(?:SUN[ \t]+|RX[ \t]+)?(?:metal[ \t]+|acetate[ \t]+|MYLON[ \t]+|plastic[ \t]+)?(\d{8})[ \t]+DE[ \t]+(\d+)[ \t]+\d+[ \t]+JPY/gm;
+  const items=[];
+  let m;
+  while((m=re.exec(text))!==null){
+    const pos=m[1],qty=m[2],unit=m[3],itemNo=m[4];
+    const descRaw=m[5].trim();
+    // m[6]=delivery#, m[7]=HS-Code, m[8]=unitPrice
+    const hsCode=m[7],unitPrice=m[8];
+    // Category from HS code
+    let cat='rx';
+    if(hsCode==='90039000')cat='parts';
+    else if(hsCode==='90041091')cat='sun';
+    // Extract 3-digit color code for non-parts items
+    let name=descRaw,colorCode='';
+    if(cat!=='parts'){
+      // Pattern: description ends with " NNN " where NNN = 3-digit standalone number
+      const cm=descRaw.match(/^(.*?)\s+(\d{3})(?:\s+.*)?$/);
+      if(cm&&!/^\d/.test(cm[1].trim())){name=cm[1].trim();colorCode=cm[2]}
+    } else {
+      // For parts: strip everything from customer-reference keywords onward
+      name=descRaw.replace(/\s+(def |wrong |NURIA |Shop |Personal |C\d{3}\s*\/|\/\s*).*/i,'').trim();
+    }
+    const qtyN=parseInt(qty)||1;
+    if(qtyN<=1){
+      items.push({no:pos,qty:'1',unit,itemNo,name,colorCode,cat,unitPrice,status:'pending',remark:'',subOf:null,subIdx:0,subTotal:1,defects:[newDefect()],stampNo:'',photos:[]});
+    } else {
+      for(let si=1;si<=qtyN;si++){
+        items.push({no:pos+'-'+si,qty:'1',unit,itemNo,name,colorCode,cat,unitPrice,status:'pending',remark:'',subOf:pos,subIdx:si,subTotal:qtyN,defects:[newDefect()],stampNo:'',photos:[]});
+      }
+    }
+  }
+  return{number,date,items};
+}
+
+/* MANUAL ENTRY */
+function applyManual(){
+  const rows=document.querySelectorAll('.mrow');
+  const items=[];
+  rows.forEach((row,i)=>{
+    const no=row.querySelector('.fn').value.trim()||String(i+1);
+    const code=row.querySelector('.fc').value.trim();
+    const name=row.querySelector('.fd').value.trim();
+    if(name)items.push({no,qty:'1',unit:'PC',itemNo:code,name,colorCode:'',cat:'rx',status:'pending',remark:'',subOf:null,subIdx:0,subTotal:1,defects:[newDefect()],stampNo:'',photos:[]});
+  });
+  const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
+  const date=document.getElementById('inp-dt')?.value.trim()||'';
+  S.invoice={number,date,items};S.screen='checklist';save();render();
+}
+function addManRow(){
+  const w=document.getElementById('mrows');
+  const n=w.children.length+1;
+  const d=document.createElement('div');d.className='mrow';
+  d.innerHTML=`<input class="fn" value="${n}"><input class="fc" placeholder="品番"><input class="fd" placeholder="品名・モデル名"><button class="delbtn" onclick="this.parentElement.remove()">×</button>`;
+  w.appendChild(d);
+}
+
+/* STATUS */
+function cycle(no){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const i=STATS.indexOf(it.status);
+    const next=STATS[(i+1)%STATS.length];
+    if(next==='defective') S.pickerOpen[no]=true;
+    else delete S.pickerOpen[no];
+    return{...it,status:next};
+  });
+  save();render();
+}
+function togglePicker(no){
+  const wasOpen=!!S.pickerOpen[no];
+  S.pickerOpen={};
+  if(!wasOpen) S.pickerOpen[no]=true;
+  render();
+}
+function closeAllPickers(){
+  if(!Object.keys(S.pickerOpen).length)return;
+  // Remove empty defect entries (idx>=1) for any open picker
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(!S.pickerOpen[it.no])return it;
+    const cleaned=it.defects.filter((d,i)=>
+      i===0||d.part||d.partOther||d.side||d.cond.length||d.condOther
+    );
+    return syncRemark({...it,defects:cleaned.length?cleaned:[it.defects[0]]});
+  });
+  S.pickerOpen={};
+  save();render();
+}
+function setRemark(no,v){S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,remark:v});save()}
+
+const DEF_PART=['Lens','Front','Clings','Temple'];
+const DEF_SIDE=['L','R','Both'];
+// Conditions per part (single-select part)
+const DEF_COND_MAP={
+  'Lens':    ['Chipped','Scratch','Coating came off'],
+  'Front':   ['Scratch','Coating came off','Bent','Broken'],
+  'Clings':  ['Scratch','Coating came off','Bent','Missing'],
+  'Temple':  ['Scratch','Coating came off','Bent','Broken'],
+  '':        ['Chipped','Scratch','Coating came off','Bent','Broken','Missing'],
+};
+const DEF_COND_JP={
+  'Chipped':          '欠け',
+  'Scratch':          'キズ',
+  'Coating came off': 'コーティング剥がれ',
+  'Bent':             '変形・曲がり',
+  'Broken':           '破損',
+  'Missing':          '欠品',
+};
+
+// idx = index within defects array
+function updDefect(no,idx,fn){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const defects=it.defects.map((d,i)=>i===idx?fn(d):d);
+    return syncRemark({...it,defects});
+  });
+  save();render();
+}
+function toggleDefPart(no,idx,val){
+  updDefect(no,idx,d=>{
+    const newPart=d.part===val?'':val;
+    const valid=DEF_COND_MAP[newPart]||DEF_COND_MAP[''];
+    return {...d,part:newPart,cond:d.cond.filter(c=>valid.includes(c))};
+  });
+}
+function setDefSide(no,idx,val){
+  updDefect(no,idx,d=>({...d,side:d.side===val?'':val}));
+}
+function toggleDefCond(no,idx,val){
+  updDefect(no,idx,d=>{
+    const cond=d.cond.includes(val)?d.cond.filter(v=>v!==val):[...d.cond,val];
+    return{...d,cond};
+  });
+}
+function toggleDefPartOther(no,idx){
+  updDefect(no,idx,d=>({...d,partOther:d.partOther===null?'':null}));
+}
+function setDefPartOther(no,idx,v){
+  updDefect(no,idx,d=>({...d,partOther:v}));
+}
+function toggleDefCondOther(no,idx){
+  updDefect(no,idx,d=>({...d,condOther:d.condOther===null?'':null}));
+}
+function setDefCondOther(no,idx,v){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const defects=it.defects.map((d,i)=>i===idx?{...d,condOther:v}:d);
+    return syncRemark({...it,defects});
+  });
+  save();
+}
+function addDefect(no){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    return syncRemark({...it,defects:[...it.defects,newDefect()]});
+  });
+  save();render();
+}
+function removeDefect(no,idx){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const defects=it.defects.filter((_,i)=>i!==idx);
+    return syncRemark({...it,defects:defects.length?defects:[newDefect()]});
+  });
+  save();render();
+}
+function clearDefect(no){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    return syncRemark({...it,defects:[newDefect()]});
+  });
+  save();render();
+}
+function syncRemark(it){
+  const parts=it.defects.map(d=>{
+    const partStr=d.part||(d.partOther||'');
+    const loc=partStr?(d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
+    const conds=[...d.cond,...(d.condOther?[d.condOther]:[])];
+    return[loc,conds.join(', ')].filter(Boolean).join(' / ');
+  }).filter(Boolean);
+  return{...it,remark:parts.join(' | ')};
+}
+
+/* STAMP PHASE */
+function goToStamp(){
+  S.screen='stamp';
+  render();
+}
+function setStampNo(no,v){
+  S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,stampNo:v});
+  // update filled class live without full re-render
+  const inp=document.getElementById('si-'+no);
+  if(inp) inp.className='stamp-inp'+(v.trim()?' filled':'');
+  save();
+}
+function stampAllFilled(){
+  const defs=S.invoice.items.filter(i=>i.status==='defective');
+  return defs.length>0 && defs.every(i=>i.stampNo&&i.stampNo.trim());
+}
+
+/* EMAIL */
+function buildEmail(){
+  const inv=S.invoice;
+  const defs=inv.items.filter(i=>i.status==='defective');
+  const blocks=defs.map(it=>{
+    const posLabel=it.subOf?`${it.subOf}-${it.subIdx}`:it.no;
+    return [
+      `Position Number/Item : ${posLabel} / ${it.name}`,
+      `Stamp Number: ${it.stampNo||it.itemNo||''}`,
+      `Color Number/ID Number : ${it.colorCode||''}`,
+      `Defective Parts/Conditions : ${it.remark||''}`,
+    ].join('\n');
+  }).join('\n\n');
+  S.emailTo='Diana.Schwarz@mykita.com';
+  S.emailSubj=`Defective Items – Invoice No. ${inv.number}`;
+  S.emailBody=[
+    'Hello Diana-san',
+    '',
+    `I would like to report defective items listed on invoice No. ${inv.number}`,
+    '',
+    blocks,
+    '',
+    'The defective parts are shown in the pictures attached at file section.',
+    'Please confirm.',
+    '',
+    '',
+    'Thank you',
+    'MYKITA Osaka',
+  ].join('\n');
+  S.showEmail=true;render();
+}
+function openMailto(){
+  const s=g('em-s')?.value||S.emailSubj,b=g('em-b')?.value||S.emailBody,t=g('em-t')?.value||'';
+  window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
+}
+function copyEmail(){
+  const b=g('em-b')?.value||S.emailBody;
+  navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='COPY',1500)}});
+}
+function resetApp(){localStorage.removeItem(SK);S={...S,screen:'upload',invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,filter:'ALL'};render()}
+function g(id){return document.getElementById(id)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+/* DEFECT PICKER HTML */
+function defEntryHtml(no,d,idx,total){
+  const partOtherOn=d.partOther!==null&&d.partOther!==undefined;
+  const condOtherOn=d.condOther!==null&&d.condOther!==undefined;
+  return `<div class="dpick-entry">
+    ${total>1
+      ?`<div class="dpick-entry-hd">
+        <span class="dpick-entry-num">defect ${idx+1}</span>
+        <button class="dpick-del" onclick="removeDefect('${no}',${idx})">× remove</button>
+      </div>`
+      :`<div class="dpick-entry-hd">
+        <span class="dpick-entry-num"></span>
+        <button class="dpick-del" onclick="clearDefect('${no}')">× clear</button>
+      </div>`
+    }
+    <div class="dpick-row">
+      <div class="dpick-label">PART</div>
+      <div class="dpick-pills">
+        ${DEF_PART.map(v=>`<span class="pill${d.part===v?' sel':''}" onclick="toggleDefPart('${no}',${idx},'${v}')">${v}</span>`).join('')}
+        <span class="pill-other${partOtherOn?' sel':''}" onclick="toggleDefPartOther('${no}',${idx})">Other</span>
+      </div>
+      ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)"></div>`:''}
+    </div>
+    <div class="dpick-row">
+      <div class="dpick-label">SIDE</div>
+      <div class="dpick-pills">
+        ${DEF_SIDE.map(v=>`<span class="pill${d.side===v?' sel':''}" onclick="setDefSide('${no}',${idx},'${v}')">${v}</span>`).join('')}
+      </div>
+    </div>
+    <div class="dpick-row" style="margin-bottom:0">
+      <div class="dpick-label">CONDITION</div>
+      <div class="dpick-pills">
+        ${(DEF_COND_MAP[d.part]||DEF_COND_MAP['']).map(v=>`<span class="pill-wrap"><span class="pill${d.cond.includes(v)?' sel':''}" onclick="toggleDefCond('${no}',${idx},'${v}')">${v}</span><span class="pill-tip">${DEF_COND_JP[v]||''}</span></span>`).join('')}
+        <span class="pill-wrap"><span class="pill-other${condOtherOn?' sel':''}" onclick="toggleDefCondOther('${no}',${idx})">Other</span><span class="pill-tip">その他</span></span>
+      </div>
+      ${condOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.condOther||'')}" placeholder="e.g. Bent, Missing part..." oninput="setDefCondOther('${no}',${idx},this.value)"></div>`:''}
+    </div>
+  </div>`;
+}
+function defPickerHtml(it){
+  const no=it.no;
+  const defects=it.defects||[newDefect()];
+  return `<div class="dpick">
+    ${defects.map((d,i)=>defEntryHtml(no,d,i,defects.length)).join('<div class="dpick-divider"></div>')}
+    <button class="dpick-add" onclick="addDefect('${no}')">+ Add another defect</button>
+    ${it.remark?`<div style="margin-top:10px;font-size:11px;color:var(--red);font-weight:500;letter-spacing:.3px">▸ ${esc(it.remark)}</div>`:''}
+  </div>`;
+}
+
+/* DEFECT AREA: collapsed inline or expanded picker */
+function defAreaHtml(it){
+  const no=it.no;
+  const isOpen=!!S.pickerOpen[no];
+  const photos=it.photos||[];
+  const photoHtml=photos.length?`
+    <div class="photo-strip">
+      ${photos.map((src,i)=>`
+        <div class="photo-thumb-wrap">
+          <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
+          <button class="photo-del" onclick="event.stopPropagation();removePhoto('${no}',${i})">×</button>
+        </div>`).join('')}
+      <label class="photo-add-btn" onclick="event.stopPropagation()">
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto('${no}',this.files[0]);this.value=''">
+        +
+      </label>
+    </div>`:``;
+  if(isOpen){
+    return defPickerHtml(it)+`
+      <div class="photo-section" onclick="event.stopPropagation()">
+        <div class="photo-section-lbl">PHOTOS</div>
+        <div class="photo-strip">
+          ${photos.map((src,i)=>`
+            <div class="photo-thumb-wrap">
+              <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
+              <button class="photo-del" onclick="removePhoto('${no}',${i})">×</button>
+            </div>`).join('')}
+          <label class="photo-add-btn">
+            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto('${no}',this.files[0]);this.value=''">
+            +
+          </label>
+        </div>
+      </div>`;
+  }
+  const txt=it.remark||'';
+  return `<div class="def-inline" onclick="togglePicker('${no}')">
+    ${txt
+      ?`<span class="def-inline-txt">▸ ${esc(txt)}</span>`
+      :`<span class="def-inline-empty">Tap to add details...</span>`
+    }
+    <button class="def-inline-edit" onclick="event.stopPropagation();togglePicker('${no}')">EDIT</button>
+  </div>
+  ${photoHtml}`;
+}
+function viewPhoto(no,idx){
+  const it=S.invoice.items.find(i=>i.no===no);
+  if(!it)return;
+  openMarkup(no,idx);
+}
+function openMarkup(no,idx){
+  const it=S.invoice.items.find(i=>i.no===no);
+  if(!it)return;
+  // Build auto-label: position + first word of name
+  const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
+  const modelName=(it.name||'').split(' ')[0];
+  const autoLabel=pos+'.'+modelName;
+  S.markup={no,idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel};
+  S.viewPhoto=null;
+  render();
+  requestAnimationFrame(initMarkupCanvas);
+}
+
+/* PHOTOS */
+async function capturePhoto(no){
+  // Use file input trick for iOS camera
+  const inp=document.getElementById('cam-'+no);
+  if(inp) inp.click();
+}
+async function handlePhoto(no, file){
+  if(!file)return;
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    const MAX=1600;
+    let w=img.width,h=img.height;
+    if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+    if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    const b64=canvas.toDataURL('image/jpeg',0.9);
+    URL.revokeObjectURL(url);
+    // Open markup editor
+    S.markup={no, photoIdx:null, src:b64, tool:'circle', strokes:[], textPos:null};
+    render();
+    requestAnimationFrame(()=>initMarkupCanvas());
+  };
+  img.src=url;
+}
+function openMarkupForExisting(no,idx){
+  const it=S.invoice.items.find(i=>i.no===no);
+  if(!it||!it.photos[idx])return;
+  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],textPos:null};
+  S.viewPhoto=null;
+  render();
+  requestAnimationFrame(()=>initMarkupCanvas());
+}
+function removePhoto(no,pidx){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    return{...it,photos:(it.photos||[]).filter((_,i)=>i!==pidx)};
+  });
+  save();render();
+}
+
+/* MARKUP EDITOR */
+let MU={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,scale:1,offX:0,offY:0};
+
+function initMarkupCanvas(){
+  const canvas=document.getElementById('mu-canvas');
+  if(!canvas||!S.markup)return;
+  MU.canvas=canvas;
+  MU.ctx=canvas.getContext('2d');
+  const img=new Image();
+  img.onload=()=>{
+    MU.img=img;
+    // Fit canvas to screen
+    const wrap=canvas.parentElement;
+    const maxW=wrap.clientWidth;
+    const maxH=wrap.clientHeight;
+    const scale=Math.min(maxW/img.width, maxH/img.height, 1);
+    canvas.width=img.width;
+    canvas.height=img.height;
+    canvas.style.width=Math.round(img.width*scale)+'px';
+    canvas.style.height=Math.round(img.height*scale)+'px';
+    MU.scale=scale;
+    drawMarkup();
+  };
+  img.src=S.markup.src;
+
+  // Touch events
+  canvas.addEventListener('touchstart',muTouchStart,{passive:false});
+  canvas.addEventListener('touchmove',muTouchMove,{passive:false});
+  canvas.addEventListener('touchend',muTouchEnd,{passive:false});
+  // Mouse events for desktop testing
+  canvas.addEventListener('mousedown',e=>muTouchStart({touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:()=>{}}));
+  canvas.addEventListener('mousemove',e=>{if(MU.drawing)muTouchMove({touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:()=>{}})});
+  canvas.addEventListener('mouseup',e=>muTouchEnd({changedTouches:[{clientX:e.clientX,clientY:e.clientY}]}));
+}
+
+function muCoord(touch){
+  const rect=MU.canvas.getBoundingClientRect();
+  return{
+    x:(touch.clientX-rect.left)/MU.scale,
+    y:(touch.clientY-rect.top)/MU.scale
+  };
+}
+
+function muTouchStart(e){
+  e.preventDefault();
+  if(S.markup.tool==='text'){
+    const {x,y}=muCoord(e.touches[0]);
+    S.markup.textInput={x,y,text:S.markup.autoLabel||''};
+    render();
+    requestAnimationFrame(()=>{
+      const inp=document.getElementById('mu-text-inp');
+      if(inp){inp.focus();inp.select();}
+    });
+    return;
+  }
+  const {x,y}=muCoord(e.touches[0]);
+  MU.drawing=true;
+  MU.startX=x; MU.startY=y;
+}
+function muTouchMove(e){
+  e.preventDefault();
+  if(!MU.drawing)return;
+  const {x,y}=muCoord(e.touches[0]);
+  MU.curX=x; MU.curY=y;
+  drawMarkup({preview:{x,y}});
+}
+function muTouchEnd(e){
+  if(!MU.drawing)return;
+  MU.drawing=false;
+  const {x,y}=muCoord(e.changedTouches[0]);
+  const dx=x-MU.startX, dy=y-MU.startY;
+  const r=Math.sqrt(dx*dx+dy*dy);
+  if(r>8){
+    S.markup.annotations.push({type:"circle",cx:MU.startX,cy:MU.startY,r});
+  }
+  drawMarkup();
+}
+
+function drawMarkup(opts){
+  const ctx=MU.ctx;
+  if(!ctx||!MU.img)return;
+  ctx.clearRect(0,0,MU.canvas.width,MU.canvas.height);
+  ctx.drawImage(MU.img,0,0);
+  const COLOR="#ef5350";
+  ctx.strokeStyle=COLOR; ctx.fillStyle=COLOR; ctx.lineWidth=4;
+  const fontSize=Math.max(36, Math.round(MU.img.width*0.045));
+  ctx.font="bold "+fontSize+"px Montserrat, Arial, sans-serif";
+  ctx.shadowColor="rgba(0,0,0,0.6)"; ctx.shadowBlur=8;
+  (S.markup.annotations||[]).forEach(a=>{
+    if(a.type==="circle"){
+      ctx.lineWidth=Math.max(4,Math.round(MU.img.width*0.006)); ctx.beginPath(); ctx.arc(a.cx,a.cy,a.r,0,Math.PI*2); ctx.stroke();
+    } else if(a.type==="text"){
+      ctx.fillText(a.text,a.x,a.y);
+    }
+  });
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0;
+  if(opts?.preview&&MU.drawing){
+    const dx=opts.preview.x-MU.startX,dy=opts.preview.y-MU.startY;
+    const r=Math.sqrt(dx*dx+dy*dy);
+    ctx.globalAlpha=0.6;
+    ctx.beginPath(); ctx.arc(MU.startX,MU.startY,r,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+
+function muSetTool(t){
+  S.markup.tool=t;
+  S.markup.textInput=null;
+  render();
+  requestAnimationFrame(initMarkupCanvas);
+}
+function muUndo(){
+  if(S.markup.annotations.length) S.markup.annotations.pop();
+  drawMarkup();
+}
+function muConfirmText(){
+  const ti=S.markup.textInput;
+  if(ti&&ti.text.trim()){
+    S.markup.annotations.push({type:"text",x:ti.x,y:ti.y+24,text:ti.text});
+  }
+  S.markup.textInput=null;
+  render();
+  requestAnimationFrame(initMarkupCanvas);
+}
+function muSave(){
+  drawMarkup();
+  const b64=MU.canvas.toDataURL("image/jpeg",0.9);
+  const {no,idx}=S.markup;
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const photos=[...(it.photos||[])];
+    photos[idx]=b64;
+    return{...it,photos};
+  });
+  save();
+  S.markup=null;
+  render();
+}
+function muClose(){S.markup=null;render();}
+
+/* RENDER */
+function render(){
+  const inv=S.invoice;
+  const pend=inv?inv.items.filter(i=>i.status==='pending').length:0;
+  const ok=inv?inv.items.filter(i=>i.status==='ok').length:0;
+  const def=inv?inv.items.filter(i=>i.status==='defective').length:0;
+  const war=inv?inv.items.filter(i=>i.status==='warranty').length:0;
+  const tot=inv?inv.items.length:0;
+  const prg=tot>0?Math.round(((tot-pend)/tot)*100):0;
+  const vis=inv?inv.items.filter(it=>{
+    if(S.filter==='ALL')return true;
+    if(S.filter==='PEND')return it.status==='pending';
+    if(S.filter==='OK')return it.status==='ok';
+    if(S.filter==='DEF')return it.status==='defective';
+    if(S.filter==='WAR')return it.status==='warranty';
+    return true;
+  }):[];
+  const defItems=inv?inv.items.filter(i=>i.status==='defective'):[];
+  const warItems=inv?inv.items.filter(i=>i.status==='warranty'):[];
+  const FILTERS=[['ALL','全て'],['PEND','未確認'],['OK','OK'],['DEF','D'],['WAR','W']];
+
+  let body='';
+
+  // UPLOAD
+  if(S.screen==='upload'){
+    body=`
+      <div class="upzone">
+        <input type="file" accept=".pdf" onchange="handleFile(this.files[0])">
+        <div class="up-icon">📄</div>
+        <div class="up-tit">PROFORMA INVOICE PDF</div>
+        <div class="up-sub">タップしてファイルを選択</div>
+      </div>
+      ${S.loading?`<div class="lbar"><div class="lfill"></div></div><div class="ltxt">解析中...</div>`:''}
+      ${S.parseErr?`<div class="alert">${S.parseErr}</div>`:''}`;
+  }
+
+  // MANUAL PARSE
+  if(S.screen==='parsing'){
+    body=`
+      ${S.rawText?`<details class="raw"><summary>▶ 抽出テキスト（確認用）</summary><div class="rawbox">${esc(S.rawText.slice(0,1500))}</div></details>`:''}
+      ${S.parseErr?`<div class="alert">${S.parseErr}</div>`:''}
+      <div class="mpanel">
+        <h3>インボイス情報</h3>
+        <div class="mfield"><label>INVOICE NO.</label><input id="inp-no" type="text" placeholder="例: 5000003270"></div>
+        <div class="mfield"><label>DATE</label><input id="inp-dt" type="text" placeholder="例: 30.03.2026"></div>
+        <h3 style="margin-top:20px">品目リスト</h3>
+        <div id="mrows">${Array.from({length:5},(_,i)=>`<div class="mrow"><input class="fn" value="${i+1}"><input class="fc" placeholder="品番"><input class="fd" placeholder="品名・モデル名"><button class="delbtn" onclick="this.parentElement.remove()">×</button></div>`).join('')}</div>
+        <button class="btn out" onclick="addManRow()">＋ 追加</button>
+        <button class="btn blk" onclick="applyManual()">チェックリストを作成</button>
+      </div>`;
+  }
+
+  // STAMP INPUT SCREEN
+  if(S.screen==='stamp'&&inv){
+    const defs=inv.items.filter(i=>i.status==='defective');
+    const filled=defs.filter(i=>i.stampNo&&i.stampNo.trim()).length;
+    body=`
+      <div style="padding:20px 20px 4px;display:flex;align-items:baseline;justify-content:space-between">
+        <div>
+          <div style="font-size:9px;letter-spacing:3px;color:var(--g400)">STEP 2 OF 3</div>
+          <div style="font-size:16px;font-weight:500;letter-spacing:1px;margin-top:2px">Stamp Numbers</div>
+        </div>
+        <div style="font-size:11px;color:var(--g600)">${filled}/${defs.length} 入力済</div>
+      </div>
+      <div style="padding:8px 20px 16px">
+        <div style="height:2px;background:var(--g200);border-radius:1px">
+          <div style="height:100%;background:var(--green);border-radius:1px;width:${defs.length?Math.round(filled/defs.length*100):0}%;transition:width .3s"></div>
+        </div>
+      </div>
+      ${defs.map(it=>{
+        const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
+        const filled2=it.stampNo&&it.stampNo.trim();
+        return `<div class="stamp-card">
+          <div class="stamp-card-hd">
+            <div class="stamp-pos">${pos}.</div>
+            <div class="stamp-name">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
+          </div>
+          ${it.remark?`<div class="stamp-remark">▸ ${esc(it.remark)}</div>`:''}
+          <div class="stamp-field">
+            <label>STAMP NO.</label>
+            <input id="si-${it.no}" class="stamp-inp${filled2?' filled':''}" type="text"
+              inputmode="numeric" value="${esc(it.stampNo||'')}"
+              placeholder="例: 123456"
+              oninput="setStampNo('${it.no}',this.value)">
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="padding:0 20px 8px">
+        <button class="btn blk" onclick="buildEmail()" ${stampAllFilled()?'':'style="opacity:.45"'}>✉ メール下書きを作成</button>
+        ${!stampAllFilled()?'<div style="text-align:center;font-size:10px;color:var(--g400);margin-top:8px;letter-spacing:1px">全項目のスタンプ番号を入力してください</div>':''}
+        <button class="btn out" onclick="buildEmail()" style="margin-top:6px">スキップしてメール作成</button>
+      </div>`;
+  }
+
+  // CHECKLIST
+  if(S.screen==='checklist'&&inv){
+    body=`
+      <div class="nlz"><input type="file" accept=".pdf" onchange="handleFile(this.files[0])"><span>📄 別のPDFを読み込む</span></div>
+      <div class="inv-hdr">
+        <div class="inv-row"><div class="inv-no">${esc(inv.number)}</div><div class="inv-ct">${tot} ITEMS</div></div>
+        ${inv.date?`<div class="inv-dt">${esc(inv.date)}</div>`:''}
+      </div>
+      <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${prg}%"></div></div></div>
+      <div class="stats">
+        <div class="stat pend"><div class="stat-n">${pend}</div><div class="stat-l">未確認</div></div>
+        <div class="stat ok"><div class="stat-n">${ok}</div><div class="stat-l">OK</div></div>
+        <div class="stat def"><div class="stat-n">${def}</div><div class="stat-l">D</div></div>
+        <div class="stat war"><div class="stat-n">${war}</div><div class="stat-l">W</div></div>
+      </div>
+      <div class="tabs">${FILTERS.map(([k,l])=>`<div class="tab${S.filter===k?' act':''}" onclick="S.filter='${k}';render()">${l}</div>`).join('')}</div>
+      <div class="cl">
+        ${(()=>{
+          let html='';
+          vis.forEach(it=>{
+            const sc=SCLS[it.status]||'';
+            const catTag=it.cat==='parts'?`<span class="tag parts">PARTS</span>`:it.cat==='sun'?`<span class="tag sun">SUN</span>`:`<span class="tag rx">RX</span>`;
+            // GROUP HEADER for first sub-item of a multi-qty set
+            if(it.subOf!==null && it.subIdx===1){
+              html+=`<div class="grp-hdr">
+                <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="grp-hdr-name">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
+                  <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点</div>
+                </div>
+                <div class="grp-hdr-tags">${catTag}</div>
+              </div>`;
+            }
+            // SUB-ITEM (part of multi-qty group)
+            if(it.subOf!==null){
+              html+=`<div class="sub-item">
+                <div class="sub-item-row">
+                  <div class="sub-bar"></div>
+                  <div class="sub-idx">${it.subIdx}/${it.subTotal}</div>
+                  <button class="sbtn ${sc}" style="margin-left:auto" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
+                </div>
+                ${it.status==='defective'?defAreaHtml(it):''}
+              </div>`;
+            } else {
+              // NORMAL SINGLE ITEM
+              html+=`<div class="item">
+                <div class="item-row">
+                  <div class="item-no">${it.no}</div>
+                  <div class="item-body">
+                    <div class="item-tags">${catTag}</div>
+                    <div class="item-name">${esc(it.name)}</div>
+                    <div class="item-code">${esc(it.itemNo)}${it.colorCode?' · #'+it.colorCode:''}</div>
+                  </div>
+                  <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
+                </div>
+                ${it.status==='defective'?defAreaHtml(it):''}
+              </div>`;
+            }
+          });
+          return html;
+        })()}
+      </div>
+      ${def>0?`<div class="def-sum">
+        <div class="def-sum-tit">DEFECTIVE — ${def}</div>
+        ${defItems.map(it=>`<div class="def-li"><div class="def-li-hd"><span class="def-li-no">${it.no}.</span>${esc(it.name)}${it.colorCode?' #'+it.colorCode:''}</div>${it.remark?`<div class="def-li-rm">▸ ${esc(it.remark)}</div>`:''}</div>`).join('')}
+        <button class="btn blk" onclick="goToStamp()">→ スタンプ番号を入力</button>
+      </div>`:''}
+      ${war>0?`<div class="war-sum">
+        <div class="war-sum-tit">保証交換品 — ${war}</div>
+        ${warItems.map(it=>`<div class="war-li"><span class="war-li-no">${it.no}.</span><span>${esc(it.name)}${it.colorCode?' #'+it.colorCode:''}</span></div>`).join('')}
+      </div>`:''}
+      ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}`;
+  }
+
+  const emailModal=S.showEmail?`
+    <div class="overlay" onclick="if(event.target===this){S.showEmail=false;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">✉ EMAIL DRAFT<button class="close-btn" onclick="S.showEmail=false;render()">×</button></div>
+        <div style="margin-bottom:14px;padding:10px 12px;background:var(--redL);border-radius:4px">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:8px">DEFECTIVE — ${inv.items.filter(i=>i.status==='defective').length} ITEMS</div>
+          ${inv.items.filter(i=>i.status==='defective').map(it=>{
+            const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
+            const pc=(it.photos||[]).length;return `<div style="font-size:11px;margin-bottom:4px;color:#000"><span style="color:var(--g400);margin-right:6px">${pos}.</span><b>${esc(it.name)}</b>${it.remark?'<span style="color:var(--red)"> · '+esc(it.remark)+'</span>':' <span style="color:var(--redM);font-style:italic">no details</span>'}${pc?'<span style="color:var(--g400);font-size:10px;margin-left:6px">📷×'+pc+'</span>':''}</div>`;
+          }).join('')}
+        </div>
+        <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="Diana.Schwarz@mykita.com"></div>
+        <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>
+        <div class="ef"><label>BODY</label><textarea id="em-b" style="min-height:320px">${esc(S.emailBody)}</textarea></div>
+        <div class="eacts">
+          <button class="btn blk" onclick="openMailto()">Outlookで開く</button>
+          <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
+        </div>
+      </div>
+    </div>`:'';
+
+  const anyPickerOpen=Object.keys(S.pickerOpen).length>0;
+  const pickerBackdrop=anyPickerOpen
+    ?`<div style="position:fixed;inset:0;z-index:50;background:transparent" onclick="closeAllPickers()"></div>`
+    :'';
+  const photoViewer=S.viewPhoto
+    ?`<div class="photo-viewer">
+        <button class="photo-viewer-close" onclick="S.viewPhoto=null;render()">×</button>
+        <img src="${S.viewPhoto.src}">
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="photo-viewer-del" style="background:#333;color:#fff" onclick="openMarkupForExisting('${S.viewPhoto.no}',${S.viewPhoto.idx})">✏ MARKUP</button>
+          <button class="photo-viewer-del" onclick="removePhoto('${S.viewPhoto.no}',${S.viewPhoto.idx});S.viewPhoto=null;render()">× DELETE</button>
+        </div>
+      </div>`
+    :'';
+  const markupEditor=S.markup
+    ?`<div class="mkup">
+        <div class="mkup-toolbar">
+          <button class="mkup-tbtn" onclick="cancelMarkup()">✕</button>
+          <div class="mkup-title">MARKUP</div>
+          <button class="mkup-tbtn" style="opacity:0;pointer-events:none">✕</button>
+        </div>
+        <div class="mkup-canvas-wrap" id="mkup-wrap">
+          <canvas id="mkup-canvas"></canvas>
+        </div>
+        <div class="mkup-tools">
+          <button class="mkup-tool${S.markup.tool==='circle'?' active':''}" onclick="setMarkupTool('circle')">◯</button>
+          <button class="mkup-tool${S.markup.tool==='text'?' active':''}" onclick="setMarkupTool('text')">T</button>
+          <button class="mkup-undo" onclick="undoMarkup()">↩</button>
+          <button class="mkup-done" onclick="doneMarkup()">DONE</button>
+        </div>
+        <input class="mkup-text-input" id="mkup-text-inp" type="text" enterkeyhint="done">
+      </div>`
+    :'';
+  document.getElementById('app').innerHTML=`
+    <div class="hdr">
+      <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
+      <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()" title="戻る">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="resetApp()">✕</button>`:''}</div>
+    </div>
+    ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}`;
+}
+
+load();render();
+
+/* ────── MARKUP CANVAS ENGINE ────── */
+let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,snapshot:null};
+
+function initMarkupCanvas(){
+  const canvas=document.getElementById('mkup-canvas');
+  if(!canvas||!S.markup)return;
+  MK.canvas=canvas;
+  MK.ctx=canvas.getContext('2d');
+  const img=new Image();
+  img.onload=()=>{
+    MK.img=img;
+    // fit canvas to wrap
+    const wrap=document.getElementById('mkup-wrap');
+    const maxW=wrap.clientWidth, maxH=wrap.clientHeight;
+    const scale=Math.min(maxW/img.width, maxH/img.height, 1);
+    canvas.width=img.width;
+    canvas.height=img.height;
+    canvas.style.width=Math.round(img.width*scale)+'px';
+    canvas.style.height=Math.round(img.height*scale)+'px';
+    redrawMarkup();
+    addMarkupEvents();
+  };
+  img.src=S.markup.src;
+}
+
+function redrawMarkup(){
+  const {ctx,canvas,img}=MK;
+  if(!ctx||!img)return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0);
+  const strokes=S.markup.strokes||[];
+  strokes.forEach(s=>{
+    ctx.strokeStyle='#e53935';
+    ctx.fillStyle='#e53935';
+    ctx.lineWidth=Math.max(3,canvas.width/120);
+    ctx.lineCap='round';
+    if(s.type==='circle'){
+      ctx.beginPath();
+      ctx.ellipse(s.cx,s.cy,s.rx,s.ry,0,0,Math.PI*2);
+      ctx.stroke();
+    } else if(s.type==='text'){
+      const fs=Math.max(24,canvas.width/22);
+      ctx.font=`bold ${fs}px Montserrat, sans-serif`;
+      ctx.fillText(s.text,s.x,s.y);
+    }
+  });
+}
+
+function getPos(e){
+  const canvas=MK.canvas;
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  const src=e.touches?e.touches[0]:e;
+  return{x:(src.clientX-rect.left)*scaleX, y:(src.clientY-rect.top)*scaleY};
+}
+
+function addMarkupEvents(){
+  const canvas=MK.canvas;
+  if(!canvas)return;
+  // remove old listeners by cloning
+  const nc=canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(nc,canvas);
+  MK.canvas=nc;
+
+  const onStart=e=>{
+    if(!S.markup)return;
+    e.preventDefault();
+    const pos=getPos(e);
+    if(S.markup.tool==='circle'){
+      MK.drawing=true;
+      MK.startX=pos.x; MK.startY=pos.y;
+      MK.snapshot=MK.ctx.getImageData(0,0,nc.width,nc.height);
+    } else if(S.markup.tool==='text'){
+      S.markup.textPos=pos;
+      const inp=document.getElementById('mkup-text-inp');
+      if(inp){inp.style.left='50%';inp.style.top='50%';inp.style.opacity='1';inp.style.pointerEvents='auto';inp.value='';inp.focus();}
+    }
+  };
+  const onMove=e=>{
+    if(!MK.drawing||S.markup.tool!=='circle')return;
+    e.preventDefault();
+    const pos=getPos(e);
+    const rx=Math.abs(pos.x-MK.startX)/2, ry=Math.abs(pos.y-MK.startY)/2;
+    const cx=(pos.x+MK.startX)/2, cy=(pos.y+MK.startY)/2;
+    // redraw from snapshot
+    MK.ctx.putImageData(MK.snapshot,0,0);
+    MK.ctx.strokeStyle='#e53935';
+    MK.ctx.lineWidth=Math.max(3,nc.width/120);
+    MK.ctx.beginPath();
+    MK.ctx.ellipse(cx,cy,Math.max(rx,8),Math.max(ry,8),0,0,Math.PI*2);
+    MK.ctx.stroke();
+  };
+  const onEnd=e=>{
+    if(!MK.drawing||S.markup.tool!=='circle')return;
+    e.preventDefault();
+    MK.drawing=false;
+    const pos=getPos(e.changedTouches?{touches:e.changedTouches}:e);
+    const rx=Math.abs(pos.x-MK.startX)/2||8, ry=Math.abs(pos.y-MK.startY)/2||8;
+    const cx=(pos.x+MK.startX)/2, cy=(pos.y+MK.startY)/2;
+    S.markup.strokes.push({type:'circle',cx,cy,rx:Math.max(rx,8),ry:Math.max(ry,8)});
+    redrawMarkup();
+  };
+
+  nc.addEventListener('touchstart',onStart,{passive:false});
+  nc.addEventListener('touchmove',onMove,{passive:false});
+  nc.addEventListener('touchend',onEnd,{passive:false});
+  nc.addEventListener('mousedown',onStart);
+  nc.addEventListener('mousemove',onMove);
+  nc.addEventListener('mouseup',onEnd);
+
+  // Text input confirm
+  const inp=document.getElementById('mkup-text-inp');
+  if(inp){
+    inp.onkeydown=e=>{
+      if(e.key==='Enter'){confirmMarkupText();inp.blur();}
+    };
+    inp.onblur=()=>{
+      if(inp.value.trim()) confirmMarkupText();
+      inp.style.left='-9999px';inp.style.opacity='0';inp.style.pointerEvents='none';
+    };
+  }
+  MK.ctx=nc.getContext('2d');
+  redrawMarkup();
+}
+
+function confirmMarkupText(){
+  const inp=document.getElementById('mkup-text-inp');
+  const txt=inp?inp.value.trim():'';
+  if(!txt||!S.markup.textPos)return;
+  S.markup.strokes.push({type:'text',text:txt,x:S.markup.textPos.x,y:S.markup.textPos.y});
+  S.markup.textPos=null;
+  redrawMarkup();
+}
+
+function setMarkupTool(tool){
+  S.markup.tool=tool;
+  render();
+  requestAnimationFrame(()=>initMarkupCanvas());
+}
+function undoMarkup(){
+  if(S.markup&&S.markup.strokes.length){S.markup.strokes.pop();redrawMarkup();}
+}
+function doneMarkup(){
+  if(!MK.canvas||!S.markup)return;
+  const b64=MK.canvas.toDataURL('image/jpeg',0.85);
+  const {no,photoIdx}=S.markup;
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    const photos=[...(it.photos||[])];
+    if(photoIdx===null) photos.push(b64);
+    else photos[photoIdx]=b64;
+    return{...it,photos};
+  });
+  S.markup=null;
+  save();render();
+}
+function cancelMarkup(){
+  S.markup=null;
+  render();
+}
+</script>
+</body>
+</html>

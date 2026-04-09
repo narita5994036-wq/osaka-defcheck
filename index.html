@@ -208,18 +208,16 @@
   .mkup-tbtn:active{background:#333}
   .mkup-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .mkup-canvas-wrap canvas{max-width:100%;max-height:100%;touch-action:none}
-  .mkup-tools{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px max(12px,env(safe-area-inset-bottom));background:#1a1a1a;flex-shrink:0}
-  .mkup-tool{padding:10px 18px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;min-width:56px}
-  .mkup-tool.active{border-color:#e53935;color:#fff;background:#e53935}
-  .mkup-tool:active{opacity:.7}
-  .mkup-done{padding:10px 24px;border-radius:6px;border:none;background:#fff;color:#000;font-size:11px;letter-spacing:2px;font-weight:600;cursor:pointer;font-family:inherit}
-  .mkup-done:active{opacity:.8}
-  .mkup-undo{padding:10px 14px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer}
-  .mkup-text-input{position:fixed;left:-9999px;top:0;font-size:16px;opacity:0;pointer-events:none}
   .mkup-label-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#222;flex-shrink:0;border-top:1px solid #333}
-  .mkup-label-lbl{font-size:9px;letter-spacing:2px;color:#666;flex-shrink:0;white-space:nowrap}
+  .mkup-label-lbl{font-size:9px;letter-spacing:2px;color:#666;flex-shrink:0}
   .mkup-label-inp{flex:1;background:#1a1a1a;border:1.5px solid #444;color:#ef5350;font-size:16px;font-weight:600;padding:8px 12px;border-radius:6px;outline:none;font-family:inherit}
   .mkup-label-inp:focus{border-color:#ef5350}
+  .mkup-actions{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px max(12px,env(safe-area-inset-bottom));background:#1a1a1a;flex-shrink:0}
+  .mkup-undo{padding:10px 20px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500}
+  .mkup-undo:active{opacity:.7}
+  .mkup-done{padding:10px 32px;border-radius:6px;border:none;background:#fff;color:#000;font-size:11px;letter-spacing:2px;font-weight:600;cursor:pointer;font-family:inherit}
+  .mkup-done:active{opacity:.8}
+  .mkup-hint{text-align:center;font-size:10px;color:#444;letter-spacing:1px;padding:6px 16px 0;background:#1a1a1a;flex-shrink:0}
   /* PHOTO VIEWER */
   .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .photo-viewer img{max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px}
@@ -681,10 +679,9 @@ function viewPhoto(no,idx){
 function openMarkup(no,idx){
   const it=S.invoice.items.find(i=>i.no===no);
   if(!it)return;
-  // Build auto-label: position + first word of name
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
   const autoLabel=pos+'.'+( it.name||'');
-  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',annotations:[],textInput:null,autoLabel,selectedIdx:null,dragStart:null,strokes:[],_sel:null};
+  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],autoLabel,_sel:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
@@ -722,8 +719,10 @@ async function handlePhoto(no, file){
     canvas.getContext('2d').drawImage(img,0,0,w,h);
     const b64=canvas.toDataURL('image/jpeg',0.9);
     URL.revokeObjectURL(url);
-    // Open markup editor
-    S.markup={no, photoIdx:null, src:b64, tool:'circle', strokes:[], textPos:null};
+    // Open markup editor with auto-label
+    const _it=S.invoice.items.find(i=>i.no===no);
+    const _pos=_it?((_it.subOf?_it.subOf+'-'+_it.subIdx:_it.no)+'.'+(_it.name||'')):'';
+    S.markup={no, photoIdx:null, src:b64, tool:'circle', strokes:[], autoLabel:_pos, _sel:null};
     render();
     requestAnimationFrame(()=>initMarkupCanvas());
   };
@@ -732,7 +731,8 @@ async function handlePhoto(no, file){
 function openMarkupForExisting(no,idx){
   const it=S.invoice.items.find(i=>i.no===no);
   if(!it||!it.photos[idx])return;
-  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],textPos:null};
+  const _pos=it?((_it2=it,(_it2.subOf?_it2.subOf+'-'+_it2.subIdx:_it2.no)+'.'+(_it2.name||''))):'';
+  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],autoLabel:_pos,_sel:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(()=>initMarkupCanvas());
@@ -1132,19 +1132,19 @@ function render(){
         </div>
         <div class="mkup-label-bar">
           <span class="mkup-label-lbl">LABEL</span>
-          <input class="mkup-label-inp" id="mkup-label-inp" type="text" value="${esc(S.markup.labelText!==undefined?S.markup.labelText:(S.markup.autoLabel||''))}" placeholder="Label text..." oninput="S.markup.labelText=this.value" enterkeyhint="done">
+          <input class="mkup-label-inp" id="mkup-label-inp" type="text"
+            value="${esc(S.markup.autoLabel||'')}"
+            oninput="S.markup.autoLabel=this.value"
+            enterkeyhint="done" autocomplete="off">
         </div>
-        <div class="mkup-tools">
-          <button class="mkup-tool${S.markup.tool==='circle'?' active':''}" onclick="setMarkupTool('circle')">Circle</button>
-          <button class="mkup-tool${S.markup.tool==='text'?' active':''}" onclick="setMarkupTool('text')">Text</button>
-          <button class="mkup-tool${S.markup.tool==='select'?' active':''}" onclick="setMarkupTool('select')">Move</button>
-          ${S.markup.tool==='select'&&S.markup._sel!==null?`<button class="mkup-tool" onclick="mkDeleteSelected()" style="border-color:#e53935;color:#e53935">Del</button>`:''}
-          <button class="mkup-undo" onclick="undoMarkup()">↩</button>
+        <div class="mkup-hint">ドラッグで赤丸を描く</div>
+        <div class="mkup-actions">
+          <button class="mkup-undo" onclick="undoMarkup()">Undo</button>
           <button class="mkup-done" onclick="doneMarkup()">DONE</button>
         </div>
-        <input class="mkup-text-input" id="mkup-text-inp" type="text" enterkeyhint="done">
       </div>`
     :'';
+
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
@@ -1172,7 +1172,7 @@ load();render();
 })();
 
 /* ────── MARKUP CANVAS ENGINE ────── */
-let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,snapshot:null,selIdx:null,dragStart:null};
+let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,snapshot:null};
 
 function initMarkupCanvas(){
   const canvas=document.getElementById('mkup-canvas');
@@ -1197,40 +1197,16 @@ function redrawMarkup(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(img,0,0);
   const lw=Math.max(4,canvas.width/150);
-  const fs=Math.max(28,Math.round(canvas.width/22));
-  const strokes=S.markup.strokes||[];
-  strokes.forEach((s,i)=>{
-    const sel=S.markup.tool==='select'&&i===MK.selIdx;
-    ctx.strokeStyle=sel?'#ff8a80':'#e53935';
-    ctx.fillStyle=sel?'#ff8a80':'#e53935';
-    ctx.lineWidth=sel?lw+3:lw;
-    ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=10;
-    if(s.type==='circle'){
-      ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2); ctx.stroke();
-      if(sel){ctx.globalAlpha=0.25;ctx.beginPath();ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
-    } else if(s.type==='text'){
-      ctx.font='bold '+fs+'px Montserrat,Arial,sans-serif';
-      ctx.fillText(s.text,s.x,s.y);
-    }
-    ctx.shadowBlur=0;
+  ctx.strokeStyle='#e53935';
+  ctx.lineWidth=lw;
+  ctx.shadowColor='rgba(0,0,0,0.5)';
+  ctx.shadowBlur=10;
+  (S.markup.strokes||[]).forEach(s=>{
+    ctx.beginPath();
+    ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
+    ctx.stroke();
   });
-}
-
-function mkHitTest(x,y){
-  const strokes=S.markup.strokes||[];
-  const fs=Math.max(28,Math.round((MK.img?MK.img.width:1000)/22));
-  const lw=Math.max(4,(MK.img?MK.img.width:1000)/150);
-  for(let i=strokes.length-1;i>=0;i--){
-    const s=strokes[i];
-    if(s.type==='circle'){
-      const dist=Math.sqrt((x-s.cx)**2+(y-s.cy)**2);
-      if(Math.abs(dist-s.r)<Math.max(20,lw*4)||dist<s.r*0.25) return i;
-    } else if(s.type==='text'){
-      const tw=s.text.length*fs*0.55;
-      if(x>=s.x-8&&x<=s.x+tw&&y>=s.y-fs&&y<=s.y+12) return i;
-    }
-  }
-  return -1;
+  ctx.shadowBlur=0;
 }
 
 function getPos(e){
@@ -1252,59 +1228,29 @@ function addMarkupEvents(){
     if(!S.markup)return;
     e.preventDefault();
     const pos=getPos(e);
-    if(S.markup.tool==='circle'){
-      MK.drawing=true; MK.startX=pos.x; MK.startY=pos.y;
-      MK.snapshot=MK.ctx.getImageData(0,0,nc.width,nc.height);
-    } else if(S.markup.tool==='text'){
-      // place text at tap position using label bar value
-      const labelInp=document.getElementById('mkup-label-inp');
-      const txt=labelInp?labelInp.value.trim():'';
-      if(!txt)return;
-      const fs=Math.max(28,Math.round(nc.width/22));
-      S.markup.strokes.push({type:'text',text:txt,x:pos.x,y:pos.y+fs});
-      redrawMarkup();
-    } else if(S.markup.tool==='select'){
-      const hit=mkHitTest(pos.x,pos.y);
-      MK.selIdx=hit>=0?hit:null;
-      MK.dragStart=hit>=0?pos:null;
-      // refresh toolbar (show/hide delete btn)
-      S.markup._sel=MK.selIdx;
-      render(); requestAnimationFrame(initMarkupCanvas);
-    }
+    MK.drawing=true; MK.startX=pos.x; MK.startY=pos.y;
+    MK.snapshot=MK.ctx.getImageData(0,0,nc.width,nc.height);
   };
   const onMove=e=>{
+    if(!MK.drawing)return;
     e.preventDefault();
     const pos=getPos(e);
-    if(S.markup.tool==='select'&&MK.dragStart!==null&&MK.selIdx!==null){
-      const dx=pos.x-MK.dragStart.x, dy=pos.y-MK.dragStart.y;
-      const s=S.markup.strokes[MK.selIdx];
-      if(s){
-        if(s.type==='circle'){s.cx+=dx;s.cy+=dy;}
-        else if(s.type==='text'){s.x+=dx;s.y+=dy;}
-      }
-      MK.dragStart=pos;
-      redrawMarkup(); return;
-    }
-    if(!MK.drawing||S.markup.tool!=='circle')return;
-    const r=Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2);
+    const r=Math.max(Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2),8);
     MK.ctx.putImageData(MK.snapshot,0,0);
     MK.ctx.strokeStyle='#e53935';
     MK.ctx.lineWidth=Math.max(4,nc.width/150);
-    MK.ctx.shadowColor='rgba(0,0,0,0.55)'; MK.ctx.shadowBlur=10;
-    MK.ctx.beginPath(); MK.ctx.arc(MK.startX,MK.startY,Math.max(r,8),0,Math.PI*2); MK.ctx.stroke();
+    MK.ctx.shadowColor='rgba(0,0,0,0.5)'; MK.ctx.shadowBlur=10;
+    MK.ctx.beginPath(); MK.ctx.arc(MK.startX,MK.startY,r,0,Math.PI*2); MK.ctx.stroke();
     MK.ctx.shadowBlur=0;
   };
   const onEnd=e=>{
-    e.preventDefault();
-    MK.dragStart=null;
-    if(!MK.drawing||S.markup.tool!=='circle')return;
-    MK.drawing=false;
+    if(!MK.drawing)return;
+    e.preventDefault(); MK.drawing=false;
     const pos=getPos(e);
     const r=Math.max(Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2),8);
-    S.markup.strokes.push({type:'circle',cx:MK.startX,cy:MK.startY,r});
+    S.markup.strokes.push({cx:MK.startX,cy:MK.startY,r});
     redrawMarkup();
   };
-
   nc.addEventListener('touchstart',onStart,{passive:false});
   nc.addEventListener('touchmove',onMove,{passive:false});
   nc.addEventListener('touchend',onEnd,{passive:false});
@@ -1314,28 +1260,29 @@ function addMarkupEvents(){
   redrawMarkup();
 }
 
-function mkDeleteSelected(){
-  if(MK.selIdx===null)return;
-  S.markup.strokes.splice(MK.selIdx,1);
-  MK.selIdx=null; S.markup._sel=null;
-  render(); requestAnimationFrame(initMarkupCanvas);
-}
-function setMarkupTool(tool){
-  S.markup.tool=tool; S.markup._sel=null; MK.selIdx=null; MK.dragStart=null;
-  render(); requestAnimationFrame(initMarkupCanvas);
-}
 function undoMarkup(){
   if(!S.markup||!S.markup.strokes.length)return;
   S.markup.strokes.pop();
-  MK.selIdx=null; S.markup._sel=null;
-  // ensure ctx is still valid
   const c=document.getElementById('mkup-canvas');
-  if(c) MK.canvas=c, MK.ctx=c.getContext('2d');
+  if(c){MK.canvas=c;MK.ctx=c.getContext('2d');}
   redrawMarkup();
 }
+
 function doneMarkup(){
   if(!MK.canvas||!S.markup)return;
-  const b64=MK.canvas.toDataURL('image/jpeg',0.85);
+  // Burn label text onto image before saving
+  const ctx=MK.ctx, canvas=MK.canvas;
+  const label=(document.getElementById('mkup-label-inp')||{}).value||S.markup.autoLabel||'';
+  if(label){
+    const fs=Math.max(28,Math.round(canvas.width/22));
+    ctx.font='bold '+fs+'px Montserrat,Arial,sans-serif';
+    ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=12;
+    ctx.fillStyle='#e53935';
+    const pad=Math.round(canvas.width*0.025);
+    ctx.fillText(label, pad, pad+fs);
+    ctx.shadowBlur=0;
+  }
+  const b64=canvas.toDataURL('image/jpeg',0.88);
   const {no,photoIdx}=S.markup;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;

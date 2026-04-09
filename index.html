@@ -681,7 +681,8 @@ function openMarkup(no,idx){
   if(!it)return;
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
   const autoLabel=pos+'.'+( it.name||'');
-  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],autoLabel,_sel:null};
+  const origSrc=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
+  S.markup={no,photoIdx:idx,src:origSrc,origSrc,tool:'circle',strokes:[],autoLabel,_sel:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(initMarkupCanvas);
@@ -722,7 +723,7 @@ async function handlePhoto(no, file){
     // Open markup editor with auto-label
     const _it=S.invoice.items.find(i=>i.no===no);
     const _pos=_it?((_it.subOf?_it.subOf+'-'+_it.subIdx:_it.no)+'.'+(_it.name||'')):'';
-    S.markup={no, photoIdx:null, src:b64, tool:'circle', strokes:[], autoLabel:_pos, _sel:null};
+    S.markup={no, photoIdx:null, src:b64, origSrc:b64, tool:'circle', strokes:[], autoLabel:_pos, _sel:null};
     render();
     requestAnimationFrame(()=>initMarkupCanvas());
   };
@@ -732,7 +733,8 @@ function openMarkupForExisting(no,idx){
   const it=S.invoice.items.find(i=>i.no===no);
   if(!it||!it.photos[idx])return;
   const _pos=it?((_it2=it,(_it2.subOf?_it2.subOf+'-'+_it2.subIdx:_it2.no)+'.'+(_it2.name||''))):'';
-  S.markup={no,photoIdx:idx,src:it.photos[idx],tool:'circle',strokes:[],autoLabel:_pos,_sel:null};
+  const origSrc2=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
+  S.markup={no,photoIdx:idx,src:origSrc2,origSrc:origSrc2,tool:'circle',strokes:[],autoLabel:_pos,_sel:null};
   S.viewPhoto=null;
   render();
   requestAnimationFrame(()=>initMarkupCanvas());
@@ -1174,7 +1176,7 @@ load();render();
 })();
 
 /* ────── MARKUP CANVAS ENGINE ────── */
-let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0,snapshot:null};
+let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0};
 
 function initMarkupCanvas(){
   const canvas=document.getElementById('mkup-canvas');
@@ -1229,14 +1231,13 @@ function addMarkupEvents(){
     e.preventDefault();
     const pos=getPos(e);
     MK.drawing=true; MK.startX=pos.x; MK.startY=pos.y;
-    MK.snapshot=MK.ctx.getImageData(0,0,canvas.width,canvas.height);
   };
   const onMove=e=>{
     if(!MK.drawing)return;
     e.preventDefault();
     const pos=getPos(e);
     const r=Math.max(Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2),8);
-    MK.ctx.putImageData(MK.snapshot,0,0);
+    redrawMarkup();
     MK.ctx.strokeStyle='#e53935';
     MK.ctx.lineWidth=Math.max(4,canvas.width/150);
     MK.ctx.shadowColor='rgba(0,0,0,0.5)'; MK.ctx.shadowBlur=10;
@@ -1281,13 +1282,19 @@ function doneMarkup(){
     ctx.fillText(label, pad, pad+fs+20);
   }
   const b64=canvas.toDataURL('image/jpeg',0.88);
-  const {no,photoIdx}=S.markup;
+  const {no,photoIdx,origSrc}=S.markup;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const photos=[...(it.photos||[])];
-    if(photoIdx===null||photoIdx===undefined) photos.push(b64);
-    else photos[photoIdx]=b64;
-    return{...it,photos};
+    const origPhotos=[...(it.origPhotos||[])];
+    if(photoIdx===null||photoIdx===undefined){
+      photos.push(b64);
+      origPhotos.push(origSrc||b64);
+    } else {
+      photos[photoIdx]=b64;
+      origPhotos[photoIdx]=origSrc||b64;
+    }
+    return{...it,photos,origPhotos};
   });
   save(); S.markup=null; render();
 }

@@ -1221,6 +1221,7 @@ function addMarkupEvents(){
   const canvas=MK.canvas;
   if(!canvas)return;
   const nc=canvas.cloneNode(true);
+  nc.id='mkup-canvas';
   canvas.parentNode.replaceChild(nc,canvas);
   MK.canvas=nc; MK.ctx=nc.getContext('2d');
 
@@ -1263,8 +1264,9 @@ function addMarkupEvents(){
 function undoMarkup(){
   if(!S.markup||!S.markup.strokes.length)return;
   S.markup.strokes.pop();
-  const c=document.getElementById('mkup-canvas');
-  if(c){MK.canvas=c;MK.ctx=c.getContext('2d');}
+  // addMarkupEvents uses cloneNode so MK.canvas may be stale - always re-fetch
+  MK.canvas=document.getElementById('mkup-canvas');
+  if(MK.canvas) MK.ctx=MK.canvas.getContext('2d');
   redrawMarkup();
 }
 
@@ -1279,7 +1281,7 @@ function doneMarkup(){
     ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=12;
     ctx.fillStyle='#e53935';
     const pad=Math.round(canvas.width*0.025);
-    ctx.fillText(label, pad, pad+fs);
+    ctx.fillText(label, pad, pad+fs+20);
     ctx.shadowBlur=0;
   }
   const b64=canvas.toDataURL('image/jpeg',0.88);

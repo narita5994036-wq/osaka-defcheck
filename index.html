@@ -1215,24 +1215,21 @@ function getPos(e){
   const canvas=MK.canvas;
   const rect=canvas.getBoundingClientRect();
   const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-  const src=e.touches?e.touches[0]:(e.changedTouches?e.changedTouches[0]:e);
+  const src=e.touches&&e.touches.length?e.touches[0]:(e.changedTouches&&e.changedTouches.length?e.changedTouches[0]:e);
   return{x:(src.clientX-rect.left)*scaleX, y:(src.clientY-rect.top)*scaleY};
 }
 
 function addMarkupEvents(){
   const canvas=MK.canvas;
-  if(!canvas)return;
-  const nc=canvas.cloneNode(true);
-  nc.id='mkup-canvas';
-  canvas.parentNode.replaceChild(nc,canvas);
-  MK.canvas=nc; MK.ctx=nc.getContext('2d');
+  if(!canvas||canvas._mkupEventsAdded)return;
+  canvas._mkupEventsAdded=true;
 
   const onStart=e=>{
     if(!S.markup)return;
     e.preventDefault();
     const pos=getPos(e);
     MK.drawing=true; MK.startX=pos.x; MK.startY=pos.y;
-    MK.snapshot=MK.ctx.getImageData(0,0,nc.width,nc.height);
+    MK.snapshot=MK.ctx.getImageData(0,0,canvas.width,canvas.height);
   };
   const onMove=e=>{
     if(!MK.drawing)return;
@@ -1241,7 +1238,7 @@ function addMarkupEvents(){
     const r=Math.max(Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2),8);
     MK.ctx.putImageData(MK.snapshot,0,0);
     MK.ctx.strokeStyle='#e53935';
-    MK.ctx.lineWidth=Math.max(4,nc.width/150);
+    MK.ctx.lineWidth=Math.max(4,canvas.width/150);
     MK.ctx.shadowColor='rgba(0,0,0,0.5)'; MK.ctx.shadowBlur=10;
     MK.ctx.beginPath(); MK.ctx.arc(MK.startX,MK.startY,r,0,Math.PI*2); MK.ctx.stroke();
     MK.ctx.shadowBlur=0;
@@ -1254,21 +1251,17 @@ function addMarkupEvents(){
     S.markup.strokes=[{cx:MK.startX,cy:MK.startY,r}]; // 赤丸は常に1つ
     redrawMarkup();
   };
-  nc.addEventListener('touchstart',onStart,{passive:false});
-  nc.addEventListener('touchmove',onMove,{passive:false});
-  nc.addEventListener('touchend',onEnd,{passive:false});
-  nc.addEventListener('mousedown',onStart);
-  nc.addEventListener('mousemove',onMove);
-  nc.addEventListener('mouseup',onEnd);
-  redrawMarkup();
+  canvas.addEventListener('touchstart',onStart,{passive:false});
+  canvas.addEventListener('touchmove',onMove,{passive:false});
+  canvas.addEventListener('touchend',onEnd,{passive:false});
+  canvas.addEventListener('mousedown',onStart);
+  canvas.addEventListener('mousemove',onMove);
+  canvas.addEventListener('mouseup',onEnd);
 }
 
 function undoMarkup(){
   if(!S.markup||!S.markup.strokes.length)return;
   S.markup.strokes.pop();
-  // addMarkupEvents uses cloneNode so MK.canvas may be stale - always re-fetch
-  MK.canvas=document.getElementById('mkup-canvas');
-  if(MK.canvas) MK.ctx=MK.canvas.getContext('2d');
   redrawMarkup();
 }
 

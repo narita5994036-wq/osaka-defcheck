@@ -1249,7 +1249,7 @@ function addMarkupEvents(){
     e.preventDefault(); MK.drawing=false;
     const pos=getPos(e);
     const r=Math.max(Math.sqrt((pos.x-MK.startX)**2+(pos.y-MK.startY)**2),8);
-    S.markup.strokes.push({cx:MK.startX,cy:MK.startY,r});
+    S.markup.strokes=[{cx:MK.startX,cy:MK.startY,r}]; // 赤丸は常に1つ
     redrawMarkup();
   };
   nc.addEventListener('touchstart',onStart,{passive:false});

@@ -213,11 +213,15 @@
   .mkup-label-inp{flex:1;background:#1a1a1a;border:1.5px solid #444;color:#ef5350;font-size:16px;font-weight:600;padding:8px 12px;border-radius:6px;outline:none;font-family:inherit}
   .mkup-label-inp:focus{border-color:#ef5350}
   .mkup-actions{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px max(12px,env(safe-area-inset-bottom));background:#1a1a1a;flex-shrink:0}
-  .mkup-undo{padding:10px 20px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500}
-  .mkup-undo:active{opacity:.7}
+  .mkup-cancel{padding:10px 20px;border-radius:6px;border:1.5px solid #444;background:none;color:#aaa;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500}
+  .mkup-cancel:active{opacity:.7}
   .mkup-done{padding:10px 32px;border-radius:6px;border:none;background:#fff;color:#000;font-size:11px;letter-spacing:2px;font-weight:600;cursor:pointer;font-family:inherit}
   .mkup-done:active{opacity:.8}
   .mkup-hint{text-align:center;font-size:10px;color:#444;letter-spacing:1px;padding:6px 16px 0;background:#1a1a1a;flex-shrink:0}
+  .mkup-reedit-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;overflow:hidden}
+  .mkup-reedit-ttl{font-size:10px;letter-spacing:2px;color:#888}
+  .mkup-reedit-img{max-width:100%;max-height:52vh;object-fit:contain;border-radius:4px;border:1px solid #333}
+  .mkup-reedit-hint{font-size:12px;color:#aaa;text-align:center}
   /* PHOTO VIEWER */
   .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .photo-viewer img{max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px}
@@ -682,10 +686,13 @@ function openMarkup(no,idx){
   const pos=it.subOf?it.subOf+'-'+it.subIdx:it.no;
   const autoLabel=pos+'.'+( it.name||'');
   const origSrc=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
-  S.markup={no,photoIdx:idx,src:origSrc,origSrc,tool:'circle',strokes:[],autoLabel,_sel:null};
+  const burnedSrc=it.photos[idx];
+  const isReedit=!!(it.origPhotos&&it.origPhotos[idx]);
+  S.markup={no,photoIdx:idx,src:origSrc,origSrc,tool:'circle',strokes:[],autoLabel,_sel:null,
+    _reedit:isReedit,_burnedSrc:isReedit?burnedSrc:null};
   S.viewPhoto=null;
   render();
-  requestAnimationFrame(initMarkupCanvas);
+  if(!isReedit) requestAnimationFrame(initMarkupCanvas);
 }
 
 /* PHOTOS */
@@ -734,10 +741,13 @@ function openMarkupForExisting(no,idx){
   if(!it||!it.photos[idx])return;
   const _pos=it?((_it2=it,(_it2.subOf?_it2.subOf+'-'+_it2.subIdx:_it2.no)+'.'+(_it2.name||''))):'';
   const origSrc2=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
-  S.markup={no,photoIdx:idx,src:origSrc2,origSrc:origSrc2,tool:'circle',strokes:[],autoLabel:_pos,_sel:null};
+  const burnedSrc2=it.photos[idx];
+  const isReedit2=!!(it.origPhotos&&it.origPhotos[idx]);
+  S.markup={no,photoIdx:idx,src:origSrc2,origSrc:origSrc2,tool:'circle',strokes:[],autoLabel:_pos,_sel:null,
+    _reedit:isReedit2,_burnedSrc:isReedit2?burnedSrc2:null};
   S.viewPhoto=null;
   render();
-  requestAnimationFrame(()=>initMarkupCanvas());
+  if(!isReedit2) requestAnimationFrame(()=>initMarkupCanvas());
 }
 function removePhoto(no,pidx){
   S.invoice.items=S.invoice.items.map(it=>{
@@ -1127,25 +1137,36 @@ function render(){
   const markupEditor=S.markup
     ?`<div class="mkup">
         <div class="mkup-toolbar">
-          <button class="mkup-tbtn" onclick="cancelMarkup()">x</button>
+          <button class="mkup-tbtn" onclick="cancelMarkup()">×</button>
           <div class="mkup-title">MARKUP</div>
-          <button class="mkup-tbtn" style="opacity:0;pointer-events:none">x</button>
+          <button class="mkup-tbtn" style="opacity:0;pointer-events:none">×</button>
         </div>
-        <div class="mkup-canvas-wrap" id="mkup-wrap">
-          <canvas id="mkup-canvas"></canvas>
-        </div>
-        <div class="mkup-label-bar">
-          <span class="mkup-label-lbl">LABEL</span>
-          <input class="mkup-label-inp" id="mkup-label-inp" type="text"
-            value="${esc(S.markup.autoLabel||'')}"
-            oninput="S.markup.autoLabel=this.value"
-            enterkeyhint="done" autocomplete="off">
-        </div>
-        <div class="mkup-hint">ドラッグで赤丸を描く</div>
-        <div class="mkup-actions">
-          <button class="mkup-undo" onclick="undoMarkup()">Undo</button>
-          <button class="mkup-done" onclick="doneMarkup()">DONE</button>
-        </div>
+        ${S.markup._reedit
+          ?`<div class="mkup-reedit-wrap">
+               <div class="mkup-reedit-ttl">前回の編集内容</div>
+               <img class="mkup-reedit-img" src="${esc(S.markup._burnedSrc||'')}">
+               <div class="mkup-reedit-hint">クリアして再編集しますか？</div>
+             </div>
+             <div class="mkup-actions">
+               <button class="mkup-cancel" onclick="cancelMarkup()">キャンセル</button>
+               <button class="mkup-done" onclick="confirmReedit()">再編集</button>
+             </div>`
+          :`<div class="mkup-canvas-wrap" id="mkup-wrap">
+               <canvas id="mkup-canvas"></canvas>
+             </div>
+             <div class="mkup-label-bar">
+               <span class="mkup-label-lbl">LABEL</span>
+               <input class="mkup-label-inp" id="mkup-label-inp" type="text"
+                 value="${esc(S.markup.autoLabel||'')}"
+                 oninput="S.markup.autoLabel=this.value"
+                 enterkeyhint="done" autocomplete="off">
+             </div>
+             <div class="mkup-hint">ドラッグで赤丸を描く</div>
+             <div class="mkup-actions">
+               <button class="mkup-cancel" onclick="cancelMarkup()">キャンセル</button>
+               <button class="mkup-done" onclick="doneMarkup()">DONE</button>
+             </div>`
+        }
       </div>`
     :'';
 
@@ -1260,10 +1281,11 @@ function addMarkupEvents(){
   canvas.addEventListener('mouseup',onEnd);
 }
 
-function undoMarkup(){
-  if(!S.markup||!S.markup.strokes.length)return;
-  S.markup.strokes.pop();
-  redrawMarkup();
+function confirmReedit(){
+  S.markup._reedit=false;
+  S.markup._burnedSrc=null;
+  render();
+  requestAnimationFrame(initMarkupCanvas);
 }
 
 function doneMarkup(){

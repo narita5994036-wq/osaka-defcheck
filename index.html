@@ -738,7 +738,7 @@ async function handlePhoto(no, file){
   const img=new Image();
   const url=URL.createObjectURL(file);
   img.onload=()=>{
-    const MAX=1600;
+    const MAX=800;
     let w=img.width,h=img.height;
     if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
     if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
@@ -747,7 +747,7 @@ async function handlePhoto(no, file){
     const ctx=canvas.getContext('2d');
     ctx.drawImage(img,0,0,w,h);
     URL.revokeObjectURL(url);
-    const origB64=canvas.toDataURL('image/jpeg',0.9);
+    const origB64=canvas.toDataURL('image/jpeg',0.65);
     // Burn auto-label onto image
     const _it=S.invoice.items.find(i=>i.no===no);
     const label=_it?((_it.subOf?_it.subOf+'-'+_it.subIdx:_it.no)+'.'+(_it.name||'')):'';
@@ -761,7 +761,7 @@ async function handlePhoto(no, file){
       ctx.fillStyle='#e53935';
       ctx.fillText(label, pad, pad+fs+20);
     }
-    const burnedB64=canvas.toDataURL('image/jpeg',0.88);
+    const burnedB64=canvas.toDataURL('image/jpeg',0.65);
     S.invoice.items=S.invoice.items.map(it=>{
       if(it.no!==no)return it;
       const photos=[...(it.photos||[])];
@@ -1330,10 +1330,9 @@ function confirmReedit(){
 function doneMarkup(){
   if(!S.markup)return;
   try{
-    // Always fetch canvas from DOM to avoid stale reference
-    const canvas=document.getElementById('mkup-canvas')||MK.canvas;
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
+    const canvas=MK.canvas;
+    if(!canvas||!MK.img)return;
+    const ctx=MK.ctx;
     const label=(document.getElementById('mkup-label-inp')||{}).value||S.markup.autoLabel||'';
     if(label){
       const fs=Math.max(28,Math.round(canvas.width/22));
@@ -1345,7 +1344,7 @@ function doneMarkup(){
       ctx.fillStyle='#e53935';
       ctx.fillText(label, pad, pad+fs+20);
     }
-    const b64=canvas.toDataURL('image/jpeg',0.88);
+    const b64=canvas.toDataURL('image/jpeg',0.65);
     const {no,photoIdx,origSrc}=S.markup;
     S.invoice.items=S.invoice.items.map(it=>{
       if(it.no!==no)return it;
@@ -1353,10 +1352,11 @@ function doneMarkup(){
       const origPhotos=[...(it.origPhotos||[])];
       if(photoIdx===null||photoIdx===undefined){
         photos.push(b64);
-        origPhotos.push(origSrc||b64);
+        if(!origPhotos[photos.length-1]) origPhotos.push(origSrc||b64);
       } else {
         photos[photoIdx]=b64;
-        origPhotos[photoIdx]=origSrc||b64;
+        // Never overwrite origPhotos — it must stay as the true original
+        if(!origPhotos[photoIdx]) origPhotos[photoIdx]=origSrc||b64;
       }
       return{...it,photos,origPhotos};
     });

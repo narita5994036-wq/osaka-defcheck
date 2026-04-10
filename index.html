@@ -603,7 +603,8 @@ function toggleDefPart(no,idx,val){
   updDefect(no,idx,d=>{
     const newPart=d.part===val?'':val;
     const valid=DEF_COND_MAP[newPart]||DEF_COND_MAP[''];
-    return {...d,part:newPart,cond:d.cond.filter(c=>valid.includes(c))};
+    const partDetail=newPart==='Front Parts'?d.partDetail:null;
+    return {...d,part:newPart,partDetail,cond:d.cond.filter(c=>valid.includes(c))};
   });
 }
 function setDefSide(no,idx,val){
@@ -752,10 +753,10 @@ function defEntryHtml(no,d,idx,total){
         <span class="pill-other${partOtherOn?' sel':''}" onclick="toggleDefPartOther('${no}',${idx})">Other</span>
       </div>
       ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)"></div>`:''}
-      <div style="margin-top:4px">
+      ${d.part==='Front Parts'?`<div style="margin-top:4px">
         <button class="dpick-detail-toggle${d.partDetail?' has-val':''}" onclick="togglePartDetailOpen('${no}',${idx})">${d.partDetail?'▸ '+d.partDetail:'+ detail'}</button>
         ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${DEF_PART_DETAIL.map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="setPartDetail('${no}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
-      </div>
+      </div>`:''}
     </div>
     <div class="dpick-row">
       <div class="dpick-label">SIDE</div>

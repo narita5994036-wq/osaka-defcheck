@@ -468,7 +468,7 @@ function closeAllPickers(){
 function setRemark(no,v){S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,remark:v});save()}
 
 const DEF_PART=['Lens','Front Parts','Temple'];
-const DEF_SIDE=['L','R','lenses'];
+const DEF_SIDE=['L','R','Both'];
 // Conditions per part (single-select part)
 const DEF_COND_MAP={
   'Lens':         ['Chipped','Scratch','Coating came off','Discoloration'],
@@ -553,7 +553,7 @@ function clearDefect(no){
 function syncRemark(it){
   const parts=it.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');
-    const loc=partStr?(d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
+    const loc=partStr?(d.side==='Both'&&partStr==='Lens'?'Both Lenses':d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
     const conds=[...d.cond,...(d.condOther?[d.condOther]:[])];
     return[loc,conds.join(', ')].filter(Boolean).join(' / ');
   }).filter(Boolean);

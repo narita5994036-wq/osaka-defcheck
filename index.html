@@ -553,12 +553,12 @@ function addManRow(){
 
 /* STATUS */
 function cycle(no){
+  closeAllPickers();
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const i=STATS.indexOf(it.status);
     const next=STATS[(i+1)%STATS.length];
     if(next==='defective') S.pickerOpen[no]=true;
-    else delete S.pickerOpen[no];
     return{...it,status:next};
   });
   save();render();
@@ -1418,6 +1418,7 @@ initApp(); idbLoadAll().then(()=>render()).catch(()=>render());
     if(t.closest('.dpick'))return;
     if(t.closest('.def-inline'))return;
     if(t.closest('.photo-add-btn'))return;
+    if(t.closest('.sbtn'))return;
     if(t.id==='camera-input'||t.id==='gallery-input')return;
     closeAllPickers();
   }

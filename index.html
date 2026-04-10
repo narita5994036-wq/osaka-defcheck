@@ -957,6 +957,7 @@ function openMarkupForExisting(no,idx){
   if(!isReedit2) requestAnimationFrame(()=>initMarkupCanvas());
 }
 function removePhoto(no,pidx){
+  if(!confirm('この画像を削除しますか？'))return;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const photos=[...(it.photos||[])];

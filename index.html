@@ -553,7 +553,7 @@ function clearDefect(no){
 function syncRemark(it){
   const parts=it.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');
-    const loc=partStr?(d.side==='Both'&&partStr==='Lens'?'Both Lenses':d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
+    const loc=partStr?(d.side==='Both'&&partStr==='Lens'?'Both lenses':d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
     const conds=[...d.cond,...(d.condOther?[d.condOther]:[])];
     return[loc,conds.join(', ')].filter(Boolean).join(' / ');
   }).filter(Boolean);

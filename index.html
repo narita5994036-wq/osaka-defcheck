@@ -1271,10 +1271,10 @@ function render(){
               html+=`<div class="grp-hdr">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
+                  <div class="item-tags">${catTag}</div>
                   <div class="grp-hdr-name">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点</div>
                 </div>
-                <div class="grp-hdr-tags">${catTag}</div>
               </div>`;
             }
             // SUB-ITEM (part of multi-qty group)

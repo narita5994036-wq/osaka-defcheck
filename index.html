@@ -295,7 +295,7 @@
 <div id="app"></div>
 <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onCameraChange(this)">
 <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="onGalleryChange(this)">
-<button id="scroll-fab" class="fab" style="display:none" onclick="(function(){var t=document.querySelector('.def-sum,.war-sum');if(t)t.scrollIntoView({behavior:'smooth'});else window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});})()">↓</button>
+<button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1425,10 +1425,31 @@ function render(){
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');
-  if(fab) fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';
+  if(fab){
+    fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';
+    updateFab();
+  }
 }
 
 initApp(); idbLoadAll().then(()=>render()).catch(()=>render());
+
+function fabAtBottom(){return window.innerHeight+window.scrollY>=document.body.scrollHeight-20;}
+function fabTap(){
+  const fab=document.getElementById('scroll-fab');
+  if(fabAtBottom()){
+    window.scrollTo({top:0,behavior:'smooth'});
+  } else {
+    const t=document.querySelector('.def-sum,.war-sum');
+    if(t)t.scrollIntoView({behavior:'smooth'});
+    else window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  }
+}
+function updateFab(){
+  const fab=document.getElementById('scroll-fab');
+  if(!fab||fab.style.display==='none')return;
+  fab.textContent=fabAtBottom()?'↑':'↓';
+}
+window.addEventListener('scroll',updateFab,{passive:true});
 
 // iOS-safe outside-tap detection for picker close
 (function(){

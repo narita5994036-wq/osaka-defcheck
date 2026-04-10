@@ -698,8 +698,7 @@ function buildEmail(){
     return [
       `Position Number/Item : ${posLabel} / ${it.name}`,
       `Stamp Number: ${(it.stampNo&&it.stampNo.trim())||'none'}`,
-      `Item ID: ${it.itemId&&it.itemId.trim()||''}`,
-      `Color Number/ID Number : ${it.colorCode?'C'+it.colorCode:''}`,
+      `Color Number/ID Number : ${[it.colorCode?'C'+it.colorCode:'',it.itemId&&it.itemId.trim()||''].filter(Boolean).join('/')}`,
       `Defective Parts/Conditions : ${it.remark||''}`,
     ].filter(l=>!l.endsWith(': ')).join('\n');
   }).join('\n\n');

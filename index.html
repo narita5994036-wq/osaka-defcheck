@@ -264,6 +264,23 @@
     .stamp-inp{background:#fff!important;color:#000!important}
     .stamp-inp.filled{background:var(--greenL)!important;color:var(--green)!important}
   }
+  /* HOME SCREEN */
+  .home-new{display:block;width:calc(100% - 40px);margin:16px 20px 0;border:1px dashed var(--g400);border-radius:4px;padding:14px;text-align:center;cursor:pointer;font-size:10px;letter-spacing:2px;color:var(--g600);background:none}
+  .home-new:active{background:var(--g50)}
+  .home-sec{padding:16px 20px 6px;font-size:9px;letter-spacing:3px;color:var(--g400);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .inv-card{margin:0 20px 10px;border:1px solid var(--g200);border-radius:6px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px}
+  .inv-card:active{background:var(--g50)}
+  .inv-card-arc{opacity:.55}
+  .inv-card-body{flex:1;min-width:0}
+  .inv-card-no{font-size:14px;font-weight:500;letter-spacing:1px}
+  .inv-card-date{font-size:10px;color:var(--g400);letter-spacing:.5px;margin-top:2px}
+  .inv-card-prg{font-size:10px;color:var(--g600);margin-top:3px}
+  .inv-card-prog-bar{height:2px;background:var(--g200);border-radius:1px;margin-top:5px}
+  .inv-card-prog-fill{height:100%;background:var(--k);border-radius:1px}
+  .inv-card-arr{font-size:20px;color:var(--g400);flex-shrink:0}
+  .inv-card-actions{display:flex;gap:6px;margin-top:8px}
+  .inv-card-act-btn{font-size:9px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600)}
+  .inv-card-act-del{color:var(--red);border-color:var(--redM)}
 </style>
 </head>
 <body>
@@ -273,16 +290,30 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const SK='mykita_dc_v9';
+const SK='mykita_dc_v9'; // legacy migration only
+const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'upload',loading:false,rawText:'',parseErr:'',invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null,showArchive:false};
 
+function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
+function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}}
+function genId(){return 'inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
 function save(){
-  if(!S.invoice)return;
-  try{localStorage.setItem(SK,JSON.stringify(S.invoice));}
-  catch(e){console.warn('save failed (storage full?):', e);}
+  if(!S.invoice||!S.invoiceId)return;
+  try{
+    localStorage.setItem('mykita_dc_inv_'+S.invoiceId,JSON.stringify(S.invoice));
+    const list=loadList();
+    const idx=list.findIndex(e=>e.id===S.invoiceId);
+    if(idx>=0){
+      list[idx].tot=S.invoice.items.length;
+      list[idx].pend=S.invoice.items.filter(i=>i.status==='pending').length;
+      list[idx].number=S.invoice.number;
+      list[idx].date=S.invoice.date||'';
+      saveList(list);
+    }
+  }catch(e){console.warn('save failed:',e);}
 }
 
 /* ── IndexedDB photo store ── */
@@ -320,14 +351,75 @@ function migrateItem(it){
   }
   return {stampNo:'', ...it};
 }
-function load(){
+function registerInvoice(inv){
+  const id=genId();
+  S.invoiceId=id;
+  const tot=inv.items.length;
+  const pend=inv.items.filter(i=>i.status==='pending').length;
+  const list=loadList();
+  list.unshift({id,number:inv.number,date:inv.date||'',createdAt:new Date().toISOString(),archived:false,tot,pend});
+  saveList(list);
+  try{localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));}catch(e){console.warn('registerInvoice save failed:',e);}
+}
+function openInvoice(id){
+  try{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    if(!d)return;
+    const inv=JSON.parse(d);
+    inv.items=inv.items.map(migrateItem);
+    S.invoiceId=id; S.invoice=inv; S.screen='checklist';
+    S.filter='ALL'; S.pickerOpen={}; S.showEmail=false;
+    render();
+  }catch(e){console.warn('openInvoice failed:',e);}
+}
+function archiveInvoice(id){
+  const list=loadList();
+  const idx=list.findIndex(e=>e.id===id);
+  if(idx<0)return;
+  list[idx].archived=!list[idx].archived;
+  saveList(list);
+  render();
+}
+function deleteInvoice(id){
+  if(!confirm('このインボイスを削除しますか？\nこの操作は取り消せません。'))return;
+  const list=loadList().filter(e=>e.id!==id);
+  saveList(list);
+  localStorage.removeItem('mykita_dc_inv_'+id);
+  if(S.invoiceId===id){S.invoiceId=null;S.invoice=null;S.screen='home';}
+  render();
+}
+function invCardHtml(e,isArchived){
+  const tot=e.tot||0;
+  const pend=e.pend||0;
+  const checked=tot-pend;
+  const prg=tot?Math.round(checked/tot*100):0;
+  const dateStr=e.date||'';
+  const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
+  return `<div class="inv-card${isArchived?' inv-card-arc':''}" onclick="openInvoice('${e.id}')">
+    <div class="inv-card-body">
+      <div class="inv-card-no">${esc(e.number||'—')}</div>
+      <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
+      ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%"></div></div>
+      <div class="inv-card-prg">${checked} / ${tot} checked</div>`:''}
+      <div class="inv-card-actions" onclick="event.stopPropagation()">
+        <button class="inv-card-act-btn" onclick="archiveInvoice('${e.id}')">${isArchived?'Restore':'Archive'}</button>
+        <button class="inv-card-act-btn inv-card-act-del" onclick="deleteInvoice('${e.id}')">Delete</button>
+      </div>
+    </div>
+    <div class="inv-card-arr">›</div>
+  </div>`;
+}
+function initApp(){
+  // Migrate legacy single-invoice storage
   try{
     const d=localStorage.getItem(SK);
     if(d){
       const inv=JSON.parse(d);
       inv.items=inv.items.map(migrateItem);
-      S.invoice=inv;
-      S.screen='checklist';
+      const list=loadList();
+      const alreadyMigrated=list.some(e=>e.number===inv.number&&(e.date||'')===(inv.date||''));
+      if(!alreadyMigrated) registerInvoice(inv);
+      localStorage.removeItem(SK);
     }
   }catch(e){localStorage.removeItem(SK);}
 }
@@ -356,7 +448,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;S.screen='checklist';save()}
+    if(inv&&inv.items.length>0){S.invoice=inv;registerInvoice(inv);S.screen='checklist';}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -423,7 +515,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};S.screen='checklist';save();render();
+  S.invoice={number,date,items};registerInvoice(S.invoice);S.screen='checklist';render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');
@@ -615,7 +707,7 @@ function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
   navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='COPY',1500)}});
 }
-function resetApp(){localStorage.removeItem(SK);S={...S,screen:'upload',invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,filter:'ALL'};render()}
+function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
 function g(id){return document.getElementById(id)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
@@ -1029,6 +1121,25 @@ function render(){
 
   let body='';
 
+  // HOME
+  if(S.screen==='home'){
+    const list=loadList();
+    const active=list.filter(e=>!e.archived);
+    const archived=list.filter(e=>e.archived);
+    body=`
+      <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
+      ${active.length
+        ?`<div class="home-sec">ACTIVE</div>${active.map(e=>invCardHtml(e,false)).join('')}`
+        :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`
+      }
+      ${archived.length?`
+        <div class="home-sec" onclick="S.showArchive=!S.showArchive;render()">
+          ARCHIVED (${archived.length}) <span style="font-size:11px">${S.showArchive?'▲':'▼'}</span>
+        </div>
+        ${S.showArchive?archived.map(e=>invCardHtml(e,true)).join(''):''}
+      `:''}`;
+  }
+
   // UPLOAD
   if(S.screen==='upload'){
     body=`
@@ -1103,7 +1214,6 @@ function render(){
   // CHECKLIST
   if(S.screen==='checklist'&&inv){
     body=`
-      <div class="nlz"><input type="file" accept=".pdf" onchange="handleFile(this.files[0])"><span>PDF 別のPDFを読み込む</span></div>
       <div class="inv-hdr">
         <div class="inv-row"><div class="inv-no">${esc(inv.number)}</div><div class="inv-ct">${tot} ITEMS</div></div>
         ${inv.date?`<div class="inv-dt">${esc(inv.date)}</div>`:''}
@@ -1245,13 +1355,13 @@ function render(){
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
-      <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()" title="戻る">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="resetApp()">x</button>`:''}</div>
+      <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}</div>
     </div>
     ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}`;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
 }
 
-load(); idbLoadAll().then(()=>render()).catch(()=>render());
+initApp(); idbLoadAll().then(()=>render()).catch(()=>render());
 
 // iOS-safe outside-tap detection for picker close
 (function(){

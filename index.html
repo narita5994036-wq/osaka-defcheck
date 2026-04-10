@@ -417,7 +417,7 @@ function invCardHtml(e,isArchived){
       <div class="inv-card-actions" onclick="event.stopPropagation()">
         <button class="inv-card-act-btn" ${prg===100?`onclick="quickMail('${e.id}')" style="color:var(--blue);border-color:#90caf9"`:`disabled style="opacity:.3;cursor:default"`}>MAIL</button>
         <button class="inv-card-act-btn" onclick="archiveInvoice('${e.id}')">${isArchived?'Restore':'Archive'}</button>
-        <button class="inv-card-act-btn inv-card-act-del" onclick="deleteInvoice('${e.id}')">Delete</button>
+        <button class="inv-card-act-btn${isArchived?' inv-card-act-del':''}" ${isArchived?`onclick="deleteInvoice('${e.id}')"`:`disabled style="opacity:.3;cursor:default"`}>Delete</button>
       </div>
     </div>
     <div class="inv-card-arr">›</div>

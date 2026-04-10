@@ -1409,9 +1409,23 @@ function render(){
       <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}</div>
     </div>
     ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}
-    ${S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail?`<button class="fab" onclick="document.querySelector('.def-sum,.war-sum')?.scrollIntoView({behavior:'smooth'})||window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">↓</button>`:''}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
+  // FAB: manage as a persistent DOM element outside #app
+  let fab=document.getElementById('scroll-fab');
+  if(!fab){
+    fab=document.createElement('button');
+    fab.id='scroll-fab';
+    fab.className='fab';
+    fab.textContent='↓';
+    fab.addEventListener('click',()=>{
+      const t=document.querySelector('.def-sum,.war-sum');
+      if(t)t.scrollIntoView({behavior:'smooth'});
+      else window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+    });
+    document.body.appendChild(fab);
+  }
+  fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';
 }
 
 initApp(); idbLoadAll().then(()=>render()).catch(()=>render());

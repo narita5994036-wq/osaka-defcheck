@@ -198,9 +198,8 @@
   .photo-thumb-wrap{position:relative;flex-shrink:0}
   .photo-thumb{width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--redM);cursor:pointer;display:block}
   .photo-del{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:18px;text-align:center;padding:0}
-  .photo-add-btn{width:48px;height:64px;border:1px dashed var(--redM);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;color:var(--redM);cursor:pointer;flex-shrink:0}
+  .photo-add-btn{width:48px;height:64px;border:1px dashed var(--redM);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--redM);cursor:pointer;flex-shrink:0}
   .photo-add-btn:active{background:var(--redL)}
-  .photo-add-lbl{font-size:8px;letter-spacing:1px;color:var(--redM);line-height:1}
   /* MARKUP EDITOR */
   .mkup{position:fixed;inset:0;z-index:400;background:#111;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
   .mkup-toolbar{display:flex;align-items:center;gap:0;padding:10px 16px;background:#1a1a1a;flex-shrink:0}
@@ -681,8 +680,7 @@ function defAreaHtml(it){
           <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
           <button class="photo-del" onclick="event.stopPropagation();removePhoto('${no}',${i})">×</button>
         </div>`).join('')}
-      <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span class="photo-add-lbl">CAM</span></button>
-      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span class="photo-add-lbl">LIB</span></button>
+      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)">+</button>
     </div>`:``;
   if(isOpen){
     return defPickerHtml(it)+`
@@ -694,8 +692,7 @@ function defAreaHtml(it){
               <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
               <button class="photo-del" onclick="removePhoto('${no}',${i})">×</button>
             </div>`).join('')}
-          <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span class="photo-add-lbl">CAM</span></button>
-      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span class="photo-add-lbl">LIB</span></button>
+          <button class="photo-add-btn" onclick="triggerGallery('${no}',event)">+</button>
         </div>
       </div>`;
   }

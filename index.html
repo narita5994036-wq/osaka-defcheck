@@ -436,6 +436,7 @@ function quickMail(id){
     buildEmail();
   }catch(e){console.warn('quickMail failed:',e);}
 }
+function initApp(){
   try{
     const d=localStorage.getItem(SK);
     if(d){

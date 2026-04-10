@@ -676,9 +676,12 @@ function goToStamp(){
 }
 function setStampNo(no,v){
   S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,stampNo:v});
-  // update filled class live without full re-render
   const inp=document.getElementById('si-'+no);
   if(inp) inp.className='stamp-inp'+(v.trim()?' filled':'');
+  save();
+}
+function setItemId(no,v){
+  S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,itemId:v});
   save();
 }
 function stampAllFilled(){
@@ -694,10 +697,11 @@ function buildEmail(){
     const posLabel=it.subOf?`${it.subOf}-${it.subIdx}`:it.no;
     return [
       `Position Number/Item : ${posLabel} / ${it.name}`,
-      `Stamp Number: ${it.stampNo||it.itemNo||''}`,
+      `Stamp Number: ${(it.stampNo&&it.stampNo.trim())||'none'}`,
+      `Item ID: ${it.itemId&&it.itemId.trim()||''}`,
       `Color Number/ID Number : ${it.colorCode||''}`,
       `Defective Parts/Conditions : ${it.remark||''}`,
-    ].join('\n');
+    ].filter(l=>!l.endsWith(': ')).join('\n');
   }).join('\n\n');
   S.emailTo='Diana.Schwarz@mykita.com';
   S.emailSubj=`Defective Items – Invoice No. ${inv.number}`;
@@ -1223,8 +1227,15 @@ function render(){
             <label>STAMP NO.</label>
             <input id="si-${it.no}" class="stamp-inp${filled2?' filled':''}" type="text"
               inputmode="numeric" value="${esc(it.stampNo||'')}"
-              placeholder="例: 123456"
+              placeholder="none"
               oninput="setStampNo('${it.no}',this.value)">
+          </div>
+          <div class="stamp-field" style="margin-top:8px">
+            <label>ITEM ID</label>
+            <input class="stamp-inp${it.itemId&&it.itemId.trim()?' filled':''}" type="text"
+              value="${esc(it.itemId||'')}"
+              placeholder="例: ABC-001"
+              oninput="setItemId('${it.no}',this.value)">
           </div>
         </div>`;
       }).join('')}

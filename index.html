@@ -285,6 +285,32 @@ function save(){
   try{localStorage.setItem(SK,JSON.stringify(S.invoice));}
   catch(e){console.warn('save failed (storage full?):', e);}
 }
+
+/* ── IndexedDB photo store ── */
+const _pc={};          // in-memory photo cache {key→dataURL}
+let _idb=null;
+function _openIdb(){
+  if(_idb)return Promise.resolve(_idb);
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('osaka_dc_photos',1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore('p');
+    r.onsuccess=e=>{_idb=e.target.result;res(_idb);};
+    r.onerror=e=>rej(e.target.error);
+  });
+}
+function idbPut(key,val){_pc[key]=val;_openIdb().then(db=>{const tx=db.transaction('p','readwrite');tx.objectStore('p').put(val,key);});}
+function idbDel(key){delete _pc[key];_openIdb().then(db=>{const tx=db.transaction('p','readwrite');tx.objectStore('p').delete(key);});}
+function idbLoadAll(){
+  return _openIdb().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction('p','readonly');
+    const r=tx.objectStore('p').openCursor();
+    r.onsuccess=e=>{const c=e.target.result;if(c){_pc[c.key]=c.value;c.continue();}else res();};
+    r.onerror=e=>rej(e.target.error);
+  }));
+}
+function photoKey(){return 'pk_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
+// Resolve a photo value: IDB key → dataURL, legacy base64 → pass-through
+function photoSrc(v){if(!v)return '';if(v.startsWith('data:'))return v;return _pc[v]||'';}
 function newDefect(){return {part:'',partOther:null,side:'',cond:[],condOther:null};}
 function migrateItem(it){
   // migrate old flat structure → defects array
@@ -652,7 +678,7 @@ function defAreaHtml(it){
     <div class="photo-strip">
       ${photos.map((src,i)=>`
         <div class="photo-thumb-wrap">
-          <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
+          <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
           <button class="photo-del" onclick="event.stopPropagation();removePhoto('${no}',${i})">×</button>
         </div>`).join('')}
       <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span>📷</span><span class="photo-add-lbl">CAM</span></button>
@@ -665,7 +691,7 @@ function defAreaHtml(it){
         <div class="photo-strip">
           ${photos.map((src,i)=>`
             <div class="photo-thumb-wrap">
-              <img class="photo-thumb" src="${src}" onclick="viewPhoto('${no}',${i})">
+              <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
               <button class="photo-del" onclick="removePhoto('${no}',${i})">×</button>
             </div>`).join('')}
           <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span>📷</span><span class="photo-add-lbl">CAM</span></button>
@@ -696,8 +722,10 @@ function openMarkup(no,idx){
   const origSrc=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
   const burnedSrc=it.photos[idx];
   const isReedit=!!(it.origPhotos&&it.origPhotos[idx]);
-  S.markup={no,photoIdx:idx,src:origSrc,origSrc,tool:'circle',strokes:[],autoLabel,_sel:null,
-    _reedit:isReedit,_burnedSrc:isReedit?burnedSrc:null};
+  const origResolved=photoSrc(origSrc);
+  const burnedResolved=isReedit?photoSrc(burnedSrc):null;
+  S.markup={no,photoIdx:idx,src:origResolved,origSrc:origResolved,tool:'circle',strokes:[],autoLabel,_sel:null,
+    _reedit:isReedit,_burnedSrc:burnedResolved};
   S.viewPhoto=null;
   render();
   if(!isReedit) requestAnimationFrame(initMarkupCanvas);
@@ -762,12 +790,14 @@ async function handlePhoto(no, file){
       ctx.fillText(label, pad, pad+fs+20);
     }
     const burnedB64=canvas.toDataURL('image/jpeg',0.65);
+    const bKey=photoKey(), oKey=photoKey();
+    idbPut(bKey,burnedB64); idbPut(oKey,origB64);
     S.invoice.items=S.invoice.items.map(it=>{
       if(it.no!==no)return it;
       const photos=[...(it.photos||[])];
       const origPhotos=[...(it.origPhotos||[])];
-      photos.push(burnedB64);
-      origPhotos.push(origB64);
+      photos.push(bKey);
+      origPhotos.push(oKey);
       return{...it,photos,origPhotos};
     });
     save(); render();
@@ -781,8 +811,10 @@ function openMarkupForExisting(no,idx){
   const origSrc2=(it.origPhotos&&it.origPhotos[idx])||it.photos[idx];
   const burnedSrc2=it.photos[idx];
   const isReedit2=!!(it.origPhotos&&it.origPhotos[idx]);
-  S.markup={no,photoIdx:idx,src:origSrc2,origSrc:origSrc2,tool:'circle',strokes:[],autoLabel:_pos,_sel:null,
-    _reedit:isReedit2,_burnedSrc:isReedit2?burnedSrc2:null};
+  const origResolved2=photoSrc(origSrc2);
+  const burnedResolved2=isReedit2?photoSrc(burnedSrc2):null;
+  S.markup={no,photoIdx:idx,src:origResolved2,origSrc:origResolved2,tool:'circle',strokes:[],autoLabel:_pos,_sel:null,
+    _reedit:isReedit2,_burnedSrc:burnedResolved2};
   S.viewPhoto=null;
   render();
   if(!isReedit2) requestAnimationFrame(()=>initMarkupCanvas());
@@ -790,7 +822,12 @@ function openMarkupForExisting(no,idx){
 function removePhoto(no,pidx){
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
-    return{...it,photos:(it.photos||[]).filter((_,i)=>i!==pidx)};
+    const photos=[...(it.photos||[])];
+    const origPhotos=[...(it.origPhotos||[])];
+    const bKey=photos[pidx]; const oKey=origPhotos[pidx];
+    if(bKey&&!bKey.startsWith('data:'))idbDel(bKey);
+    if(oKey&&!oKey.startsWith('data:'))idbDel(oKey);
+    return{...it,photos:photos.filter((_,i)=>i!==pidx),origPhotos:origPhotos.filter((_,i)=>i!==pidx)};
   });
   save();render();
 }
@@ -1165,7 +1202,7 @@ function render(){
   const photoViewer=S.viewPhoto
     ?`<div class="photo-viewer">
         <button class="photo-viewer-close" onclick="S.viewPhoto=null;render()">×</button>
-        <img src="${S.viewPhoto.src}">
+        <img src="${photoSrc(S.viewPhoto.src)}">
         <div style="display:flex;gap:10px;margin-top:16px">
           <button class="photo-viewer-del" style="background:#333;color:#fff" onclick="openMarkupForExisting('${S.viewPhoto.no}',${S.viewPhoto.idx})">EDIT MARKUP</button>
           <button class="photo-viewer-del" onclick="removePhoto('${S.viewPhoto.no}',${S.viewPhoto.idx});S.viewPhoto=null;render()">× DELETE</button>
@@ -1217,7 +1254,7 @@ function render(){
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
 }
 
-load();render();
+load(); idbLoadAll().then(()=>render()).catch(()=>render());
 
 // iOS-safe outside-tap detection for picker close
 (function(){
@@ -1345,18 +1382,21 @@ function doneMarkup(){
       ctx.fillText(label, pad, pad+fs+20);
     }
     const b64=canvas.toDataURL('image/jpeg',0.65);
-    const {no,photoIdx,origSrc}=S.markup;
+    const bKey=photoKey();
+    idbPut(bKey,b64);
+    const {no,photoIdx}=S.markup;
     S.invoice.items=S.invoice.items.map(it=>{
       if(it.no!==no)return it;
       const photos=[...(it.photos||[])];
       const origPhotos=[...(it.origPhotos||[])];
       if(photoIdx===null||photoIdx===undefined){
-        photos.push(b64);
-        if(!origPhotos[photos.length-1]) origPhotos.push(origSrc||b64);
+        photos.push(bKey);
       } else {
-        photos[photoIdx]=b64;
-        // Never overwrite origPhotos — it must stay as the true original
-        if(!origPhotos[photoIdx]) origPhotos[photoIdx]=origSrc||b64;
+        // Delete old burned photo from IDB if it's a key
+        const old=photos[photoIdx];
+        if(old&&!old.startsWith('data:'))idbDel(old);
+        photos[photoIdx]=bKey;
+        // origPhotos[photoIdx] is never touched — true original is preserved
       }
       return{...it,photos,origPhotos};
     });

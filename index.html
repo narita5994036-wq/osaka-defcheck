@@ -143,8 +143,8 @@
   .eacts .btn{margin-top:0}
   .eacts .btn.s{flex-shrink:0;width:auto;padding:13px 16px;font-size:10px}
   .bot{height:max(60px,env(safe-area-inset-bottom))}
-  .fab{position:fixed;bottom:max(24px,calc(env(safe-area-inset-bottom)+12px));right:20px;width:44px;height:44px;border-radius:50%;background:var(--k);color:#fff;border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:90;line-height:1}
-  .fab:active{opacity:.75}
+  .fab{position:fixed;bottom:28px;right:20px;width:44px;height:44px;border-radius:50%;background:#000;color:#fff;border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.3);z-index:200}
+  .fab:active{opacity:.7}
   /* DEFECT PICKER */
   .dpick{margin-top:10px;margin-left:32px;background:#fff8f8;border:1px solid var(--redM);border-radius:6px;padding:12px 14px}
   .dpick-row{margin-bottom:10px}
@@ -292,6 +292,7 @@
 <div id="app"></div>
 <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onCameraChange(this)">
 <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="onGalleryChange(this)">
+<button id="scroll-fab" class="fab" style="display:none" onclick="(function(){var t=document.querySelector('.def-sum,.war-sum');if(t)t.scrollIntoView({behavior:'smooth'});else window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});})()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1411,21 +1412,8 @@ function render(){
     ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
-  // FAB: manage as a persistent DOM element outside #app
-  let fab=document.getElementById('scroll-fab');
-  if(!fab){
-    fab=document.createElement('button');
-    fab.id='scroll-fab';
-    fab.className='fab';
-    fab.textContent='↓';
-    fab.addEventListener('click',()=>{
-      const t=document.querySelector('.def-sum,.war-sum');
-      if(t)t.scrollIntoView({behavior:'smooth'});
-      else window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
-    });
-    document.body.appendChild(fab);
-  }
-  fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';
+  const fab=document.getElementById('scroll-fab');
+  if(fab) fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';
 }
 
 initApp(); idbLoadAll().then(()=>render()).catch(()=>render());

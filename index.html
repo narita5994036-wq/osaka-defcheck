@@ -696,7 +696,7 @@ function buildEmail(){
   const blocks=defs.map(it=>{
     const posLabel=it.subOf?`${it.subOf}-${it.subIdx}`:it.no;
     return [
-      `Position Number/Item : ${posLabel} / ${it.name}`,
+      `Position Number/Item : ${posLabel}. ${it.name}`,
       `Stamp Number: ${(it.stampNo&&it.stampNo.trim())||'none'}`,
       `Color Number/ID Number : ${[it.colorCode?'C'+it.colorCode:'',it.itemId&&it.itemId.trim()||''].filter(Boolean).join('/')}`,
       `Defective Parts/Conditions : ${it.remark||''}`,

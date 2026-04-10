@@ -415,6 +415,7 @@ function invCardHtml(e,isArchived){
       ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%"></div></div>
       <div class="inv-card-prg">${checked} / ${tot} checked</div>`:''}
       <div class="inv-card-actions" onclick="event.stopPropagation()">
+        <button class="inv-card-act-btn" onclick="quickMail('${e.id}')" style="color:var(--blue);border-color:#90caf9">MAIL</button>
         <button class="inv-card-act-btn" onclick="archiveInvoice('${e.id}')">${isArchived?'Restore':'Archive'}</button>
         <button class="inv-card-act-btn inv-card-act-del" onclick="deleteInvoice('${e.id}')">Delete</button>
       </div>
@@ -422,8 +423,19 @@ function invCardHtml(e,isArchived){
     <div class="inv-card-arr">›</div>
   </div>`;
 }
-function initApp(){
-  // Migrate legacy single-invoice storage
+function quickMail(id){
+  try{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    if(!d)return;
+    const inv=JSON.parse(d);
+    inv.items=inv.items.map(migrateItem);
+    S.invoiceId=id; S.invoice=inv; S.screen='checklist';
+    S.filter='ALL'; S.pickerOpen={}; S.showEmail=false;
+    const defs=inv.items.filter(i=>i.status==='defective');
+    if(!defs.length){alert('Defectiveのアイテムがありません');return;}
+    buildEmail();
+  }catch(e){console.warn('quickMail failed:',e);}
+}
   try{
     const d=localStorage.getItem(SK);
     if(d){

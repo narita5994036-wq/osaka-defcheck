@@ -1230,7 +1230,7 @@ function render(){
               oninput="setStampNo('${it.no}',this.value)">
           </div>
           <div class="stamp-field" style="margin-top:8px">
-            <label>ITEM ID</label>
+            <label>ID NUMBER</label>
             <input class="stamp-inp${it.itemId&&it.itemId.trim()?' filled':''}" type="text"
               value="${esc(it.itemId||'')}"
               placeholder="例: ABC-001"
@@ -1309,7 +1309,7 @@ function render(){
       ${def>0?`<div class="def-sum">
         <div class="def-sum-tit">DEFECTIVE — ${def}</div>
         ${defItems.map(it=>`<div class="def-li"><div class="def-li-hd"><span class="def-li-no">${it.no}.</span>${esc(it.name)}${it.colorCode?' #'+it.colorCode:''}</div>${it.remark?`<div class="def-li-rm">▸ ${esc(it.remark)}</div>`:''}</div>`).join('')}
-        <button class="btn blk" onclick="goToStamp()">→ スタンプ番号を入力</button>
+        <button class="btn blk" onclick="goToStamp()">→ スタンプ番号・IDを入力</button>
       </div>`:''}
       ${war>0?`<div class="war-sum">
         <div class="war-sum-tit">保証交換品 — ${war}</div>

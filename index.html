@@ -681,8 +681,8 @@ function defAreaHtml(it){
           <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
           <button class="photo-del" onclick="event.stopPropagation();removePhoto('${no}',${i})">×</button>
         </div>`).join('')}
-      <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span>📷</span><span class="photo-add-lbl">CAM</span></button>
-      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span>🖼</span><span class="photo-add-lbl">LIB</span></button>
+      <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span class="photo-add-lbl">CAM</span></button>
+      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span class="photo-add-lbl">LIB</span></button>
     </div>`:``;
   if(isOpen){
     return defPickerHtml(it)+`
@@ -694,8 +694,8 @@ function defAreaHtml(it){
               <img class="photo-thumb" src="${photoSrc(src)}" onclick="viewPhoto('${no}',${i})">
               <button class="photo-del" onclick="removePhoto('${no}',${i})">×</button>
             </div>`).join('')}
-          <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span>📷</span><span class="photo-add-lbl">CAM</span></button>
-      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span>🖼</span><span class="photo-add-lbl">LIB</span></button>
+          <button class="photo-add-btn" onclick="triggerCamera('${no}',event)"><span class="photo-add-lbl">CAM</span></button>
+      <button class="photo-add-btn" onclick="triggerGallery('${no}',event)"><span class="photo-add-lbl">LIB</span></button>
         </div>
       </div>`;
   }

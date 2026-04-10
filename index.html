@@ -1560,9 +1560,20 @@ function doneMarkup(){
       offCtx.font='bold '+fs+'px Montserrat,Arial,sans-serif';
       const olw=Math.max(3,Math.round(fs*0.12));
       offCtx.lineWidth=olw; offCtx.lineJoin='round'; offCtx.strokeStyle='white';
-      offCtx.strokeText(label, pad+10, pad+fs+25);
-      offCtx.fillStyle='#e53935';
-      offCtx.fillText(label, pad+10, pad+fs+25);
+      const stroke=(S.markup.strokes||[])[0];
+      if(stroke){
+        offCtx.textAlign='center';
+        const tx=stroke.cx;
+        const ty=Math.max(fs+4, stroke.cy-stroke.r-30);
+        offCtx.strokeText(label, tx, ty);
+        offCtx.fillStyle='#e53935';
+        offCtx.fillText(label, tx, ty);
+      } else {
+        offCtx.textAlign='left';
+        offCtx.strokeText(label, pad+10, pad+fs+25);
+        offCtx.fillStyle='#e53935';
+        offCtx.fillText(label, pad+10, pad+fs+25);
+      }
     }
     S.markup._preview=off.toDataURL('image/jpeg',0.65);
     render();

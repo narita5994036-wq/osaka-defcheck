@@ -281,6 +281,9 @@
   .inv-card-actions{display:flex;gap:6px;margin-top:8px}
   .inv-card-act-btn{font-size:9px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600)}
   .inv-card-act-del{color:var(--red);border-color:var(--redM)}
+  /* PART DETAIL */
+  .dpick-detail-toggle{font-size:10px;letter-spacing:.5px;color:var(--g600);cursor:pointer;padding:2px 8px;border:1px solid var(--g200);border-radius:3px;background:none}
+  .dpick-detail-toggle.has-val{color:var(--red);border-color:var(--redM);font-weight:500}
 </style>
 </head>
 <body>
@@ -295,7 +298,7 @@ const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null,showArchive:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
 function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}}
@@ -341,7 +344,17 @@ function idbLoadAll(){
 function photoKey(){return 'pk_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
 // Resolve a photo value: IDB key → dataURL, legacy base64 → pass-through
 function photoSrc(v){if(!v)return '';if(v.startsWith('data:'))return v;return _pc[v]||'';}
-function newDefect(){return {part:'',partOther:null,side:'',cond:[],condOther:null};}
+function newDefect(){return {part:'',partOther:null,partDetail:null,side:'',cond:[],condOther:null};}
+function togglePartDetailOpen(no,idx){
+  const k=no+'_'+idx;
+  S.partDetailOpen[k]=!S.partDetailOpen[k];
+  render();
+}
+function setPartDetail(no,idx,val){
+  const k=no+'_'+idx;
+  S.partDetailOpen[k]=false;
+  updDefect(no,idx,d=>({...d,partDetail:d.partDetail===val?null:val}));
+}
 function migrateItem(it){
   // migrate old flat structure → defects array
   if(!it.defects){
@@ -644,7 +657,11 @@ function clearDefect(no){
 function syncRemark(it){
   const parts=it.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');
-    const loc=partStr?(d.side==='Both'&&partStr==='Lens'?'Both lenses':d.side?d.side+' '+partStr.toLowerCase():partStr):d.side||'';
+    const detail=d.partDetail?` (${d.partDetail})`:'';
+    const partDisplay=partStr+detail;
+    const loc=partStr
+      ?(d.side==='Both'&&partStr==='Lens'&&!d.partDetail?'Both lenses':d.side?d.side+' '+partDisplay.toLowerCase():partDisplay)
+      :(d.side||'');
     const conds=[...d.cond,...(d.condOther?[d.condOther]:[])];
     return[loc,conds.join(', ')].filter(Boolean).join(' / ');
   }).filter(Boolean);
@@ -712,9 +729,11 @@ function g(id){return document.getElementById(id)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 /* DEFECT PICKER HTML */
+const DEF_PART_DETAIL=['lim','nose','hinge'];
 function defEntryHtml(no,d,idx,total){
   const partOtherOn=d.partOther!==null&&d.partOther!==undefined;
   const condOtherOn=d.condOther!==null&&d.condOther!==undefined;
+  const detailOpen=!!(S.partDetailOpen[no+'_'+idx]);
   return `<div class="dpick-entry">
     ${total>1
       ?`<div class="dpick-entry-hd">
@@ -733,6 +752,10 @@ function defEntryHtml(no,d,idx,total){
         <span class="pill-other${partOtherOn?' sel':''}" onclick="toggleDefPartOther('${no}',${idx})">Other</span>
       </div>
       ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)"></div>`:''}
+      <div style="margin-top:4px">
+        <button class="dpick-detail-toggle${d.partDetail?' has-val':''}" onclick="togglePartDetailOpen('${no}',${idx})">${d.partDetail?'▸ '+d.partDetail:'+ detail'}</button>
+        ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${DEF_PART_DETAIL.map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="setPartDetail('${no}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
+      </div>
     </div>
     <div class="dpick-row">
       <div class="dpick-label">SIDE</div>

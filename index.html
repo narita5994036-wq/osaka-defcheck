@@ -318,6 +318,36 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
 let _sw={state:null,openId:null,moved:false};
+let _dispSheet=null;
+function openDispSheet(id){
+  try{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    if(!d)return;
+    const inv=JSON.parse(d);
+    inv.items=inv.items.map(migrateItem);
+    _dispSheet={id,inv};render();
+  }catch(e){console.warn('openDispSheet failed:',e);}
+}
+function setDispInSheet(no,val){
+  if(!_dispSheet)return;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>{
+    if(it.no!==no)return it;
+    return{...it,disp:it.disp===val?null:val};
+  });
+  try{
+    localStorage.setItem('mykita_dc_inv_'+_dispSheet.id,JSON.stringify(_dispSheet.inv));
+    const list=loadList();
+    const idx=list.findIndex(e=>e.id===_dispSheet.id);
+    if(idx>=0){
+      const defItems=_dispSheet.inv.items.filter(i=>i.status==='defective');
+      list[idx].dispTotal=defItems.length;
+      list[idx].dispSet=defItems.filter(i=>i.disp).length;
+      saveList(list);
+    }
+  }catch(e){console.warn('setDispInSheet save failed:',e);}
+  render();
+}
+function closeDispSheet(){_dispSheet=null;render();}
 function swStart(e,id){
   if(_sw.openId&&_sw.openId!==id){
     const prev=document.querySelector(`.inv-swipe-wrap[data-id="${_sw.openId}"] .inv-card`);
@@ -502,7 +532,10 @@ function invCardHtml(e,isArchived){
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
         ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
-        ${prg===100?`<button class="inv-card-act-btn" onclick="event.stopPropagation();quickMail('${e.id}')">MAIL</button>`:''}
+        ${prg===100||(e.dispTotal>0)?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
+          ${prg===100?`<button class="inv-card-act-btn" onclick="event.stopPropagation();quickMail('${e.id}')">MAIL</button>`:''}
+          ${e.dispTotal>0?`<button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`:''}
+        </div>`:''}
       </div>
       <div class="inv-card-arr">›</div>
     </div>
@@ -1528,7 +1561,33 @@ function render(){
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
       <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}</div>
     </div>
-    ${body}<div class="bot"></div>${emailModal}${pickerBackdrop}${photoViewer}${markupEditor}
+    ${body}<div class="bot"></div>${emailModal}${(()=>{
+  if(!_dispSheet)return '';
+  const ds=_dispSheet;
+  const defs=ds.inv.items.filter(i=>i.status==='defective');
+  return `<div class="overlay" onclick="if(event.target===this)closeDispSheet()">
+    <div class="sheet">
+      <div class="sheet-tit">DISPOSITION<button class="close-btn" onclick="closeDispSheet()">×</button></div>
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);margin-bottom:16px">${esc(ds.inv.number||'—')}</div>
+      ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
+        :defs.map(it=>{
+          const pos=it.subOf||it.no;
+          const allSet=it.disp==='return'||it.disp==='sample';
+          return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">
+            <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
+              <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
+              <span style="font-size:13px;font-weight:500">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
+            </div>
+            ${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}
+            <div style="display:flex;gap:8px">
+              <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
+              <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>
+  </div>`;
+})()}${pickerBackdrop}${photoViewer}${markupEditor}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');

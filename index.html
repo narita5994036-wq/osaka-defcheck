@@ -900,6 +900,8 @@ async function openMailto(){
       files.push(new File([blob],`${p.pos}.${(p.name||'').replace(/[^\w\-]/g,'_').slice(0,30)}_${i+1}.${ext}`,{type:blob.type}));
     }
     if(files.length&&navigator.canShare&&navigator.canShare({files})){
+      // Copy To + Subject to clipboard before opening share sheet
+      try{await navigator.clipboard.writeText(`To: ${t}\nSubject: ${s}`);}catch(e){}
       await navigator.share({files,title:s,text:b});
     } else {
       window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
@@ -907,8 +909,16 @@ async function openMailto(){
   }catch(e){
     if(e.name!=='AbortError') window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
   }finally{
-    if(btn){btn.textContent='Outlookで開く';btn.disabled=false;}
+    if(btn){btn.textContent='写真を添付して開く';btn.disabled=false;}
   }
+}
+function copySubjectTo(){
+  const s=g('em-s')?.value||S.emailSubj;
+  const t=g('em-t')?.value||S.emailTo;
+  navigator.clipboard.writeText(`To: ${t}\nSubject: ${s}`).then(()=>{
+    const btn=g('copy-hdr-btn');
+    if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='件名・宛先をコピー';},1500);}
+  });
 }
 function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
@@ -1560,11 +1570,28 @@ function render(){
             }).join('')}
           </div>
         </div>`:''}
-        ${S.emailPhotoKeys.length>0?`<div style="font-size:10px;color:var(--g600);margin-bottom:10px;line-height:1.5">写真を選択して「Outlookで開く」を押すと、<br>共有シートから添付付きでメールを開けます。</div>`:''}
-        <div class="eacts">
-          <button class="btn blk" id="mailto-btn" onclick="openMailto()">${S.emailPhotoKeys.length>0&&S.emailSelKeys&&S.emailSelKeys.size>0?'写真を添付して開く':'Outlookで開く'}</button>
-          <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
-        </div>
+        ${(()=>{
+          const hasPh=S.emailPhotoKeys.length>0;
+          const selCnt=hasPh&&S.emailSelKeys?S.emailSelKeys.size:0;
+          if(hasPh&&selCnt>0) return `
+            <div style="background:var(--g50);border-radius:6px;padding:12px 14px;margin-bottom:12px;font-size:10px;color:var(--g800);line-height:1.7">
+              <div style="font-weight:600;letter-spacing:1px;margin-bottom:4px;font-size:9px;color:var(--g400)">STEPS</div>
+              <div>① 写真を添付して開く → 共有シートで Outlook を選択</div>
+              <div style="color:var(--g600)">　 件名・宛先が自動でコピーされます</div>
+              <div>② Outlook の新規メールに件名・宛先を貼り付け</div>
+            </div>
+            <div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
+              <button class="btn blk" id="mailto-btn" onclick="openMailto()">① 写真を添付して開く（${selCnt}枚）</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn out" id="copy-hdr-btn" style="flex:1" onclick="copySubjectTo()">件名・宛先をコピー</button>
+                <button class="btn out s" id="cbtn" onclick="copyEmail()">本文をコピー</button>
+              </div>
+            </div>`;
+          return `<div class="eacts">
+            <button class="btn blk" id="mailto-btn" onclick="openMailto()">Outlookで開く</button>
+            <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
+          </div>`;
+        })()}
       </div>
     </div>`:'';
 

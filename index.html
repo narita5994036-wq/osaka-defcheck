@@ -316,7 +316,7 @@ const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
 let _sw={state:null,openId:null,moved:false};
 let _dispSheet=null;
 function openDispSheet(id){
@@ -450,6 +450,8 @@ function idbLoadAll(){
   }));
 }
 function photoKey(){return 'pk_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
+function idbGet(key){return _openIdb().then(db=>new Promise((res,rej)=>{const tx=db.transaction('p','readonly');const r=tx.objectStore('p').get(key);r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e.target.error);}));}
+async function resolvePhotoAsync(key){if(!key)return null;if(key.startsWith('data:'))return key;if(_pc[key])return _pc[key];const v=await idbGet(key).catch(()=>null);if(v)_pc[key]=v;return v||null;}
 // Resolve a photo value: IDB key → dataURL, legacy base64 → pass-through
 function photoSrc(v){if(!v)return '';if(v.startsWith('data:'))return v;return _pc[v]||'';}
 function newDefect(){return {part:'',partOther:null,partDetail:null,side:'',cond:[],condOther:null};}
@@ -851,6 +853,14 @@ function buildEmail(){
       `Defective Parts/Conditions : ${it.remark||''}`,
     ].filter(l=>!l.endsWith(': ')).join('\n');
   }).join('\n\n');
+  // Collect photos for attachment selection
+  const allPhotos=[];
+  defs.forEach(it=>{
+    const pos=it.subOf||it.no;
+    (it.photos||[]).forEach(key=>{if(key&&(key.startsWith('data:')||_pc[key]))allPhotos.push({key,pos,name:it.name});});
+  });
+  S.emailPhotoKeys=allPhotos;
+  S.emailSelKeys=new Set(allPhotos.map(p=>p.key));
   S.emailTo='Diana.Schwarz@mykita.com';
   S.emailSubj=`🟥DEFECTIVE REPORT/MYKITA Osaka`;
   S.emailBody=[
@@ -877,7 +887,47 @@ function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
   navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='COPY',1500)}});
 }
-function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
+function toggleEmailPhoto(key){
+  if(!S.emailSelKeys)return;
+  if(S.emailSelKeys.has(key))S.emailSelKeys.delete(key);
+  else S.emailSelKeys.add(key);
+  render();
+}
+function toggleAllEmailPhotos(){
+  if(!S.emailPhotoKeys.length)return;
+  if(S.emailSelKeys&&S.emailSelKeys.size===S.emailPhotoKeys.length)S.emailSelKeys=new Set();
+  else S.emailSelKeys=new Set(S.emailPhotoKeys.map(p=>p.key));
+  render();
+}
+async function shareEmailPhotos(){
+  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
+  if(!sel.length){alert('写真を選択してください');return;}
+  const btn=g('share-photo-btn');
+  if(btn){btn.textContent='読み込み中...';btn.disabled=true;}
+  try{
+    const files=[];
+    for(let i=0;i<sel.length;i++){
+      const p=sel[i];
+      const src=await resolvePhotoAsync(p.key);
+      if(!src)continue;
+      const res=await fetch(src);
+      const blob=await res.blob();
+      const ext=blob.type.includes('png')?'png':'jpg';
+      files.push(new File([blob],`${p.pos}.${(p.name||'').replace(/[^\w\-]/g,'_').slice(0,30)}_${i+1}.${ext}`,{type:blob.type}));
+    }
+    if(!files.length){alert('写真データを取得できませんでした');return;}
+    if(navigator.canShare&&navigator.canShare({files})){
+      await navigator.share({files,title:S.emailSubj||'DEFECTIVE REPORT'});
+    } else {
+      alert('このブラウザではファイル共有に対応していません');
+    }
+  }catch(e){
+    if(e.name!=='AbortError')console.error('shareEmailPhotos:',e);
+  }finally{
+    if(btn){btn.textContent='写真を共有';btn.disabled=false;}
+  }
+}
+function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
 function g(id){return document.getElementById(id)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function normalizeId(s){return String(s||'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase().trim();}
@@ -1491,10 +1541,30 @@ function render(){
         </div>
         <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="Diana.Schwarz@mykita.com"></div>
         <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>
-        <div class="ef"><label>BODY</label><textarea id="em-b" style="min-height:320px">${esc(S.emailBody)}</textarea></div>
-        <div class="eacts">
+        <div class="ef"><label>BODY</label><textarea id="em-b" style="min-height:280px">${esc(S.emailBody)}</textarea></div>
+        ${S.emailPhotoKeys.length>0?`<div class="ef">
+          <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span>PHOTOS &nbsp;<span style="color:var(--g600);font-weight:400">${S.emailSelKeys?S.emailSelKeys.size:0} / ${S.emailPhotoKeys.length} 選択</span></span>
+            <button style="font-size:9px;letter-spacing:1px;padding:2px 8px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit" onclick="toggleAllEmailPhotos()">${S.emailSelKeys&&S.emailSelKeys.size===S.emailPhotoKeys.length?'全解除':'全選択'}</button>
+          </label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${S.emailPhotoKeys.map(p=>{
+              const sel=!!(S.emailSelKeys&&S.emailSelKeys.has(p.key));
+              const src=photoSrc(p.key);
+              return `<div style="cursor:pointer;text-align:center;flex-shrink:0" onclick="toggleEmailPhoto('${p.key}')">
+                <div style="position:relative;display:inline-block">
+                  <img src="${src}" style="width:62px;height:62px;object-fit:cover;border-radius:4px;display:block;opacity:${sel?1:0.2};border:2px solid ${sel?'var(--red)':'var(--g200)'}">
+                  <div style="position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:${sel?'var(--red)':'rgba(0,0,0,0.25)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700">${sel?'✓':''}</div>
+                </div>
+                <div style="font-size:8px;color:var(--g600);margin-top:2px">${p.pos}.</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`:''}
+        <div class="eacts" style="flex-wrap:wrap;gap:8px">
           <button class="btn blk" onclick="openMailto()">Outlookで開く</button>
           <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
+          ${S.emailPhotoKeys.length>0?`<button class="btn out s" id="share-photo-btn" onclick="shareEmailPhotos()" style="color:var(--blue);border-color:#90caf9">写真を共有</button>`:''}
         </div>
       </div>
     </div>`:'';

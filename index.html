@@ -289,6 +289,13 @@
   /* PART DETAIL */
   .dpick-detail-toggle{font-size:10px;letter-spacing:.5px;color:var(--g600);cursor:pointer;padding:2px 8px;border:1px solid var(--g200);border-radius:3px;background:none}
   .dpick-detail-toggle.has-val{color:var(--red);border-color:var(--redM);font-weight:500}
+  /* DISPOSITION */
+  .disp-row{display:flex;align-items:center;gap:7px;margin-top:8px;margin-left:32px}
+  .disp-lbl{font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;flex-shrink:0}
+  .disp-btn{padding:4px 14px;border-radius:3px;border:1px solid var(--g200);font-size:10px;letter-spacing:1px;font-weight:600;cursor:pointer;background:var(--w);color:var(--g600);font-family:inherit;user-select:none}
+  .disp-btn:active{opacity:.7}
+  .disp-btn.ret{background:var(--redL);color:var(--red);border-color:var(--red)}
+  .disp-btn.smp{background:var(--tealL);color:var(--teal);border-color:var(--teal)}
 </style>
 </head>
 <body>
@@ -320,9 +327,20 @@ function save(){
       list[idx].pend=S.invoice.items.filter(i=>i.status==='pending').length;
       list[idx].number=S.invoice.number;
       list[idx].date=S.invoice.date||'';
+      const defItems=S.invoice.items.filter(i=>i.status==='defective');
+      list[idx].dispTotal=defItems.length;
+      list[idx].dispSet=defItems.filter(i=>i.disp).length;
       saveList(list);
     }
   }catch(e){console.warn('save failed:',e);}
+}
+
+function setDisp(no,val){
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.no!==no)return it;
+    return{...it,disp:it.disp===val?null:val};
+  });
+  save();render();
 }
 
 /* ── IndexedDB photo store ── */
@@ -420,6 +438,7 @@ function invCardHtml(e,isArchived){
       <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
       ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
       <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
+      ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
       <div class="inv-card-actions" onclick="event.stopPropagation()">
         <button class="inv-card-act-btn" ${prg===100?`onclick="quickMail('${e.id}')" style="color:var(--blue);border-color:#90caf9"`:`disabled style="opacity:.3;cursor:default"`}>MAIL</button>
         <button class="inv-card-act-btn" onclick="archiveInvoice('${e.id}')">${isArchived?'Restore':'Archive'}</button>
@@ -822,6 +841,11 @@ function defAreaHtml(it){
         </div>`).join('')}
       <button class="photo-add-btn" onclick="triggerGallery('${no}',event)">+</button>
     </div>`:``;
+  const dispHtml=`<div class="disp-row" onclick="event.stopPropagation()">
+    <span class="disp-lbl">DISP</span>
+    <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDisp('${no}','return')">Return</button>
+    <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDisp('${no}','sample')">Sample</button>
+  </div>`;
   if(isOpen){
     return defPickerHtml(it)+`
       <div class="photo-section" onclick="event.stopPropagation()">
@@ -834,7 +858,8 @@ function defAreaHtml(it){
             </div>`).join('')}
           <button class="photo-add-btn" onclick="triggerGallery('${no}',event)">+</button>
         </div>
-      </div>`;
+      </div>
+      ${dispHtml}`;
   }
   const txt=it.remark||'';
   return `<div class="def-inline" onclick="togglePicker('${no}')">
@@ -844,7 +869,8 @@ function defAreaHtml(it){
     }
     <button class="def-inline-edit" onclick="event.stopPropagation();togglePicker('${no}')">EDIT</button>
   </div>
-  ${photoHtml}`;
+  ${photoHtml}
+  ${dispHtml}`;
 }
 function viewPhoto(no,idx){
   const it=S.invoice.items.find(i=>i.no===no);
@@ -1464,6 +1490,7 @@ window.addEventListener('scroll',updateFab,{passive:true});
     if(t.closest('.photo-strip'))return;
     if(t.closest('.photo-thumb-wrap'))return;
     if(t.closest('.sbtn'))return;
+    if(t.closest('.disp-row'))return;
     if(t.id==='camera-input'||t.id==='gallery-input')return;
     closeAllPickers();
   }

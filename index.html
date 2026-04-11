@@ -547,8 +547,8 @@ function quickMail(id){
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
-    S.invoiceId=id; S.invoice=inv; S.screen='checklist';
-    S.filter='ALL'; S.pickerOpen={}; S.showEmail=false;
+    S.invoiceId=id; S.invoice=inv;
+    S.pickerOpen={}; S.showEmail=false;
     const defs=inv.items.filter(i=>i.status==='defective');
     if(!defs.length){alert('Defectiveのアイテムがありません');return;}
     buildEmail();

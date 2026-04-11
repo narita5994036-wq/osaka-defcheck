@@ -273,9 +273,16 @@
   .home-new{display:block;width:calc(100% - 40px);margin:16px 20px 0;border:1px dashed var(--g400);border-radius:4px;padding:14px;text-align:center;cursor:pointer;font-size:10px;letter-spacing:2px;color:var(--g600);background:none}
   .home-new:active{background:var(--g50)}
   .home-sec{padding:16px 20px 6px;font-size:9px;letter-spacing:3px;color:var(--g400);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px}
-  .inv-card{margin:0 20px 10px;border:1px solid var(--g200);border-radius:6px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px}
+  /* SWIPE CARD */
+  .inv-swipe-wrap{position:relative;overflow:hidden;margin:0 20px 10px;border-radius:6px}
+  .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex}
+  .isw-btn{display:flex;align-items:center;justify-content:center;padding:0 22px;font-size:10px;letter-spacing:1.5px;font-weight:600;border:none;cursor:pointer;color:#fff;font-family:inherit;white-space:nowrap}
+  .isw-btn.isw-arc{background:var(--g800)}
+  .isw-btn.isw-restore{background:var(--green)}
+  .isw-btn.isw-del{background:var(--red)}
+  .inv-card{border:1px solid var(--g200);border-radius:6px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--w);position:relative;z-index:1}
   .inv-card:active{background:var(--g50)}
-  .inv-card-arc{opacity:.55}
+  .inv-card.arc{opacity:.55}
   .inv-card-body{flex:1;min-width:0}
   .inv-card-no{font-size:14px;font-weight:500;letter-spacing:1px}
   .inv-card-date{font-size:10px;color:var(--g400);letter-spacing:.5px;margin-top:2px}
@@ -283,9 +290,7 @@
   .inv-card-prog-bar{height:2px;background:var(--g200);border-radius:1px;margin-top:5px}
   .inv-card-prog-fill{height:100%;background:var(--k);border-radius:1px}
   .inv-card-arr{font-size:20px;color:var(--g400);flex-shrink:0}
-  .inv-card-actions{display:flex;gap:6px;margin-top:8px}
-  .inv-card-act-btn{font-size:9px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600)}
-  .inv-card-act-del{color:var(--red);border-color:var(--redM)}
+  .inv-card-act-btn{font-size:9px;letter-spacing:1px;padding:4px 10px;border:1px solid #90caf9;border-radius:3px;background:none;cursor:pointer;color:var(--blue);font-family:inherit;margin-top:8px;display:inline-block}
   /* PART DETAIL */
   .dpick-detail-toggle{font-size:10px;letter-spacing:.5px;color:var(--g600);cursor:pointer;padding:2px 8px;border:1px solid var(--g200);border-radius:3px;background:none}
   .dpick-detail-toggle.has-val{color:var(--red);border-color:var(--redM);font-weight:500}
@@ -312,6 +317,54 @@ const STATS=['pending','ok','defective','warranty'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
+let _sw={state:null,openId:null,moved:false};
+function swStart(e,id){
+  if(_sw.openId&&_sw.openId!==id){
+    const prev=document.querySelector(`.inv-swipe-wrap[data-id="${_sw.openId}"] .inv-card`);
+    if(prev){prev.style.transition='transform .2s ease';prev.style.transform='translateX(0)';}
+    _sw.openId=null;
+  }
+  const wrap=e.currentTarget;
+  const el=wrap.querySelector('.inv-card');
+  const actEl=wrap.querySelector('.inv-swipe-actions');
+  const t=e.touches[0];
+  _sw.state={el,actEl,id,startX:t.clientX,startY:t.clientY,started:false,initOffset:_sw.openId===id?-(actEl.offsetWidth):0};
+}
+function swMove(e){
+  const s=_sw.state;if(!s)return;
+  const t=e.touches[0];
+  const dx=t.clientX-s.startX,dy=t.clientY-s.startY;
+  if(!s.started){
+    if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
+    if(Math.abs(dy)>=Math.abs(dx)){_sw.state=null;return;}
+    s.started=true;
+  }
+  e.preventDefault();
+  const aw=s.actEl.offsetWidth;
+  const raw=s.initOffset+dx;
+  s.el.style.transition='none';
+  s.el.style.transform=`translateX(${Math.max(-aw,Math.min(0,raw))}px)`;
+}
+function swEnd(e){
+  const s=_sw.state;_sw.state=null;
+  if(!s||!s.started)return;
+  _sw.moved=true;setTimeout(()=>{_sw.moved=false;},300);
+  const t=e.changedTouches[0];
+  const dx=t.clientX-s.startX+s.initOffset;
+  const aw=s.actEl.offsetWidth;
+  s.el.style.transition='transform .2s ease';
+  if(dx<-(aw*0.3)){s.el.style.transform=`translateX(-${aw}px)`;_sw.openId=s.id;}
+  else{s.el.style.transform='translateX(0)';_sw.openId=null;}
+}
+function invCardTap(id){
+  if(_sw.moved)return;
+  if(_sw.openId===id){
+    const el=document.querySelector(`.inv-swipe-wrap[data-id="${id}"] .inv-card`);
+    if(el){el.style.transition='transform .2s ease';el.style.transform='translateX(0)';}
+    _sw.openId=null;return;
+  }
+  openInvoice(id);
+}
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
 function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}}
@@ -410,6 +463,7 @@ function openInvoice(id){
   }catch(e){console.warn('openInvoice failed:',e);}
 }
 function archiveInvoice(id){
+  _sw.openId=null;
   const list=loadList();
   const idx=list.findIndex(e=>e.id===id);
   if(idx<0)return;
@@ -418,6 +472,7 @@ function archiveInvoice(id){
   render();
 }
 function deleteInvoice(id){
+  _sw.openId=null;
   if(!confirm('このインボイスを削除しますか？\nこの操作は取り消せません。'))return;
   const list=loadList().filter(e=>e.id!==id);
   saveList(list);
@@ -432,20 +487,24 @@ function invCardHtml(e,isArchived){
   const prg=tot?Math.round(checked/tot*100):0;
   const dateStr=e.date||'';
   const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
-  return `<div class="inv-card${isArchived?' inv-card-arc':''}" onclick="openInvoice('${e.id}')">
-    <div class="inv-card-body">
-      <div class="inv-card-no">${esc(e.number||'—')}</div>
-      <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
-      ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
-      <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
-      ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
-      <div class="inv-card-actions" onclick="event.stopPropagation()">
-        <button class="inv-card-act-btn" ${prg===100?`onclick="quickMail('${e.id}')" style="color:var(--blue);border-color:#90caf9"`:`disabled style="opacity:.3;cursor:default"`}>MAIL</button>
-        <button class="inv-card-act-btn" onclick="archiveInvoice('${e.id}')">${isArchived?'Restore':'Archive'}</button>
-        <button class="inv-card-act-btn${isArchived?' inv-card-act-del':''}" ${isArchived?`onclick="deleteInvoice('${e.id}')"`:`disabled style="opacity:.3;cursor:default"`}>Delete</button>
-      </div>
+  return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)">
+    <div class="inv-swipe-actions">
+      ${isArchived
+        ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
+        :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`
+      }
     </div>
-    <div class="inv-card-arr">›</div>
+    <div class="inv-card${isArchived?' arc':''}" onclick="invCardTap('${e.id}')">
+      <div class="inv-card-body">
+        <div class="inv-card-no">${esc(e.number||'—')}</div>
+        <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
+        ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
+        <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
+        ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
+        ${prg===100?`<button class="inv-card-act-btn" onclick="event.stopPropagation();quickMail('${e.id}')">MAIL</button>`:''}
+      </div>
+      <div class="inv-card-arr">›</div>
+    </div>
   </div>`;
 }
 function quickMail(id){

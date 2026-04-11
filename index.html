@@ -879,9 +879,36 @@ function buildEmail(){
   ].join('\n');
   S.showEmail=true;render();
 }
-function openMailto(){
-  const s=g('em-s')?.value||S.emailSubj,b=g('em-b')?.value||S.emailBody,t=g('em-t')?.value||'';
-  window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
+async function openMailto(){
+  const s=g('em-s')?.value||S.emailSubj,b=g('em-b')?.value||S.emailBody,t=g('em-t')?.value||S.emailTo;
+  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
+  if(!sel.length){
+    window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
+    return;
+  }
+  const btn=g('mailto-btn');
+  if(btn){btn.textContent='読み込み中...';btn.disabled=true;}
+  try{
+    const files=[];
+    for(let i=0;i<sel.length;i++){
+      const p=sel[i];
+      const src=await resolvePhotoAsync(p.key);
+      if(!src)continue;
+      const res=await fetch(src);
+      const blob=await res.blob();
+      const ext=blob.type.includes('png')?'png':'jpg';
+      files.push(new File([blob],`${p.pos}.${(p.name||'').replace(/[^\w\-]/g,'_').slice(0,30)}_${i+1}.${ext}`,{type:blob.type}));
+    }
+    if(files.length&&navigator.canShare&&navigator.canShare({files})){
+      await navigator.share({files,title:s,text:b});
+    } else {
+      window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
+    }
+  }catch(e){
+    if(e.name!=='AbortError') window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
+  }finally{
+    if(btn){btn.textContent='Outlookで開く';btn.disabled=false;}
+  }
 }
 function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
@@ -898,34 +925,6 @@ function toggleAllEmailPhotos(){
   if(S.emailSelKeys&&S.emailSelKeys.size===S.emailPhotoKeys.length)S.emailSelKeys=new Set();
   else S.emailSelKeys=new Set(S.emailPhotoKeys.map(p=>p.key));
   render();
-}
-async function shareEmailPhotos(){
-  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
-  if(!sel.length){alert('写真を選択してください');return;}
-  const btn=g('share-photo-btn');
-  if(btn){btn.textContent='読み込み中...';btn.disabled=true;}
-  try{
-    const files=[];
-    for(let i=0;i<sel.length;i++){
-      const p=sel[i];
-      const src=await resolvePhotoAsync(p.key);
-      if(!src)continue;
-      const res=await fetch(src);
-      const blob=await res.blob();
-      const ext=blob.type.includes('png')?'png':'jpg';
-      files.push(new File([blob],`${p.pos}.${(p.name||'').replace(/[^\w\-]/g,'_').slice(0,30)}_${i+1}.${ext}`,{type:blob.type}));
-    }
-    if(!files.length){alert('写真データを取得できませんでした');return;}
-    if(navigator.canShare&&navigator.canShare({files})){
-      await navigator.share({files,title:S.emailSubj||'DEFECTIVE REPORT'});
-    } else {
-      alert('このブラウザではファイル共有に対応していません');
-    }
-  }catch(e){
-    if(e.name!=='AbortError')console.error('shareEmailPhotos:',e);
-  }finally{
-    if(btn){btn.textContent='写真を共有';btn.disabled=false;}
-  }
 }
 function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
 function g(id){return document.getElementById(id)}
@@ -1561,10 +1560,10 @@ function render(){
             }).join('')}
           </div>
         </div>`:''}
-        <div class="eacts" style="flex-wrap:wrap;gap:8px">
-          <button class="btn blk" onclick="openMailto()">Outlookで開く</button>
+        ${S.emailPhotoKeys.length>0?`<div style="font-size:10px;color:var(--g600);margin-bottom:10px;line-height:1.5">写真を選択して「Outlookで開く」を押すと、<br>共有シートから添付付きでメールを開けます。</div>`:''}
+        <div class="eacts">
+          <button class="btn blk" id="mailto-btn" onclick="openMailto()">${S.emailPhotoKeys.length>0&&S.emailSelKeys&&S.emailSelKeys.size>0?'写真を添付して開く':'Outlookで開く'}</button>
           <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
-          ${S.emailPhotoKeys.length>0?`<button class="btn out s" id="share-photo-btn" onclick="shareEmailPhotos()" style="color:var(--blue);border-color:#90caf9">写真を共有</button>`:''}
         </div>
       </div>
     </div>`:'';

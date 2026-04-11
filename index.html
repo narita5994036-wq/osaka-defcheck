@@ -389,6 +389,7 @@ function save(){
 }
 
 function setDisp(no,val){
+  if(checkArchived())return;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     return{...it,disp:it.disp===val?null:val};
@@ -635,8 +636,22 @@ function addManRow(){
   w.appendChild(d);
 }
 
+function checkArchived(){
+  if(!S.invoiceId)return false;
+  const list=loadList();
+  const entry=list.find(e=>e.id===S.invoiceId);
+  if(!entry||!entry.archived)return false;
+  if(confirm('このインボイスはアーカイブ中です。\nRestore してから変更できます。Restore しますか？')){
+    entry.archived=false;
+    saveList(list);
+    render();
+  }
+  return true;
+}
+
 /* STATUS */
 function cycle(no){
+  if(checkArchived())return;
   closeAllPickers();
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
@@ -648,6 +663,7 @@ function cycle(no){
   save();render();
 }
 function togglePicker(no){
+  if(checkArchived())return;
   const wasOpen=!!S.pickerOpen[no];
   S.pickerOpen={};
   if(!wasOpen) S.pickerOpen[no]=true;
@@ -773,12 +789,14 @@ function goToStamp(){
   render();
 }
 function setStampNo(no,v){
+  if(checkArchived())return;
   S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,stampNo:v});
   const inp=document.getElementById('si-'+no);
   if(inp) inp.className='stamp-inp'+(v.trim()?' filled':'');
   save();
 }
 function setItemId(no,v){
+  if(checkArchived())return;
   S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,itemId:v});
   save();
 }
@@ -937,6 +955,7 @@ function viewPhoto(no,idx){
   openMarkup(no,idx);
 }
 function openMarkup(no,idx){
+  if(checkArchived())return;
   const it=S.invoice.items.find(i=>i.no===no);
   if(!it)return;
   const pos=it.subOf||it.no;
@@ -974,6 +993,7 @@ function onCameraChange(inp){
 let _galleryNo=null;
 function triggerGallery(no, e){
   if(e){e.stopPropagation();e.preventDefault();}
+  if(checkArchived())return;
   _galleryNo=no;
   const inp=document.getElementById('gallery-input');
   inp.value='';
@@ -1042,6 +1062,7 @@ function openMarkupForExisting(no,idx){
   if(!isReedit2) requestAnimationFrame(()=>initMarkupCanvas());
 }
 function removePhoto(no,pidx){
+  if(checkArchived())return;
   if(!confirm('この画像を削除しますか？'))return;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;

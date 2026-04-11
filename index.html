@@ -951,11 +951,10 @@ function defAreaHtml(it){
         </div>`).join('')}
       <button class="photo-add-btn" onclick="triggerGallery('${no}',event)">+</button>
     </div>`:``;
-  const dispHtml=`<div class="disp-row" onclick="event.stopPropagation()">
+  const dispHtml=it.disp?`<div class="disp-row">
     <span class="disp-lbl">DISP</span>
-    <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDisp('${no}','return')">Return</button>
-    <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDisp('${no}','sample')">Sample</button>
-  </div>`;
+    <span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>
+  </div>`:'';
   if(isOpen){
     return defPickerHtml(it)+`
       <div class="photo-section" onclick="event.stopPropagation()">

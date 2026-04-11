@@ -912,6 +912,85 @@ async function openMailto(){
     if(btn){btn.textContent='写真を添付して開く';btn.disabled=false;}
   }
 }
+function _toB64(str){
+  // UTF-8 safe base64 encode
+  return btoa(unescape(encodeURIComponent(str)));
+}
+async function shareAsEML(){
+  const s=g('em-s')?.value||S.emailSubj;
+  const b=g('em-b')?.value||S.emailBody;
+  const t=g('em-t')?.value||S.emailTo;
+  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
+  const btn=g('eml-btn');
+  if(btn){btn.textContent='生成中...';btn.disabled=true;}
+  try{
+    const boundary='----=_MYKITA_'+Date.now().toString(36);
+    const subjectEncoded='=?UTF-8?B?'+_toB64(s)+'?=';
+    const bodyB64=_toB64(b);
+    const blines=(bodyB64.match(/.{1,76}/g)||[bodyB64]).join('\r\n');
+    const parts=[
+      'MIME-Version: 1.0',
+      'To: '+t,
+      'Subject: '+subjectEncoded,
+      sel.length>0
+        ?'Content-Type: multipart/mixed; boundary="'+boundary+'"'
+        :'Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64',
+      ''
+    ];
+    if(sel.length>0){
+      parts.push(
+        '--'+boundary,
+        'Content-Type: text/plain; charset=utf-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        blines,
+        ''
+      );
+      for(let i=0;i<sel.length;i++){
+        const p=sel[i];
+        const src=await resolvePhotoAsync(p.key);
+        if(!src)continue;
+        const comma=src.indexOf(',');
+        const mimeType=(src.slice(0,comma).match(/:(.*?);/)||[])[1]||'image/jpeg';
+        const ext=mimeType.includes('png')?'png':'jpg';
+        const fname=p.pos+'.'+(p.name||'').replace(/[^\w\-]/g,'_').slice(0,20)+'_'+(i+1)+'.'+ext;
+        const b64data=src.slice(comma+1);
+        const dlines=(b64data.match(/.{1,76}/g)||[b64data]).join('\r\n');
+        parts.push(
+          '--'+boundary,
+          'Content-Type: '+mimeType+'; name="'+fname+'"',
+          'Content-Transfer-Encoding: base64',
+          'Content-Disposition: attachment; filename="'+fname+'"',
+          '',
+          dlines,
+          ''
+        );
+      }
+      parts.push('--'+boundary+'--');
+    } else {
+      parts.push(blines);
+    }
+    const emlContent=parts.join('\r\n');
+    const blob=new Blob([emlContent],{type:'message/rfc822'});
+    const fname='defective_report.eml';
+    const file=new File([blob],fname,{type:'message/rfc822'});
+    // Try Web Share with .eml file
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:s});
+    } else {
+      // Fallback: trigger download / open
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download=fname;
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+    }
+  }catch(e){
+    if(e.name!=='AbortError')console.error('shareAsEML:',e);
+  }finally{
+    if(btn){btn.textContent='EMLで開く';btn.disabled=false;}
+  }
+}
 function copySubjectTo(){
   const s=g('em-s')?.value||S.emailSubj;
   const t=g('em-t')?.value||S.emailTo;
@@ -1575,15 +1654,14 @@ function render(){
           const selCnt=hasPh&&S.emailSelKeys?S.emailSelKeys.size:0;
           if(hasPh&&selCnt>0) return `
             <div style="background:var(--g50);border-radius:6px;padding:12px 14px;margin-bottom:12px;font-size:10px;color:var(--g800);line-height:1.7">
-              <div style="font-weight:600;letter-spacing:1px;margin-bottom:4px;font-size:9px;color:var(--g400)">STEPS</div>
-              <div>① 写真を添付して開く → 共有シートで Outlook を選択</div>
-              <div style="color:var(--g600)">　 件名・宛先が自動でコピーされます</div>
-              <div>② Outlook の新規メールに件名・宛先を貼り付け</div>
+              <div style="font-weight:600;letter-spacing:1px;margin-bottom:4px;font-size:9px;color:var(--g400)">推奨</div>
+              <div>EMLで開く → 共有シートでメールアプリを選択</div>
+              <div style="color:var(--g600)">宛先・件名・本文・写真が一括で反映されます</div>
             </div>
             <div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
-              <button class="btn blk" id="mailto-btn" onclick="openMailto()">① 写真を添付して開く（${selCnt}枚）</button>
+              <button class="btn blk" id="eml-btn" onclick="shareAsEML()">EMLで開く（写真 ${selCnt}枚）</button>
               <div style="display:flex;gap:8px">
-                <button class="btn out" id="copy-hdr-btn" style="flex:1" onclick="copySubjectTo()">件名・宛先をコピー</button>
+                <button class="btn out" id="copy-hdr-btn" style="flex:1;font-size:9px" onclick="copySubjectTo()">件名・宛先をコピー</button>
                 <button class="btn out s" id="cbtn" onclick="copyEmail()">本文をコピー</button>
               </div>
             </div>`;

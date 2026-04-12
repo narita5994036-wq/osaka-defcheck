@@ -316,7 +316,7 @@ const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
 let _sw={state:null,openId:null,moved:false};
 let _dispSheet=null;
 function openDispSheet(id){
@@ -398,6 +398,82 @@ function invCardTap(id){
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
 function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}}
+
+/* ── GIST SYNC ── */
+const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
+let _syncSt=null,_syncMsg='';
+function gPat(){return localStorage.getItem(GK_PAT)||'';}
+function gId(){return localStorage.getItem(GK_ID)||'';}
+function gAt(){return localStorage.getItem(GK_AT)||'';}
+async function _gFetch(url,opts={}){
+  const pat=gPat();
+  const res=await fetch(url,{...opts,headers:{'Content-Type':'application/json',...(pat?{'Authorization':'token '+pat}:{}),...(opts.headers||{})}});
+  if(!res.ok){let msg='HTTP '+res.status;try{const e=await res.clone().json();if(e.message)msg=e.message;}catch(x){}throw new Error(msg);}
+  return res.json();
+}
+async function _gistDoPull(){
+  const pat=gPat(),id=gId();
+  if(!pat||!id)throw new Error('Token/ID未設定');
+  const data=await _gFetch('https://api.github.com/gists/'+id);
+  const getC=async fi=>fi.truncated?(await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text())):fi.content;
+  if(data.files['list.json'])saveList(JSON.parse(await getC(data.files['list.json'])));
+  for(const fn of Object.keys(data.files)){
+    if(fn.startsWith('inv_')&&fn.endsWith('.json')){
+      localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),await getC(data.files[fn]));
+    }
+  }
+  if(data.files['photos.json']){
+    const ph=JSON.parse(await getC(data.files['photos.json']));
+    for(const[k,v]of Object.entries(ph))idbPut(k,v);
+  }
+  localStorage.setItem(GK_AT,new Date().toISOString());
+  if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
+}
+async function gistPush(){
+  if(!gPat()){alert('GitHub Personal Access Tokenを設定してください');return;}
+  _syncSt='push';_syncMsg='';render();
+  try{
+    const list=loadList();
+    const files={'list.json':{content:JSON.stringify(list)}};
+    list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)files['inv_'+e.id+'.json']={content:d};});
+    const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
+    files['photos.json']={content:JSON.stringify(photos)};
+    const id=gId();
+    let data;
+    if(id){
+      data=await _gFetch('https://api.github.com/gists/'+id,{method:'PATCH',body:JSON.stringify({files})});
+    }else{
+      data=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files})});
+      localStorage.setItem(GK_ID,data.id);
+    }
+    localStorage.setItem(GK_AT,new Date().toISOString());
+    _syncSt='ok';_syncMsg='Push完了';
+  }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;}
+  render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
+}
+async function gistPull(){
+  if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
+  _syncSt='pull';_syncMsg='';render();
+  try{await _gistDoPull();_syncSt='ok';_syncMsg='Pull完了';}
+  catch(e){_syncSt='err';_syncMsg='Pull失敗: '+e.message;}
+  render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
+}
+async function gistAutoSync(){
+  if(!gPat()||!gId())return;
+  _syncSt='pull';_syncMsg='';render();
+  try{await _gistDoPull();_syncSt='ok';_syncMsg='';}
+  catch(e){_syncSt=null;}
+  render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
+}
+function gistCopyId(){
+  const id=gId();
+  if(!id){alert('Gist IDはまだ設定されていません。まずPushしてください。');return;}
+  navigator.clipboard.writeText(id).then(()=>{
+    const btn=document.getElementById('g-cpid');
+    if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='Gist IDをコピー';},1500);}
+  });
+}
+
 function genId(){return 'inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
 function save(){
   if(!S.invoice||!S.invoiceId)return;
@@ -1673,6 +1749,40 @@ function render(){
       </div>
     </div>`:'';
 
+  const settingsSheet=S.showSettings?`
+    <div class="overlay" onclick="if(event.target===this){S.showSettings=false;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">SETTINGS<button class="close-btn" onclick="S.showSettings=false;render()">×</button></div>
+        <div style="font-size:9px;letter-spacing:3px;color:var(--g400);margin-bottom:16px;font-weight:500">CLOUD SYNC — GitHub Gist</div>
+        <div class="ef">
+          <label>PERSONAL ACCESS TOKEN</label>
+          <input type="password" id="g-pat" value="${esc(gPat())}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+            onchange="localStorage.setItem('mykita_gist_pat',this.value)">
+        </div>
+        <div class="ef">
+          <label>GIST ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（初回Pushで自動設定）</span></label>
+          <input type="text" id="g-id" value="${esc(gId())}" placeholder="自動設定されます"
+            onchange="localStorage.setItem('mykita_gist_id',this.value)">
+        </div>
+        ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:0;margin-bottom:12px;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
+        ${gAt()?`<div style="font-size:10px;color:var(--g600);margin-bottom:12px;letter-spacing:.5px">最終同期: ${new Date(gAt()).toLocaleString('ja-JP')}</div>`:''}
+        ${_syncSt?`<div style="text-align:center;font-size:11px;padding:6px 0 10px;color:${_syncSt==='err'?'var(--red)':_syncSt==='ok'?'var(--green)':'var(--g600)'}">${_syncSt==='push'?'⏳ プッシュ中…':_syncSt==='pull'?'⏳ プル中…':_syncMsg}</div>`:''}
+        <div style="display:flex;gap:8px;margin-bottom:20px">
+          <button class="btn blk" style="margin-top:0;flex:1" onclick="gistPush()">↑ Push</button>
+          <button class="btn out" style="margin-top:0;flex:1" onclick="gistPull()">↓ Pull</button>
+        </div>
+        <div style="background:var(--g50);border-radius:6px;padding:14px;font-size:11px;color:var(--g800);line-height:1.9">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:8px">設定方法</div>
+          <div>① GitHub → Settings → Developer settings</div>
+          <div style="padding-left:14px;color:var(--g600)">→ Personal access tokens → Tokens (classic)</div>
+          <div>② <b>Generate new token</b> → scope: <b>gist</b> にチェック</div>
+          <div>③ 生成されたTokenを入力 → <b>Push</b> でアップロード</div>
+          <div>④ 別デバイスで同じToken + Gist IDを入力 → <b>Pull</b></div>
+          <div style="margin-top:8px;color:var(--g600);font-size:10px">アプリ起動時に自動でPullします</div>
+        </div>
+      </div>
+    </div>`:'';
+
   const pickerBackdrop='';
   const photoViewer=S.viewPhoto
     ?`<div class="photo-viewer">
@@ -1732,7 +1842,13 @@ function render(){
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
-      <div class="hdr-acts">${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}</div>
+      <div class="hdr-acts">
+        ${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:11px;color:var(--g600);padding:6px 2px;line-height:1;animation:ld-dot 1s ease infinite">⏳</span>`:''}
+        ${_syncSt==='ok'?`<span style="font-size:11px;color:var(--green);padding:6px 2px">✓</span>`:''}
+        ${_syncSt==='err'?`<span style="font-size:12px;color:var(--red);padding:6px 2px;font-weight:700" title="${esc(_syncMsg)}">!</span>`:''}
+        <button class="ibtn" onclick="S.showSettings=!S.showSettings;render()" title="設定">⚙</button>
+        ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
+      </div>
     </div>
     ${body}<div class="bot"></div>${emailModal}${(()=>{
   if(!_dispSheet)return '';
@@ -1760,7 +1876,7 @@ function render(){
         }).join('')}
     </div>
   </div>`;
-})()}${pickerBackdrop}${photoViewer}${markupEditor}
+})()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');
@@ -1770,7 +1886,7 @@ function render(){
   }
 }
 
-initApp(); idbLoadAll().then(()=>render()).catch(()=>render());
+initApp(); idbLoadAll().then(()=>{render();gistAutoSync();}).catch(()=>render());
 
 function fabAtBottom(){return window.innerHeight+window.scrollY>=document.body.scrollHeight-20;}
 function fabTap(){

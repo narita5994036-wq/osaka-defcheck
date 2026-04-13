@@ -920,6 +920,7 @@ function removeDefect(no,idx){
   save();render();
 }
 function clearDefect(no){
+  if(!confirm('入力内容をクリアしますか？'))return;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     return syncRemark({...it,defects:[newDefect()]});

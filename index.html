@@ -392,26 +392,33 @@ function exportDispCSV(){
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 function exportAllDispExcel(){
-  const list=loadList();
-  const allRows=[];
-  list.forEach(entry=>{
-    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
-    if(!d)return;
-    try{
-      const inv=JSON.parse(d);
-      const rows=_dispRows(inv);
-      if(rows.length) allRows.push(...rows);
-    }catch(e){}
-  });
-  if(!allRows.length){alert('出力対象のDefective itemsがありません');return;}
-  const data=[DISP_HEADER,...allRows];
-  const ws=XLSX.utils.aoa_to_sheet(data);
-  // Column widths
-  ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:40}];
-  // Header row style (bold via cell metadata — basic support)
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,'Disposition',ws);
-  XLSX.writeFile(wb,'disposition_all.xlsx');
+  if(typeof XLSX==='undefined'){
+    alert('Excelライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');
+    return;
+  }
+  try{
+    const list=loadList();
+    const allRows=[];
+    list.forEach(entry=>{
+      const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+      if(!d)return;
+      try{
+        const inv=JSON.parse(d);
+        const rows=_dispRows(inv);
+        if(rows.length)allRows.push(...rows);
+      }catch(e){}
+    });
+    if(!allRows.length){alert('出力対象のDefective itemsがありません');return;}
+    const data=[DISP_HEADER,...allRows];
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:40}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Disposition');  // ws before sheet name
+    XLSX.writeFile(wb,'disposition_all.xlsx');
+  }catch(e){
+    alert('出力エラー: '+e.message);
+    console.error('exportAllDispExcel:',e);
+  }
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;

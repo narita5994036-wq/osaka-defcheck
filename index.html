@@ -363,10 +363,11 @@ function saveDispSheet(){
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
   if(_dispIsDirty()){
-    if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 閉じない')){
+    if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
       saveDispSheet();
+    }else{
+      _dispSheet=null;_dispOrigDisp={};render();
     }
-    // cancel = do nothing (stay open)
   }else{
     _dispSheet=null;_dispOrigDisp={};render();
   }

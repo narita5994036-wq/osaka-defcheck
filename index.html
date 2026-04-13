@@ -397,11 +397,11 @@ function invCardTap(id){
 }
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
-function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}}
+function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling&&gPat()&&gId())_dirty=true;}
 
 /* ── GIST SYNC ── */
 const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
-let _syncSt=null,_syncMsg='';
+let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
 function gAt(){return localStorage.getItem(GK_AT)||'';}
@@ -416,6 +416,7 @@ async function _gistDoPull(){
   if(!pat||!id)throw new Error('Token/ID未設定');
   const data=await _gFetch('https://api.github.com/gists/'+id);
   const getC=async fi=>fi.truncated?(await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text())):fi.content;
+  _gistPulling=true;
   if(data.files['list.json'])saveList(JSON.parse(await getC(data.files['list.json'])));
   for(const fn of Object.keys(data.files)){
     if(fn.startsWith('inv_')&&fn.endsWith('.json')){
@@ -426,6 +427,8 @@ async function _gistDoPull(){
     const ph=JSON.parse(await getC(data.files['photos.json']));
     for(const[k,v]of Object.entries(ph))idbPut(k,v);
   }
+  _gistPulling=false;
+  _dirty=false;
   localStorage.setItem(GK_AT,new Date().toISOString());
   if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
 }
@@ -447,7 +450,7 @@ async function gistPush(){
       localStorage.setItem(GK_ID,data.id);
     }
     localStorage.setItem(GK_AT,new Date().toISOString());
-    _syncSt='ok';_syncMsg='Push完了';
+    _dirty=false;_syncSt='ok';_syncMsg='Push完了';
   }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;}
   render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }
@@ -1750,36 +1753,41 @@ function render(){
     </div>`:'';
 
   const settingsSheet=S.showSettings?`
-    <div class="overlay" onclick="if(event.target===this){S.showSettings=false;render()}">
+    <div class="overlay" onclick="if(event.target===this){S.showSettings=false;_settingsShowCreds=false;render()}">
       <div class="sheet">
-        <div class="sheet-tit">SETTINGS<button class="close-btn" onclick="S.showSettings=false;render()">×</button></div>
-        <div style="font-size:9px;letter-spacing:3px;color:var(--g400);margin-bottom:16px;font-weight:500">CLOUD SYNC — GitHub Gist</div>
-        <div class="ef">
-          <label>PERSONAL ACCESS TOKEN</label>
-          <input type="password" id="g-pat" value="${esc(gPat())}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-            onchange="localStorage.setItem('mykita_gist_pat',this.value)">
-        </div>
-        <div class="ef">
-          <label>GIST ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（初回Pushで自動設定）</span></label>
-          <input type="text" id="g-id" value="${esc(gId())}" placeholder="自動設定されます"
-            onchange="localStorage.setItem('mykita_gist_id',this.value)">
-        </div>
-        ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:0;margin-bottom:12px;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
-        ${gAt()?`<div style="font-size:10px;color:var(--g600);margin-bottom:12px;letter-spacing:.5px">最終同期: ${new Date(gAt()).toLocaleString('ja-JP')}</div>`:''}
+        <div class="sheet-tit">SYNC<button class="close-btn" onclick="S.showSettings=false;_settingsShowCreds=false;render()">×</button></div>
+        ${gAt()?`<div style="font-size:10px;color:var(--g600);margin-bottom:4px;letter-spacing:.5px">最終同期: ${new Date(gAt()).toLocaleString('ja-JP')}</div>`:`<div style="font-size:10px;color:var(--g400);margin-bottom:4px">未同期</div>`}
+        ${_dirty&&gPat()&&gId()?`<div style="font-size:10px;color:var(--amber);margin-bottom:10px;letter-spacing:.3px">未アップロードの変更があります</div>`:'<div style="margin-bottom:14px"></div>'}
         ${_syncSt?`<div style="text-align:center;font-size:11px;padding:6px 0 10px;color:${_syncSt==='err'?'var(--red)':_syncSt==='ok'?'var(--green)':'var(--g600)'}">${_syncSt==='push'?'プッシュ中…':_syncSt==='pull'?'プル中…':_syncMsg}</div>`:''}
-        <div style="display:flex;gap:8px;margin-bottom:20px">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
           <button class="btn blk" style="margin-top:0;flex:1" onclick="gistPush()">↑ Push</button>
           <button class="btn out" style="margin-top:0;flex:1" onclick="gistPull()">↓ Pull</button>
         </div>
-        <div style="background:var(--g50);border-radius:6px;padding:14px;font-size:11px;color:var(--g800);line-height:1.9">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:8px">設定方法</div>
-          <div>① GitHub → Settings → Developer settings</div>
-          <div style="padding-left:14px;color:var(--g600)">→ Personal access tokens → Tokens (classic)</div>
-          <div>② <b>Generate new token</b> → scope: <b>gist</b> にチェック</div>
-          <div>③ 生成されたTokenを入力 → <b>Push</b> でアップロード</div>
-          <div>④ 別デバイスで同じToken + Gist IDを入力 → <b>Pull</b></div>
-          <div style="margin-top:8px;color:var(--g600);font-size:10px">アプリ起動時に自動でPullします</div>
-        </div>
+        ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:0;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:16px" onclick="_settingsShowCreds=!_settingsShowCreds;render()">
+          <span>認証情報を変更</span><span style="font-size:12px">${_settingsShowCreds?'−':'+'}
+          </span>
+        </button>
+        ${_settingsShowCreds?`<div style="padding-top:10px">
+          <div class="ef">
+            <label>PERSONAL ACCESS TOKEN</label>
+            <input type="password" id="g-pat" value="${esc(gPat())}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              onchange="localStorage.setItem('mykita_gist_pat',this.value)">
+          </div>
+          <div class="ef">
+            <label>GIST ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（初回Pushで自動設定）</span></label>
+            <input type="text" id="g-id" value="${esc(gId())}" placeholder="自動設定されます"
+              onchange="localStorage.setItem('mykita_gist_id',this.value)">
+          </div>
+          <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>
+            <div>① GitHub → アカウントの Settings（右上アイコン）</div>
+            <div style="padding-left:14px;color:var(--g600)">→ Developer settings → Personal access tokens → Tokens (classic)</div>
+            <div>② <b>Generate new token</b> → scope: <b>gist</b> にチェック</div>
+            <div>③ Tokenを入力 → Push でアップロード</div>
+            <div>④ 別デバイスでToken + Gist IDを入力 → Pull</div>
+          </div>
+        </div>`:''}
       </div>
     </div>`:'';
 
@@ -1843,10 +1851,7 @@ function render(){
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
       <div class="hdr-acts">
-        ${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--g600);padding:6px 2px;font-weight:500">SYNC</span>`:''}
-        ${_syncSt==='ok'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--green);padding:6px 2px;font-weight:500">DONE</span>`:''}
-        ${_syncSt==='err'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--red);padding:6px 2px;font-weight:500" title="${esc(_syncMsg)}">ERR</span>`:''}
-        <button class="ibtn" style="font-size:11px;letter-spacing:1.5px;font-weight:500" onclick="S.showSettings=!S.showSettings;render()" title="設定">SET</button>
+        ${S.screen==='home'?`${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--g600);padding:6px 2px;font-weight:500">SYNC</span>`:''}${_syncSt==='ok'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--green);padding:6px 2px;font-weight:500">DONE</span>`:''}${_syncSt==='err'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--red);padding:6px 2px;font-weight:500">ERR</span>`:''}<button class="ibtn" style="font-size:11px;letter-spacing:1.5px;font-weight:500;position:relative" onclick="S.showSettings=!S.showSettings;render()">SET${_dirty&&gPat()&&gId()?`<span style="position:absolute;top:4px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--red);display:block"></span>`:''}</button>`:''}
         ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
       </div>
     </div>
@@ -2090,6 +2095,14 @@ function cancelMarkup(){
   S.markup=null;
   render();
 }
+
+/* ── 閉じる前にPush確認 / バックグラウンド時に自動Push ── */
+window.addEventListener('beforeunload',e=>{
+  if(_dirty&&gPat()&&gId()){e.preventDefault();e.returnValue='';}
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&_dirty&&gPat()&&gId())gistPush().catch(()=>{});
+});
 </script>
 </body>
 </html>

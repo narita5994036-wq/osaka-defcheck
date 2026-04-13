@@ -789,8 +789,18 @@ function checkArchived(){
 }
 
 /* STATUS */
+let _lastDTap={no:null,t:0};
 function cycle(no){
   if(checkArchived())return;
+  const now=Date.now();
+  const item=S.invoice.items.find(i=>i.no===no);
+  // Double-tap D: toggle picker without changing status
+  if(item&&item.status==='defective'&&_lastDTap.no===no&&now-_lastDTap.t<400){
+    _lastDTap={no:null,t:0};
+    if(S.pickerOpen[no])delete S.pickerOpen[no];else S.pickerOpen[no]=true;
+    render();return;
+  }
+  _lastDTap={no,t:now};
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const prev=it.status;

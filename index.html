@@ -314,6 +314,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 const SK='mykita_dc_v9'; // legacy migration only
 const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
+const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
@@ -790,21 +791,30 @@ function checkArchived(){
 /* STATUS */
 function cycle(no){
   if(checkArchived())return;
-  closeAllPickers();
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
-    const i=STATS.indexOf(it.status);
-    const next=STATS[(i+1)%STATS.length];
-    if(next==='defective') S.pickerOpen[no]=true;
+    const prev=it.status;
+    const i=CYCLE_STATS.indexOf(prev);
+    const next=CYCLE_STATS[(i<0?0:i+1)%CYCLE_STATS.length];
+    if(next==='defective'){
+      S.pickerOpen[no]=true;
+    }else if(prev==='defective'){
+      // leaving defective: close picker + cleanup empty defect entries
+      delete S.pickerOpen[no];
+      const cleaned=it.defects.filter((d,idx)=>
+        idx===0||d.part||d.partOther||d.side||d.cond.length||d.condOther
+      );
+      it=syncRemark({...it,defects:cleaned.length?cleaned:[it.defects[0]]});
+    }
     return{...it,status:next};
   });
   save();render();
 }
 function togglePicker(no){
   if(checkArchived())return;
-  const wasOpen=!!S.pickerOpen[no];
-  S.pickerOpen={};
-  if(!wasOpen) S.pickerOpen[no]=true;
+  // toggle only this item's picker; others stay as-is
+  if(S.pickerOpen[no]) delete S.pickerOpen[no];
+  else S.pickerOpen[no]=true;
   render();
 }
 function closeAllPickers(){
@@ -1937,24 +1947,8 @@ function updateFab(){
 window.addEventListener('scroll',updateFab,{passive:true});
 
 // iOS-safe outside-tap detection for picker close
-(function(){
-  function onDocTouch(e){
-    if(!Object.keys(S.pickerOpen).length)return;
-    const t=e.target;
-    if(t.closest('.dpick'))return;
-    if(t.closest('.def-inline'))return;
-    if(t.closest('.photo-add-btn'))return;
-    if(t.closest('.photo-section'))return;
-    if(t.closest('.photo-strip'))return;
-    if(t.closest('.photo-thumb-wrap'))return;
-    if(t.closest('.sbtn'))return;
-    if(t.closest('.disp-row'))return;
-    if(t.id==='camera-input'||t.id==='gallery-input')return;
-    closeAllPickers();
-  }
-  document.addEventListener('touchstart', onDocTouch, {passive:true});
-  document.addEventListener('mousedown', onDocTouch);
-})();
+// Pickers are closed only by pressing D again (cycle away from defective),
+// not by outside tap. Screen transitions reset S.pickerOpen via openInvoice/resetApp.
 
 /* ────── MARKUP CANVAS ENGINE ────── */
 let MK={canvas:null,ctx:null,img:null,drawing:false,startX:0,startY:0};

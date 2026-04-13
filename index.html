@@ -361,6 +361,38 @@ function saveDispSheet(){
   }catch(e){console.warn('saveDispSheet failed:',e);}
   _dispSheet=null;_dispOrigDisp={};render();
 }
+function exportDispCSV(){
+  if(!_dispSheet)return;
+  const inv=_dispSheet.inv; // use in-memory state (includes unsaved changes)
+  const defs=inv.items.filter(i=>i.status==='defective');
+  if(!defs.length){alert('Defective items がありません');return;}
+  const header=['Position','Name','Item No.','Color','Stamp No.','Defect Details','Disposition'];
+  const rows=defs.map(it=>{
+    const pos=it.subOf||it.no;
+    return[
+      pos,
+      it.name||'',
+      it.itemNo||'',
+      it.colorCode?'C'+it.colorCode:'',
+      it.stampNo||'',
+      it.remark||'',
+      it.disp==='return'?'Return':it.disp==='sample'?'Sample':''
+    ];
+  });
+  const csv=[
+    [inv.number||'',inv.date||''],
+    [],
+    header,
+    ...rows
+  ].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='disposition_'+(inv.number||'export')+'.csv';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
   if(_dispIsDirty()){
@@ -1923,7 +1955,10 @@ function render(){
             </div>
           </div>`;
         }).join('')}
-      <button class="btn blk" style="margin-top:8px;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>
+        <button class="btn blk" style="margin-top:0;flex:2;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
+      </div>
     </div>
   </div>`;
 })()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}

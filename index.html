@@ -789,18 +789,18 @@ function checkArchived(){
 }
 
 /* STATUS */
-let _lastDTap={no:null,t:0};
+let _pickerTap={no:null,t:0};
+function _onPickerClick(no,e){
+  const now=Date.now();
+  if(_pickerTap.no===no&&now-_pickerTap.t<350){
+    _pickerTap={no:null,t:0};
+    if(S.pickerOpen[no]){delete S.pickerOpen[no];render();}
+  }else{
+    _pickerTap={no,t:now};
+  }
+}
 function cycle(no){
   if(checkArchived())return;
-  const now=Date.now();
-  const item=S.invoice.items.find(i=>i.no===no);
-  // Double-tap D: toggle picker without changing status
-  if(item&&item.status==='defective'&&_lastDTap.no===no&&now-_lastDTap.t<400){
-    _lastDTap={no:null,t:0};
-    if(S.pickerOpen[no])delete S.pickerOpen[no];else S.pickerOpen[no]=true;
-    render();return;
-  }
-  _lastDTap={no,t:now};
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const prev=it.status;
@@ -809,7 +809,6 @@ function cycle(no){
     if(next==='defective'){
       S.pickerOpen[no]=true;
     }else if(prev==='defective'){
-      // leaving defective: close picker + cleanup empty defect entries
       delete S.pickerOpen[no];
       const cleaned=it.defects.filter((d,idx)=>
         idx===0||d.part||d.partOther||d.side||d.cond.length||d.condOther
@@ -1191,7 +1190,7 @@ function defEntryHtml(no,d,idx,total){
 function defPickerHtml(it){
   const no=it.no;
   const defects=it.defects||[newDefect()];
-  return `<div class="dpick">
+  return `<div class="dpick" onclick="_onPickerClick('${no}',event)">
     ${defects.map((d,i)=>defEntryHtml(no,d,i,defects.length)).join('<div class="dpick-divider"></div>')}
     <button class="dpick-add" onclick="addDefect('${no}')">+ Add another defect</button>
     ${it.remark?`<div style="margin-top:10px;font-size:11px;color:var(--red);font-weight:500;letter-spacing:.3px">▸ ${esc(it.remark)}</div>`:''}

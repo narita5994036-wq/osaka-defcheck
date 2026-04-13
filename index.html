@@ -309,6 +309,7 @@
 <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="onGalleryChange(this)">
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const SK='mykita_dc_v9'; // legacy migration only
@@ -361,30 +362,27 @@ function saveDispSheet(){
   }catch(e){console.warn('saveDispSheet failed:',e);}
   _dispSheet=null;_dispOrigDisp={};render();
 }
+function setPnInSheet(no,val){
+  if(!_dispSheet)return;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:val});
+  // no render() to keep input focus
+}
+function _dispRows(inv){
+  return inv.items.filter(i=>i.status==='defective').map(it=>[
+    inv.number||'',
+    it.subOf||it.no,
+    it.name||'',
+    it.pn||'',
+    it.remark||''
+  ]);
+}
+const DISP_HEADER=['INVOICE','LIST NO.','ITEM NAME','PN','PART/CONDITION'];
 function exportDispCSV(){
   if(!_dispSheet)return;
-  const inv=_dispSheet.inv; // use in-memory state (includes unsaved changes)
-  const defs=inv.items.filter(i=>i.status==='defective');
-  if(!defs.length){alert('Defective items がありません');return;}
-  const header=['Position','Name','Item No.','Color','Stamp No.','Defect Details','Disposition'];
-  const rows=defs.map(it=>{
-    const pos=it.subOf||it.no;
-    return[
-      pos,
-      it.name||'',
-      it.itemNo||'',
-      it.colorCode?'C'+it.colorCode:'',
-      it.stampNo||'',
-      it.remark||'',
-      it.disp==='return'?'Return':it.disp==='sample'?'Sample':''
-    ];
-  });
-  const csv=[
-    [inv.number||'',inv.date||''],
-    [],
-    header,
-    ...rows
-  ].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const inv=_dispSheet.inv;
+  const rows=_dispRows(inv);
+  if(!rows.length){alert('Defective items がありません');return;}
+  const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -392,6 +390,28 @@ function exportDispCSV(){
   a.download='disposition_'+(inv.number||'export')+'.csv';
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
+function exportAllDispExcel(){
+  const list=loadList();
+  const allRows=[];
+  list.forEach(entry=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    if(!d)return;
+    try{
+      const inv=JSON.parse(d);
+      const rows=_dispRows(inv);
+      if(rows.length) allRows.push(...rows);
+    }catch(e){}
+  });
+  if(!allRows.length){alert('出力対象のDefective itemsがありません');return;}
+  const data=[DISP_HEADER,...allRows];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  // Column widths
+  ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:40}];
+  // Header row style (bold via cell metadata — basic support)
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'Disposition',ws);
+  XLSX.writeFile(wb,'disposition_all.xlsx');
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
@@ -1608,6 +1628,7 @@ function render(){
     const archived=list.filter(e=>e.archived);
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="exportAllDispExcel()">EXPORT ALL — Disposition List (.xlsx)</button>
       ${active.length
         ?`<div class="home-sec">ACTIVE</div>${active.map(e=>invCardHtml(e,false)).join('')}`
         :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`
@@ -1949,9 +1970,12 @@ function render(){
               <span style="font-size:13px;font-weight:500">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
             </div>
             ${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}
-            <div style="display:flex;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>
+              <input type="text" value="${esc(it.pn||'')}" placeholder="PN"
+                style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">
             </div>
           </div>`;
         }).join('')}

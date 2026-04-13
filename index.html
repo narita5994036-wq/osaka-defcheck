@@ -318,22 +318,35 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
 let _sw={state:null,openId:null,moved:false};
-let _dispSheet=null;
+let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
+    // snapshot original disposition values for dirty detection
+    _dispOrigDisp={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;});
     _dispSheet={id,inv};render();
   }catch(e){console.warn('openDispSheet failed:',e);}
 }
 function setDispInSheet(no,val){
   if(!_dispSheet)return;
+  // update in-memory only — save happens on DONE
   _dispSheet.inv.items=_dispSheet.inv.items.map(it=>{
     if(it.no!==no)return it;
     return{...it,disp:it.disp===val?null:val};
   });
+  render();
+}
+function _dispIsDirty(){
+  if(!_dispSheet)return false;
+  const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
+  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null));
+}
+function saveDispSheet(){
+  if(!_dispSheet)return;
   try{
     localStorage.setItem('mykita_dc_inv_'+_dispSheet.id,JSON.stringify(_dispSheet.inv));
     const list=loadList();
@@ -344,10 +357,20 @@ function setDispInSheet(no,val){
       list[idx].dispSet=defItems.filter(i=>i.disp).length;
       saveList(list);
     }
-  }catch(e){console.warn('setDispInSheet save failed:',e);}
-  render();
+  }catch(e){console.warn('saveDispSheet failed:',e);}
+  _dispSheet=null;_dispOrigDisp={};render();
 }
-function closeDispSheet(){_dispSheet=null;render();}
+function tryCloseDispSheet(){
+  if(!_dispSheet)return;
+  if(_dispIsDirty()){
+    if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 閉じない')){
+      saveDispSheet();
+    }
+    // cancel = do nothing (stay open)
+  }else{
+    _dispSheet=null;_dispOrigDisp={};render();
+  }
+}
 function swStart(e,id){
   if(_sw.openId&&_sw.openId!==id){
     const prev=document.querySelector(`.inv-swipe-wrap[data-id="${_sw.openId}"] .inv-card`);
@@ -1859,14 +1882,14 @@ function render(){
   if(!_dispSheet)return '';
   const ds=_dispSheet;
   const defs=ds.inv.items.filter(i=>i.status==='defective');
-  return `<div class="overlay" onclick="if(event.target===this)closeDispSheet()">
+  const dispDirty=_dispIsDirty();
+  return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
-      <div class="sheet-tit">DISPOSITION<button class="close-btn" onclick="closeDispSheet()">×</button></div>
+      <div class="sheet-tit">DISPOSITION<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);margin-bottom:16px">${esc(ds.inv.number||'—')}</div>
       ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
         :defs.map(it=>{
           const pos=it.subOf||it.no;
-          const allSet=it.disp==='return'||it.disp==='sample';
           return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
               <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
@@ -1879,6 +1902,7 @@ function render(){
             </div>
           </div>`;
         }).join('')}
+      <button class="btn blk" style="margin-top:8px;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
     </div>
   </div>`;
 })()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}

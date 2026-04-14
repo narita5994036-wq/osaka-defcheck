@@ -1307,6 +1307,13 @@ function toggleAllEmailPhotos(){
   render();
 }
 function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
+async function leaveChecklist(){
+  if(_dirty&&gPat()&&gId()){
+    const ans=confirm('未送信の変更があります。\nPushしてから戻りますか？\n\nOK = Push して戻る\nキャンセル = Push せず戻る');
+    if(ans)await gistPush();
+  }
+  resetApp();
+}
 function g(id){return document.getElementById(id)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function normalizeId(s){return String(s||'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase().trim();}
@@ -2147,7 +2154,7 @@ function render(){
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
       <div class="hdr-acts">
         ${S.screen==='home'?`${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--g600);padding:6px 2px;font-weight:500">SYNC</span>`:''}${_syncSt==='ok'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--green);padding:6px 2px;font-weight:500">DONE</span>`:''}${_syncSt==='err'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--red);padding:6px 2px;font-weight:500">ERR</span>`:''}<button class="ibtn" style="font-size:11px;letter-spacing:1.5px;font-weight:600;color:${_dirty?'var(--red)':'var(--g600)'}" onclick="S.showSettings=!S.showSettings;render()">${_dirty?'UPLOAD':'SET'}</button>`:''}
-        ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
+        ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="leaveChecklist()">←</button>`:(S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
       </div>
     </div>
     ${body}<div class="bot"></div>${emailModal}${(()=>{

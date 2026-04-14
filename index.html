@@ -325,7 +325,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushingAndLeaving:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -577,7 +577,7 @@ async function _gistDoPull(){
 }
 async function gistPush(){
   if(!gPat()){alert('GitHub Personal Access Tokenを設定してください');return;}
-  _syncSt='push';_syncMsg='';render();
+  S.pushing=true;_syncSt='push';_syncMsg='';render();
   try{
     const list=loadList();
     const files={'list.json':{content:JSON.stringify(list)}};
@@ -595,7 +595,7 @@ async function gistPush(){
     localStorage.setItem(GK_AT,new Date().toISOString());
     _setDirty(false);_syncSt='ok';_syncMsg='Push完了';
   }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;}
-  render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
+  S.pushing=false;render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }
 async function gistPull(){
   if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
@@ -1340,7 +1340,7 @@ function leaveChecklist(){
 }
 function stayOnChecklist(){S.showLeavePrompt=false;render();}
 function leaveWithoutPush(){S.showLeavePrompt=false;resetApp();}
-async function pushAndLeave(){S.showLeavePrompt=false;S.pushingAndLeaving=true;render();await gistPush();S.pushingAndLeaving=false;resetApp();}
+async function pushAndLeave(){S.showLeavePrompt=false;render();await gistPush();resetApp();}
 function discardAndLeave(){
   if(_invoiceSnap&&S.invoiceId){
     try{
@@ -2253,7 +2253,7 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushingAndLeaving?`
+})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

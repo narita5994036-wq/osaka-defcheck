@@ -323,7 +323,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -936,6 +936,7 @@ function cycle(no){
   });
   save();render();
 }
+function toggleGrp(subOf){S.grpCollapsed[subOf]=!S.grpCollapsed[subOf];render();}
 function bulkOk(subOf){
   if(checkArchived())return;
   const grpItems=S.invoice.items.filter(it=>it.subOf===subOf);
@@ -1850,19 +1851,26 @@ function render(){
             if(it.subOf!==null && it.subIdx===1){
               const grpAll=S.invoice.items.filter(g=>g.subOf===it.subOf);
               const grpOkCnt=grpAll.filter(g=>g.status==='ok').length;
+              const grpDefCnt=grpAll.filter(g=>g.status==='defective').length;
               const grpAllOk=grpOkCnt===grpAll.length;
-              html+=`<div class="grp-hdr">
+              const collapsed=!!S.grpCollapsed[it.subOf];
+              const statusSummary=collapsed
+                ?`<span style="font-size:10px;color:var(--g500)">${grpAllOk?'全OK':(grpOkCnt>0||grpDefCnt>0?`OK ${grpOkCnt}${grpDefCnt?' · D '+grpDefCnt:''} / ${grpAll.length}点`:`${grpAll.length}点 未検品`)}</span>`
+                :'';
+              html+=`<div class="grp-hdr" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
+                <div style="font-size:11px;color:var(--g400);flex-shrink:0;width:14px;text-align:center">${collapsed?'▶':'▼'}</div>
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
                   <div class="item-tags">${catTag}</div>
                   <div class="grp-hdr-name">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
-                  <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点</div>
+                  <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点 &nbsp;${statusSummary}</div>
                 </div>
-                <button onclick="bulkOk('${it.subOf}')" style="flex-shrink:0;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;border:1px solid ${grpAllOk?'var(--green)':'var(--g300)'};background:${grpAllOk?'var(--green)':'none'};color:${grpAllOk?'#fff':'var(--g600)'};cursor:pointer;font-family:inherit;font-weight:600">${grpAllOk?'✓ 全OK':'全部 OK'}</button>
+                <button onclick="event.stopPropagation();bulkOk('${it.subOf}')" style="flex-shrink:0;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;border:1px solid ${grpAllOk?'var(--green)':'var(--g300)'};background:${grpAllOk?'var(--green)':'none'};color:${grpAllOk?'#fff':'var(--g600)'};cursor:pointer;font-family:inherit;font-weight:600">${grpAllOk?'✓ 全OK':'全部 OK'}</button>
               </div>`;
             }
-            // SUB-ITEM (part of multi-qty group)
-            if(it.subOf!==null){
+            // SUB-ITEM (part of multi-qty group) — skip if group collapsed
+            if(it.subOf!==null&&S.grpCollapsed[it.subOf]){}
+            else if(it.subOf!==null){
               html+=`<div class="sub-item">
                 <div class="sub-item-row">
                   <div class="sub-bar"></div>

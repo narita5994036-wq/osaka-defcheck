@@ -536,10 +536,10 @@ function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.pars
 function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling)_setDirty(true);}
 
 /* ── GIST SYNC ── */
-const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_DIRTY='mykita_dc_dirty';
-let _syncSt=null,_syncMsg='',_dirty=localStorage.getItem(GK_DIRTY)==='1',_settingsShowCreds=false,_gistPulling=false;
+const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
+let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
 let _preEditDirty=false,_invoiceSnap=null;
-function _setDirty(v){_dirty=v;if(v)localStorage.setItem(GK_DIRTY,'1');else localStorage.removeItem(GK_DIRTY);}
+function _setDirty(v){_dirty=v;}
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
 function gAt(){return localStorage.getItem(GK_AT)||'';}
@@ -2244,6 +2244,7 @@ function render(){
   }
 }
 
+localStorage.removeItem('mykita_dc_dirty'); // clean up legacy persisted dirty flag
 initApp(); idbLoadAll().then(()=>{render();gistAutoSync();}).catch(()=>render());
 
 function fabAtBottom(){return window.innerHeight+window.scrollY>=document.body.scrollHeight-20;}

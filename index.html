@@ -314,6 +314,7 @@
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const SK='mykita_dc_v9'; // legacy migration only
@@ -773,6 +774,7 @@ function initApp(){
       localStorage.removeItem(SK);
     }
   }catch(e){localStorage.removeItem(SK);}
+  _initMsal();
 }
 
 /* PDF EXTRACTION */
@@ -1124,116 +1126,81 @@ function buildEmail(){
   ].join('\n');
   S.showEmail=true;render();
 }
-async function openMailto(){
-  const s=g('em-s')?.value||S.emailSubj,b=g('em-b')?.value||S.emailBody,t=g('em-t')?.value||S.emailTo;
-  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
-  if(!sel.length){
-    window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
-    return;
-  }
-  const btn=g('mailto-btn');
-  if(btn){btn.textContent='読み込み中...';btn.disabled=true;}
+/* MICROSOFT GRAPH API */
+const MK_MS_CLIENT='mykita_ms_client_id';
+const MK_MS_TENANT='mykita_ms_tenant_id';
+let _msalApp=null,_msalAccount=null,_settingsShowMs=false;
+function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
+function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
+function _initMsal(){
+  const clientId=getMsClientId();
+  if(!clientId||typeof msal==='undefined')return false;
   try{
-    const files=[];
+    _msalApp=new msal.PublicClientApplication({
+      auth:{clientId,authority:'https://login.microsoftonline.com/'+getMsTenantId(),redirectUri:location.origin+location.pathname},
+      cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
+    });
+    const accs=_msalApp.getAllAccounts();
+    if(accs.length)_msalAccount=accs[0];
+    return true;
+  }catch(e){console.error('MSAL init:',e);return false;}
+}
+async function msSignIn(){
+  if(!getMsClientId()){alert('Client IDを設定してください（SET → Microsoft）');return;}
+  if(!_msalApp)_initMsal();
+  try{
+    const r=await _msalApp.loginPopup({scopes:['Mail.Send','User.Read'],prompt:'select_account'});
+    _msalAccount=r.account;render();
+  }catch(e){if(e.errorCode!=='user_cancelled')alert('サインインエラー: '+e.message);}
+}
+async function msSignOut(){
+  if(!_msalApp||!_msalAccount)return;
+  try{await _msalApp.logoutPopup({account:_msalAccount});}catch(e){}
+  _msalAccount=null;render();
+}
+async function _getMsToken(){
+  if(!_msalApp||!_msalAccount)throw new Error('Microsoftにサインインしてください');
+  try{
+    const r=await _msalApp.acquireTokenSilent({scopes:['Mail.Send'],account:_msalAccount});
+    return r.accessToken;
+  }catch(e){
+    const r=await _msalApp.acquireTokenPopup({scopes:['Mail.Send'],account:_msalAccount});
+    return r.accessToken;
+  }
+}
+async function sendViaGraph(){
+  const btn=g('ms-send-btn');
+  if(btn){btn.textContent='送信中…';btn.disabled=true;}
+  try{
+    const token=await _getMsToken();
+    const subj=g('em-s')?.value||S.emailSubj;
+    const body=g('em-b')?.value||S.emailBody;
+    const to=g('em-t')?.value||S.emailTo;
+    const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
+    const attachments=[];
     for(let i=0;i<sel.length;i++){
       const p=sel[i];
       const src=await resolvePhotoAsync(p.key);
       if(!src)continue;
-      const res=await fetch(src);
-      const blob=await res.blob();
-      const ext=blob.type.includes('png')?'png':'jpg';
-      files.push(new File([blob],`${p.pos}.${(p.name||'').replace(/[^\w\-]/g,'_').slice(0,30)}_${i+1}.${ext}`,{type:blob.type}));
+      const comma=src.indexOf(',');
+      const mime=(src.slice(0,comma).match(/:(.*?);/)||[])[1]||'image/jpeg';
+      const ext=mime.includes('png')?'png':'jpg';
+      const fname=`${p.pos}.${(p.name||'').replace(/[^\w-]/g,'_').slice(0,20)}_${i+1}.${ext}`;
+      attachments.push({'@odata.type':'#microsoft.graph.fileAttachment',name:fname,contentType:mime,contentBytes:src.slice(comma+1)});
     }
-    if(files.length&&navigator.canShare&&navigator.canShare({files})){
-      // Copy To + Subject to clipboard before opening share sheet
-      try{await navigator.clipboard.writeText(`To: ${t}\nSubject: ${s}`);}catch(e){}
-      await navigator.share({files,title:s,text:b});
-    } else {
-      window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
-    }
+    const message={subject:subj,body:{contentType:'Text',content:body},toRecipients:[{emailAddress:{address:to}}]};
+    if(attachments.length)message.attachments=attachments;
+    const res=await fetch('https://graph.microsoft.com/v1.0/me/sendMail',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({message,saveToSentItems:true})
+    });
+    if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.error?.message||res.statusText);}
+    alert('送信しました');
+    S.showEmail=false;render();
   }catch(e){
-    if(e.name!=='AbortError') window.location.href=`mailto:${encodeURIComponent(t)}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`;
-  }finally{
-    if(btn){btn.textContent='写真を添付して開く';btn.disabled=false;}
-  }
-}
-function _toB64(str){
-  // UTF-8 safe base64 encode
-  return btoa(unescape(encodeURIComponent(str)));
-}
-async function shareAsEML(){
-  const s=g('em-s')?.value||S.emailSubj;
-  const b=g('em-b')?.value||S.emailBody;
-  const t=g('em-t')?.value||S.emailTo;
-  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
-  const btn=g('eml-btn');
-  if(btn){btn.textContent='生成中...';btn.disabled=true;}
-  try{
-    const boundary='----=_MYKITA_'+Date.now().toString(36);
-    const subjectEncoded='=?UTF-8?B?'+_toB64(s)+'?=';
-    const bodyB64=_toB64(b);
-    const blines=(bodyB64.match(/.{1,76}/g)||[bodyB64]).join('\r\n');
-    const parts=[
-      'MIME-Version: 1.0',
-      'To: '+t,
-      'Subject: '+subjectEncoded,
-      sel.length>0
-        ?'Content-Type: multipart/mixed; boundary="'+boundary+'"'
-        :'Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64',
-      ''
-    ];
-    if(sel.length>0){
-      parts.push(
-        '--'+boundary,
-        'Content-Type: text/plain; charset=utf-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        blines,
-        ''
-      );
-      for(let i=0;i<sel.length;i++){
-        const p=sel[i];
-        const src=await resolvePhotoAsync(p.key);
-        if(!src)continue;
-        const comma=src.indexOf(',');
-        const mimeType=(src.slice(0,comma).match(/:(.*?);/)||[])[1]||'image/jpeg';
-        const ext=mimeType.includes('png')?'png':'jpg';
-        const fname=p.pos+'.'+(p.name||'').replace(/[^\w\-]/g,'_').slice(0,20)+'_'+(i+1)+'.'+ext;
-        const b64data=src.slice(comma+1);
-        const dlines=(b64data.match(/.{1,76}/g)||[b64data]).join('\r\n');
-        parts.push(
-          '--'+boundary,
-          'Content-Type: '+mimeType+'; name="'+fname+'"',
-          'Content-Transfer-Encoding: base64',
-          'Content-Disposition: attachment; filename="'+fname+'"',
-          '',
-          dlines,
-          ''
-        );
-      }
-      parts.push('--'+boundary+'--');
-    } else {
-      parts.push(blines);
-    }
-    const emlContent=parts.join('\r\n');
-    const blob=new Blob([emlContent],{type:'message/rfc822'});
-    const fname='defective_report.eml';
-    const file=new File([blob],fname,{type:'message/rfc822'});
-    // Try Web Share with .eml file
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      await navigator.share({files:[file],title:s});
-    } else {
-      // Fallback: trigger download / open
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download=fname;
-      document.body.appendChild(a);a.click();
-      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
-    }
-  }catch(e){
-    if(e.name!=='AbortError')console.error('shareAsEML:',e);
-  }finally{
-    if(btn){btn.textContent='EMLで開く';btn.disabled=false;}
+    if(e.name!=='AbortError')alert('送信エラー: '+e.message);
+    if(btn){btn.textContent='SEND';btn.disabled=false;}
   }
 }
 function copySubjectTo(){
@@ -1903,24 +1870,14 @@ function render(){
           </div>
         </div>`:''}
         ${(()=>{
-          const hasPh=S.emailPhotoKeys.length>0;
-          const selCnt=hasPh&&S.emailSelKeys?S.emailSelKeys.size:0;
-          if(hasPh&&selCnt>0) return `
-            <div style="background:var(--g50);border-radius:6px;padding:12px 14px;margin-bottom:12px;font-size:10px;color:var(--g800);line-height:1.7">
-              <div style="font-weight:600;letter-spacing:1px;margin-bottom:4px;font-size:9px;color:var(--g400)">推奨</div>
-              <div>EMLで開く → 共有シートでメールアプリを選択</div>
-              <div style="color:var(--g600)">宛先・件名・本文・写真が一括で反映されます</div>
-            </div>
-            <div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
-              <button class="btn blk" id="eml-btn" onclick="shareAsEML()">EMLで開く（写真 ${selCnt}枚）</button>
-              <div style="display:flex;gap:8px">
-                <button class="btn out" id="copy-hdr-btn" style="flex:1;font-size:9px" onclick="copySubjectTo()">件名・宛先をコピー</button>
-                <button class="btn out s" id="cbtn" onclick="copyEmail()">本文をコピー</button>
-              </div>
-            </div>`;
-          return `<div class="eacts">
-            <button class="btn blk" id="mailto-btn" onclick="openMailto()">Outlookで開く</button>
-            <button class="btn out s" id="cbtn" onclick="copyEmail()">COPY</button>
+          const selCnt=S.emailSelKeys?S.emailSelKeys.size:0;
+          const signedIn=!!_msalAccount;
+          return `<div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
+            ${signedIn
+              ?`<div style="font-size:10px;color:var(--green);margin-bottom:2px">${esc(_msalAccount.username)}</div>
+                <button class="btn blk" id="ms-send-btn" onclick="sendViaGraph()">SEND${selCnt>0?' （写真 '+selCnt+'枚）':''}</button>`
+              :`<button class="btn blk" onclick="msSignIn()">Microsoftでサインイン</button>`}
+            <button class="btn out s" id="cbtn" onclick="copyEmail()">本文をコピー</button>
           </div>`;
         })()}
       </div>
@@ -1942,6 +1899,32 @@ function render(){
           <span>認証情報を変更</span><span style="font-size:12px">${_settingsShowCreds?'−':'+'}
           </span>
         </button>
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowMs=!_settingsShowMs;render()">
+          <span>Microsoft</span><span style="font-size:12px">${_settingsShowMs?'−':'+'}</span>
+        </button>
+        ${_settingsShowMs?`<div style="padding-top:10px">
+          ${_msalAccount
+            ?`<div style="font-size:11px;color:var(--green);margin-bottom:10px">${esc(_msalAccount.username)}</div>
+               <button class="btn out" style="margin-top:0;font-size:9px" onclick="msSignOut()">サインアウト</button>`
+            :`<button class="btn blk" style="margin-top:0" onclick="msSignIn()">Microsoftでサインイン</button>`}
+          <div class="ef" style="margin-top:12px">
+            <label>CLIENT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（Azure AD アプリ登録）</span></label>
+            <input type="text" value="${esc(getMsClientId())}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              onchange="localStorage.setItem('${MK_MS_CLIENT}',this.value);_msalApp=null;_initMsal();render()">
+          </div>
+          <div class="ef">
+            <label>TENANT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（空欄で common）</span></label>
+            <input type="text" value="${esc(getMsTenantId()==='common'?'':getMsTenantId())}" placeholder="common"
+              onchange="localStorage.setItem('${MK_MS_TENANT}',this.value||'common');_msalApp=null;_initMsal();render()">
+          </div>
+          <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>
+            <div>① Azure Portal → Azure Active Directory → アプリの登録</div>
+            <div>② 新規登録 → リダイレクトURI: <b>SPA</b> → このページのURL</div>
+            <div>③ API のアクセス許可 → <b>Mail.Send</b> を追加</div>
+            <div>④ アプリケーション（クライアント）IDを入力</div>
+          </div>
+        </div>`:''}
         ${_settingsShowCreds?`<div style="padding-top:10px">
           <div class="ef">
             <label>PERSONAL ACCESS TOKEN</label>

@@ -1794,12 +1794,13 @@ function render(){
   // HOME
   if(S.screen==='home'){
     const list=loadList();
-    const sortActive=(arr=>[...arr].sort((a,b)=>{
+    const _sort=arr=>[...arr].sort((a,b)=>{
       if(S.homeSort==='created')return (b.createdAt||'').localeCompare(a.createdAt||'');
       if(S.homeSort==='updated')return (b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||'');
       return (a.number||'').localeCompare(b.number||'',undefined,{numeric:true,sensitivity:'base'});
-    }))(list.filter(e=>!e.archived));
-    const archived=list.filter(e=>e.archived);
+    });
+    const sortActive=_sort(list.filter(e=>!e.archived));
+    const archived=_sort(list.filter(e=>e.archived));
     const sortBtns=[['number','No.順'],['created','作成日'],['updated','更新日']].map(([v,l])=>
       `<button onclick="S.homeSort='${v}';render()" style="font-size:9px;letter-spacing:1px;padding:4px 10px;border:1px solid ${S.homeSort===v?'var(--k)':'var(--g200)'};border-radius:3px;background:${S.homeSort===v?'var(--k)':'transparent'};color:${S.homeSort===v?'var(--w)':'var(--g600)'};cursor:pointer;font-family:inherit">${l}</button>`
     ).join('');

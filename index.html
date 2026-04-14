@@ -325,7 +325,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -1806,8 +1806,10 @@ function render(){
         return cmp*d;
       });
     };
-    const sortActive=_sort(list.filter(e=>!e.archived));
-    const archived=_sort(list.filter(e=>e.archived));
+    const _fuzzy=(e,q)=>!q||e.number.toLowerCase().replace(/\s/g,'').includes(q.toLowerCase().replace(/\s/g,''));
+    const q=S.homeSearch.trim();
+    const sortActive=_sort(list.filter(e=>!e.archived&&_fuzzy(e,q)));
+    const archived=_sort(list.filter(e=>e.archived&&_fuzzy(e,q)));
     const dirArrow=S.homeSortDir==='asc'?'↑':'↓';
     const sortBtns=[['number','No.'],['created','作成日'],['updated','更新日']].map(([v,l])=>{
       const active=S.homeSort===v;
@@ -1816,16 +1818,22 @@ function render(){
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">LIST DOWNLOAD(.xlsx)</button>
+      <div style="margin:12px 20px 0;position:relative">
+        <input type="search" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
+          oninput="S.homeSearch=this.value;render()"
+          style="width:100%;padding:9px 32px 9px 12px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
+        ${q?`<button onclick="S.homeSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
+      </div>
       ${sortActive.length
-        ?`<div class="home-sec" style="display:flex;align-items:center;justify-content:space-between"><span>ACTIVE</span><div style="display:flex;gap:6px">${sortBtns}</div></div>${sortActive.map(e=>invCardHtml(e,false)).join('')}`
-        :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`
+        ?`<div class="home-sec" style="display:flex;align-items:center;justify-content:space-between"><span>ACTIVE${q?' ('+sortActive.length+'件)':''}</span><div style="display:flex;gap:6px">${sortBtns}</div></div>${sortActive.map(e=>invCardHtml(e,false)).join('')}`
+        :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">${q?'該当するインボイスがありません':'インボイスがありません'}</div>`
       }
       ${archived.length?`
         <div class="home-sec" onclick="S.showArchive=!S.showArchive;render()">
           ARCHIVED (${archived.length}) <span style="font-size:11px">${S.showArchive?'▲':'▼'}</span>
         </div>
         ${S.showArchive?archived.map(e=>invCardHtml(e,true)).join(''):''}
-      `:''}`;
+      `:q?`<div class="home-sec">ARCHIVED (0)</div>`:''}`;
   }
 
   // UPLOAD

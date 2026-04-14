@@ -1086,7 +1086,7 @@ function syncRemark(it){
     const partDisplay=partStr+detail;
     const loc=partStr
       ?(d.side==='Both'&&partStr==='Lens'&&!d.partDetail?'Both lenses':
-        d.side==='Both'&&partStr==='Temple'?'Temples':
+        d.side==='Both'&&partStr==='Temple'?'Both temples':
         d.side?d.side+' '+partDisplay.toLowerCase():partDisplay)
       :(d.side||'');
     const conds=[...d.cond,...(d.condOther?[d.condOther]:[])].map(c=>c==='Scratch'?'Scratches':c);

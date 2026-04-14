@@ -384,8 +384,10 @@ function _downloadCSV(fname,rows){
   const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  window.open(url,'_blank');
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  const a=document.createElement('a');
+  a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 function exportDispCSV(){
   if(!_dispSheet)return;

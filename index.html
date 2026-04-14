@@ -364,6 +364,7 @@ function saveDispSheet(){
       const defItems=_dispSheet.inv.items.filter(i=>i.status==='defective');
       list[idx].dispTotal=defItems.length;
       list[idx].dispSet=defItems.filter(i=>i.disp).length;
+      if(_dispIsDirty())_invsDirty=true;
       saveList(list);
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}

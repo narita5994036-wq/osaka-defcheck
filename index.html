@@ -1221,7 +1221,31 @@ function copySubjectTo(){
 }
 function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
-  navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='COPY',1500)}});
+  navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='本文をコピー',1500)}});
+}
+async function downloadAttachments(){
+  const sel=(S.emailPhotoKeys||[]).filter(p=>S.emailSelKeys&&S.emailSelKeys.has(p.key));
+  if(!sel.length){alert('写真が選択されていません');return;}
+  const btn=g('dl-att-btn');
+  if(btn){btn.textContent='保存中…';btn.disabled=true;}
+  try{
+    for(let i=0;i<sel.length;i++){
+      const p=sel[i];
+      const src=await resolvePhotoAsync(p.key);
+      if(!src)continue;
+      const comma=src.indexOf(',');
+      const mime=(src.slice(0,comma).match(/:(.*?);/)||[])[1]||'image/jpeg';
+      const ext=mime.includes('png')?'png':'jpg';
+      const fname=`${p.pos}.${(p.name||'').replace(/[^\w-]/g,'_').slice(0,20)}_${i+1}.${ext}`;
+      const a=document.createElement('a');
+      a.href=src;a.download=fname;
+      document.body.appendChild(a);a.click();
+      document.body.removeChild(a);
+      await new Promise(r=>setTimeout(r,300));
+    }
+  }finally{
+    if(btn){btn.textContent='添付画像を保存';btn.disabled=false;}
+  }
 }
 function toggleEmailPhoto(key){
   if(!S.emailSelKeys)return;
@@ -1881,12 +1905,16 @@ function render(){
         ${(()=>{
           const selCnt=S.emailSelKeys?S.emailSelKeys.size:0;
           const signedIn=!!_msalAccount;
+          const hasSel=selCnt>0;
           return `<div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
             ${signedIn
               ?`<div style="font-size:10px;color:var(--green);margin-bottom:2px">${esc(_msalAccount.username)}</div>
-                <button class="btn blk" id="ms-send-btn" onclick="sendViaGraph()">SEND${selCnt>0?' （写真 '+selCnt+'枚）':''}</button>`
+                <button class="btn blk" id="ms-send-btn" onclick="sendViaGraph()">SEND${hasSel?' （写真 '+selCnt+'枚）':''}</button>`
               :`<button class="btn blk" onclick="msSignIn()">Microsoftでサインイン</button>`}
-            <button class="btn out s" id="cbtn" onclick="copyEmail()">本文をコピー</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn out" id="cbtn" style="flex:1;margin-top:0" onclick="copyEmail()">本文をコピー</button>
+              ${hasSel?`<button class="btn out" id="dl-att-btn" style="flex:1;margin-top:0" onclick="downloadAttachments()">添付画像を保存</button>`:''}
+            </div>
           </div>`;
         })()}
       </div>

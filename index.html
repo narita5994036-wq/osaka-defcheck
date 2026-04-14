@@ -337,6 +337,7 @@ function openDispSheet(id){
     // snapshot original disposition values for dirty detection
     _dispOrigDisp={};
     inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;});
+    if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
     _dispSheet={id,inv};render();
   }catch(e){console.warn('openDispSheet failed:',e);}
 }
@@ -364,7 +365,7 @@ function saveDispSheet(){
       const defItems=_dispSheet.inv.items.filter(i=>i.status==='defective');
       list[idx].dispTotal=defItems.length;
       list[idx].dispSet=defItems.filter(i=>i.disp).length;
-      if(_dispIsDirty())_invsDirty=true;
+      {const _sid=_dispSheet.id;const _ss=_dispSyncSnap[_sid];const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');if(_ss){if(defs.some(it=>(it.disp||null)!==(_ss[it.no]||null)))_dispDirtyIds.add(_sid);else _dispDirtyIds.delete(_sid);}else if(_dispIsDirty())_dispDirtyIds.add(_sid);}
       saveList(list);
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}
@@ -536,15 +537,15 @@ function invCardTap(id){
 }
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
-function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling){const _ld=_listSnap!==null&&_listForSnap(list)!==_listSnap;_dirty=_ld||_invsDirty;}}
+function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling){const _ld=_listSnap!==null&&_listForSnap(list)!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}}
 
 /* ── GIST SYNC ── */
 const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
 let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
 let _preEditDirty=false,_preEditInvsDirty=false,_invoiceSnap=null;
-let _listSnap=null,_invsDirty=false;
+let _listSnap=null,_invsDirty=false,_dispSyncSnap={},_dispDirtyIds=new Set();
 function _listForSnap(list){return JSON.stringify(list.map(e=>{const{updatedAt,...r}=e;return r;}));}
-function _markClean(){_invsDirty=false;_listSnap=_listForSnap(loadList());_dirty=false;}
+function _markClean(){_invsDirty=false;_dispSyncSnap={};_dispDirtyIds=new Set();_listSnap=_listForSnap(loadList());_dirty=false;}
 function _setDirty(v){_dirty=v;}
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
@@ -1332,7 +1333,7 @@ function leaveChecklist(){
   if(_invoiceSnap){
     if(JSON.stringify(S.invoice)===_invoiceSnap){
       // 実質変更なし — spurious dirty を元に戻す
-      _invsDirty=_preEditInvsDirty;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty;}
+      _invsDirty=_preEditInvsDirty;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}
       resetApp();
       return;
     }
@@ -1362,7 +1363,7 @@ function discardAndLeave(){
       }
     }catch(e){console.warn('discardAndLeave:',e);}
   }
-  _invsDirty=_preEditInvsDirty;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty;}
+  _invsDirty=_preEditInvsDirty;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}
   S.showLeavePrompt=false;
   resetApp();
 }

@@ -936,6 +936,19 @@ function cycle(no){
   });
   save();render();
 }
+function bulkOk(subOf){
+  if(checkArchived())return;
+  const grpItems=S.invoice.items.filter(it=>it.subOf===subOf);
+  const allOk=grpItems.every(it=>it.status==='ok');
+  // Toggle: if all are ok, reset to pending; otherwise set all to ok
+  const next=allOk?'pending':'ok';
+  S.invoice.items=S.invoice.items.map(it=>{
+    if(it.subOf!==subOf)return it;
+    if(it.status==='defective')delete S.pickerOpen[it.no];
+    return {...it,status:next};
+  });
+  save();render();
+}
 function togglePicker(no){
   if(checkArchived())return;
   // toggle only this item's picker; others stay as-is
@@ -1835,6 +1848,9 @@ function render(){
             const catTag=it.cat==='parts'?`<span class="tag parts">PARTS</span>`:it.cat==='sun'?`<span class="tag sun">SUN</span>`:`<span class="tag rx">RX</span>`;
             // GROUP HEADER for first sub-item of a multi-qty set
             if(it.subOf!==null && it.subIdx===1){
+              const grpAll=S.invoice.items.filter(g=>g.subOf===it.subOf);
+              const grpOkCnt=grpAll.filter(g=>g.status==='ok').length;
+              const grpAllOk=grpOkCnt===grpAll.length;
               html+=`<div class="grp-hdr">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
@@ -1842,6 +1858,7 @@ function render(){
                   <div class="grp-hdr-name">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点</div>
                 </div>
+                <button onclick="bulkOk('${it.subOf}')" style="flex-shrink:0;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;border:1px solid ${grpAllOk?'var(--green)':'var(--g300)'};background:${grpAllOk?'var(--green)':'none'};color:${grpAllOk?'#fff':'var(--g600)'};cursor:pointer;font-family:inherit;font-weight:600">${grpAllOk?'✓ 全OK':'全部 OK'}</button>
               </div>`;
             }
             // SUB-ITEM (part of multi-qty group)

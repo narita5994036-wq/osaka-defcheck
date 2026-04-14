@@ -1028,9 +1028,11 @@ function syncRemark(it){
     const detail=d.partDetail?` (${d.partDetail})`:'';
     const partDisplay=partStr+detail;
     const loc=partStr
-      ?(d.side==='Both'&&partStr==='Lens'&&!d.partDetail?'Both lenses':d.side?d.side+' '+partDisplay.toLowerCase():partDisplay)
+      ?(d.side==='Both'&&partStr==='Lens'&&!d.partDetail?'Both lenses':
+        d.side==='Both'&&partStr==='Temple'?'Temples':
+        d.side?d.side+' '+partDisplay.toLowerCase():partDisplay)
       :(d.side||'');
-    const conds=[...d.cond,...(d.condOther?[d.condOther]:[])];
+    const conds=[...d.cond,...(d.condOther?[d.condOther]:[])].map(c=>c==='Scratch'?'Scratches':c);
     return[loc,conds.join(', ')].filter(Boolean).join(' / ');
   }).filter(Boolean);
   return{...it,remark:parts.join(' | ')};

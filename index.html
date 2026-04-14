@@ -707,12 +707,12 @@ function invCardHtml(e,isArchived){
   const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
   return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)">
     <div class="inv-swipe-actions">
-      <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
-      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
       ${isArchived
         ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
         :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`
       }
+      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
+      <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
     </div>
     <div class="inv-card${isArchived?' arc':''}" onclick="invCardTap('${e.id}')">
       <div class="inv-card-body">
@@ -721,9 +721,8 @@ function invCardHtml(e,isArchived){
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
         ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
-        ${prg===100||(e.dispTotal>0)?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
-          ${prg===100?`<button class="inv-card-act-btn" onclick="event.stopPropagation();quickMail('${e.id}')">MAIL</button>`:''}
-          ${e.dispTotal>0?`<button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`:''}
+        ${e.dispTotal>0?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
+          <button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>
         </div>`:''}
       </div>
       <div class="inv-card-arr">›</div>

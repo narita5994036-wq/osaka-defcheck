@@ -276,7 +276,9 @@
   /* SWIPE CARD */
   .inv-swipe-wrap{position:relative;overflow:hidden;margin:0 20px 10px;border-radius:6px}
   .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex}
-  .isw-btn{display:flex;align-items:center;justify-content:center;padding:0 22px;font-size:10px;letter-spacing:1.5px;font-weight:600;border:none;cursor:pointer;color:#fff;font-family:inherit;white-space:nowrap}
+  .isw-btn{display:flex;align-items:center;justify-content:center;padding:0 14px;font-size:9px;letter-spacing:1.5px;font-weight:600;border:none;cursor:pointer;color:#fff;font-family:inherit;white-space:nowrap}
+  .isw-btn.isw-mail{background:var(--blue)}
+  .isw-btn.isw-csv{background:var(--teal)}
   .isw-btn.isw-arc{background:var(--g800)}
   .isw-btn.isw-restore{background:var(--green)}
   .isw-btn.isw-del{background:var(--red)}
@@ -390,6 +392,23 @@ function exportDispCSV(){
   a.download='disposition_'+(inv.number||'export')+'.csv';
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
+function exportDispCSVById(id){
+  const d=localStorage.getItem('mykita_dc_inv_'+id);
+  if(!d){alert('データが見つかりません');return;}
+  try{
+    const inv=JSON.parse(d);
+    const rows=_dispRows(inv);
+    if(!rows.length){alert('Defective items がありません');return;}
+    const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='disposition_'+(inv.number||id)+'.csv';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  }catch(err){alert('エラー: '+err.message);}
 }
 function exportAllDispExcel(){
   if(typeof XLSX==='undefined'){
@@ -685,6 +704,8 @@ function invCardHtml(e,isArchived){
   const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
   return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)">
     <div class="inv-swipe-actions">
+      <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
+      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
       ${isArchived
         ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
         :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`

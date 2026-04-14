@@ -324,7 +324,6 @@ const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
-let _csvDialog=null; // {fname,rows}
 function openDispSheet(id){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -381,35 +380,19 @@ function _dispRows(inv){
   ]);
 }
 const DISP_HEADER=['INVOICE','LIST NO.','ITEM NAME','PN','PART/CONDITION'];
-function _csvBuildBlob(rows){
+function _openCSV(rows){
   const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  return new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-}
-function csvDialogView(){
-  if(!_csvDialog)return;
-  const blob=_csvBuildBlob(_csvDialog.rows);
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  _csvDialog=null;render();
   window.open(url,'_blank');
   setTimeout(()=>URL.revokeObjectURL(url),10000);
-}
-function csvDialogDownload(){
-  if(!_csvDialog)return;
-  const {fname,rows}=_csvDialog;
-  const blob=_csvBuildBlob(rows);
-  const url=URL.createObjectURL(blob);
-  _csvDialog=null;render();
-  const a=document.createElement('a');
-  a.href=url;a.download=fname;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 function exportDispCSV(){
   if(!_dispSheet)return;
   const inv=_dispSheet.inv;
   const rows=_dispRows(inv);
   if(!rows.length){alert('Defective items がありません');return;}
-  _csvDialog={fname:'disposition_'+(inv.number||'export')+'.csv',rows};render();
+  _openCSV(rows);
 }
 function exportDispCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -418,7 +401,7 @@ function exportDispCSVById(id){
     const inv=JSON.parse(d);
     const rows=_dispRows(inv);
     if(!rows.length){alert('Defective items がありません');return;}
-    _csvDialog={fname:'disposition_'+(inv.number||id)+'.csv',rows};render();
+    _openCSV(rows);
   }catch(err){alert('エラー: '+err.message);}
 }
 function exportAllDispExcel(){
@@ -2042,7 +2025,7 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${_csvDialog?`<div class="overlay" onclick="if(event.target===this){_csvDialog=null;render()}"><div class="sheet" style="text-align:center"><div style="font-size:9px;letter-spacing:2px;color:var(--g400);margin-bottom:10px">CSV</div><div style="font-size:12px;font-weight:500;margin-bottom:20px;word-break:break-all">"${_csvDialog.fname}"</div><div style="display:flex;gap:8px"><button class="btn out" style="flex:1;margin-top:0" onclick="csvDialogView()">表示</button><button class="btn blk" style="flex:1;margin-top:0" onclick="csvDialogDownload()">ダウンロード</button></div></div></div>`:''}
+})()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');

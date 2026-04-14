@@ -452,7 +452,10 @@ function tryCloseDispSheet(){
     _dispSheet=null;_dispOrigDisp={};render();
   }
 }
+function _swGetXY(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
+function _swGetEndXY(e){return e.changedTouches?{x:e.changedTouches[0].clientX}:{x:e.clientX};}
 function swStart(e,id){
+  if(e.button&&e.button!==0)return;
   if(_sw.openId&&_sw.openId!==id){
     const prev=document.querySelector(`.inv-swipe-wrap[data-id="${_sw.openId}"] .inv-card`);
     if(prev){prev.style.transition='transform .2s ease';prev.style.transform='translateX(0)';}
@@ -462,17 +465,17 @@ function swStart(e,id){
   const el=wrap.querySelector('.inv-card');
   const actLeft=wrap.querySelector('.inv-swipe-left');
   const actRight=wrap.querySelector('.inv-swipe-right');
-  const t=e.touches[0];
+  const {x,y}=_swGetXY(e);
   const initOffset=_sw.openId===id?(_sw.openDir==='right'?actLeft.offsetWidth:-(actRight.offsetWidth)):0;
-  _sw.state={el,actLeft,actRight,id,startX:t.clientX,startY:t.clientY,started:false,initOffset,dir:null};
+  _sw.state={el,actLeft,actRight,id,startX:x,startY:y,started:false,initOffset,dir:null,isMouse:!e.touches};
 }
 function swMove(e){
   const s=_sw.state;if(!s)return;
-  const t=e.touches[0];
-  const dx=t.clientX-s.startX,dy=t.clientY-s.startY;
+  const {x,y}=_swGetXY(e);
+  const dx=x-s.startX,dy=y-s.startY;
   if(!s.started){
     if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
-    if(Math.abs(dy)>=Math.abs(dx)){_sw.state=null;return;}
+    if(!s.isMouse&&Math.abs(dy)>=Math.abs(dx)){_sw.state=null;return;}
     s.started=true;
     s.dir=_sw.openId===s.id?_sw.openDir:(dx>0?'right':'left');
   }
@@ -491,8 +494,8 @@ function swEnd(e){
   const s=_sw.state;_sw.state=null;
   if(!s||!s.started)return;
   _sw.moved=true;setTimeout(()=>{_sw.moved=false;},300);
-  const t=e.changedTouches[0];
-  const dx=t.clientX-s.startX+s.initOffset;
+  const {x}=_swGetEndXY(e);
+  const dx=x-s.startX+s.initOffset;
   s.el.style.transition='transform .2s ease';
   if(s.dir==='right'){
     const aw=s.actLeft.offsetWidth;
@@ -504,6 +507,8 @@ function swEnd(e){
     else{s.el.style.transform='translateX(0)';_sw.openId=null;_sw.openDir=null;}
   }
 }
+function _swMouseMove(e){swMove(e);}
+function _swMouseUp(e){swEnd(e);document.removeEventListener('mousemove',_swMouseMove);document.removeEventListener('mouseup',_swMouseUp);}
 function invCardTap(id){
   if(_sw.moved)return;
   if(_sw.openId===id){
@@ -717,7 +722,7 @@ function invCardHtml(e,isArchived){
   const prg=tot?Math.round(checked/tot*100):0;
   const dateStr=e.date||'';
   const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
-  return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)">
+  return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)" onmousedown="swStart(event,'${e.id}');document.addEventListener('mousemove',_swMouseMove);document.addEventListener('mouseup',_swMouseUp)">
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
       <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>

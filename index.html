@@ -314,7 +314,7 @@
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const SK='mykita_dc_v9'; // legacy migration only
@@ -1136,7 +1136,8 @@ function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
 async function _initMsal(){
   const clientId=getMsClientId();
-  if(!clientId||typeof msal==='undefined')return false;
+  if(!clientId)return {ok:false,err:'Client IDが未設定です'};
+  if(typeof msal==='undefined')return {ok:false,err:'MSALライブラリの読み込みに失敗しました。ネットワーク接続を確認してください'};
   try{
     const app=new msal.PublicClientApplication({
       auth:{clientId,authority:'https://login.microsoftonline.com/'+getMsTenantId(),redirectUri:location.origin+location.pathname},
@@ -1146,14 +1147,14 @@ async function _initMsal(){
     _msalApp=app;
     const accs=_msalApp.getAllAccounts();
     if(accs.length)_msalAccount=accs[0];
-    return true;
-  }catch(e){console.error('MSAL init:',e);return false;}
+    return {ok:true};
+  }catch(e){console.error('MSAL init:',e);return {ok:false,err:e.message||String(e)};}
 }
 async function msSignIn(){
   if(!getMsClientId()){alert('Client IDを設定してください（SET → Microsoft）');return;}
   if(!_msalApp){
-    const ok=await _initMsal();
-    if(!ok||!_msalApp){alert('MSALの初期化に失敗しました。Client IDを確認してください');return;}
+    const {ok,err}=await _initMsal();
+    if(!ok){alert('MSALの初期化に失敗しました\n'+err);return;}
   }
   try{
     const r=await _msalApp.loginPopup({scopes:['Mail.Send','User.Read'],prompt:'select_account'});

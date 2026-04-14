@@ -323,7 +323,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -409,24 +409,38 @@ function exportDispCSVById(id){
     _downloadCSV('disposition_'+(inv.number||id)+'.csv',rows);
   }catch(err){alert('エラー: '+err.message);}
 }
-function exportAllDispExcel(){
-  if(typeof XLSX==='undefined'){
-    alert('Excelライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');
-    return;
-  }
+function openXlsxSel(){
+  const list=loadList();
+  // Pre-select all invoices that have defective items
+  const ids=new Set();
+  list.forEach(entry=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    if(!d)return;
+    try{const inv=JSON.parse(d);if(_dispRows(inv).length)ids.add(entry.id);}catch(e){}
+  });
+  if(!ids.size){alert('Defective itemsのあるインボイスがありません');return;}
+  S.xlsxSelIds=ids;S.showXlsxSel=true;render();
+}
+function toggleXlsxInv(id){
+  if(!S.xlsxSelIds)return;
+  S.xlsxSelIds.has(id)?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id);render();
+}
+function toggleAllXlsxInv(ids){
+  if(!S.xlsxSelIds)return;
+  const allSel=ids.every(id=>S.xlsxSelIds.has(id));
+  ids.forEach(id=>allSel?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id));render();
+}
+function exportSelectedExcel(){
+  if(typeof XLSX==='undefined'){alert('Excelライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');return;}
+  if(!S.xlsxSelIds||!S.xlsxSelIds.size){alert('インボイスを選択してください');return;}
   try{
-    const list=loadList();
     const allRows=[];
-    list.forEach(entry=>{
-      const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    S.xlsxSelIds.forEach(id=>{
+      const d=localStorage.getItem('mykita_dc_inv_'+id);
       if(!d)return;
-      try{
-        const inv=JSON.parse(d);
-        const rows=_dispRows(inv);
-        if(rows.length)allRows.push(...rows);
-      }catch(e){}
+      try{const inv=JSON.parse(d);const rows=_dispRows(inv);if(rows.length)allRows.push(...rows);}catch(e){}
     });
-    if(!allRows.length){alert('出力対象のDefective itemsがありません');return;}
+    if(!allRows.length){alert('選択したインボイスにDefective itemsがありません');return;}
     const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
     const fname=`DEFECTIVE ITEM LIST_${ts}.xlsx`;
     if(!confirm(`"${fname}" をダウンロードしますか？`))return;
@@ -434,12 +448,10 @@ function exportAllDispExcel(){
     const ws=XLSX.utils.aoa_to_sheet(data);
     ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:14},{wch:40}];
     const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Disposition');  // ws before sheet name
+    XLSX.utils.book_append_sheet(wb,ws,'Disposition');
     XLSX.writeFile(wb,fname);
-  }catch(e){
-    alert('出力エラー: '+e.message);
-    console.error('exportAllDispExcel:',e);
-  }
+    S.showXlsxSel=false;S.xlsxSelIds=null;render();
+  }catch(e){alert('出力エラー: '+e.message);console.error('exportSelectedExcel:',e);}
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
@@ -1728,7 +1740,7 @@ function render(){
     const archived=list.filter(e=>e.archived);
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="exportAllDispExcel()">DEFECTIVE ITEM LIST_(.xlsx)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE ITEM LIST_(.xlsx)</button>
       ${active.length
         ?`<div class="home-sec">ACTIVE</div>${active.map(e=>invCardHtml(e,false)).join('')}`
         :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`
@@ -1961,6 +1973,49 @@ function render(){
       </div>
     </div>`:'';
 
+  const xlsxSelSheet=(()=>{
+    if(!S.showXlsxSel||!S.xlsxSelIds)return '';
+    const list=loadList();
+    // Collect invoices that have defective rows
+    const candidates=[];
+    list.forEach(entry=>{
+      const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+      if(!d)return;
+      try{
+        const inv=JSON.parse(d);
+        const rows=_dispRows(inv);
+        if(rows.length)candidates.push({entry,inv,rows});
+      }catch(e){}
+    });
+    const allIds=candidates.map(c=>c.entry.id);
+    const selCnt=S.xlsxSelIds.size;
+    const allSel=allIds.every(id=>S.xlsxSelIds.has(id));
+    return `<div class="overlay" onclick="if(event.target===this){S.showXlsxSel=false;S.xlsxSelIds=null;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">EXCEL 出力 — インボイス選択<button class="close-btn" onclick="S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} 件選択</span>
+          <button onclick="toggleAllXlsxInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'全解除':'全選択'}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:16px">
+          ${candidates.map(({entry,rows})=>{
+            const sel=S.xlsxSelIds.has(entry.id);
+            return `<div onclick="toggleXlsxInv('${entry.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--g100);cursor:pointer">
+              <div style="width:20px;height:20px;border-radius:4px;border:2px solid ${sel?'var(--red)':'var(--g200)'};background:${sel?'var(--red)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center">
+                ${sel?'<span style="color:#fff;font-size:12px;font-weight:700">✓</span>':''}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;font-weight:500">${esc(entry.number||'—')}</div>
+                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; Defective ${rows.length}点</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="btn blk" style="opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportSelectedExcel()':'void 0'}">ダウンロード${selCnt?' ('+selCnt+'件)':''}</button>
+      </div>
+    </div>`;
+  })();
+
   const settingsSheet=S.showSettings?`
     <div class="overlay" onclick="if(event.target===this){S.showSettings=false;_settingsShowCreds=false;render()}">
       <div class="sheet">
@@ -2123,7 +2178,7 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}
+})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');

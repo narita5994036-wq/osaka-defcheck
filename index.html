@@ -323,7 +323,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'number'};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -634,6 +634,7 @@ function save(){
       const defItems=S.invoice.items.filter(i=>i.status==='defective');
       list[idx].dispTotal=defItems.length;
       list[idx].dispSet=defItems.filter(i=>i.disp).length;
+      list[idx].updatedAt=new Date().toISOString();
       saveList(list);
     }
   }catch(e){console.warn('save failed:',e);}
@@ -1793,13 +1794,20 @@ function render(){
   // HOME
   if(S.screen==='home'){
     const list=loadList();
-    const active=list.filter(e=>!e.archived);
+    const sortActive=(arr=>[...arr].sort((a,b)=>{
+      if(S.homeSort==='created')return (b.createdAt||'').localeCompare(a.createdAt||'');
+      if(S.homeSort==='updated')return (b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||'');
+      return (a.number||'').localeCompare(b.number||'',undefined,{numeric:true,sensitivity:'base'});
+    }))(list.filter(e=>!e.archived));
     const archived=list.filter(e=>e.archived);
+    const sortBtns=[['number','No.順'],['created','作成日'],['updated','更新日']].map(([v,l])=>
+      `<button onclick="S.homeSort='${v}';render()" style="font-size:9px;letter-spacing:1px;padding:4px 10px;border:1px solid ${S.homeSort===v?'var(--k)':'var(--g200)'};border-radius:3px;background:${S.homeSort===v?'var(--k)':'transparent'};color:${S.homeSort===v?'var(--w)':'var(--g600)'};cursor:pointer;font-family:inherit">${l}</button>`
+    ).join('');
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">LIST DOWNLOAD(.xlsx)</button>
-      ${active.length
-        ?`<div class="home-sec">ACTIVE</div>${active.map(e=>invCardHtml(e,false)).join('')}`
+      ${sortActive.length
+        ?`<div class="home-sec" style="display:flex;align-items:center;justify-content:space-between"><span>ACTIVE</span><div style="display:flex;gap:6px">${sortBtns}</div></div>${sortActive.map(e=>invCardHtml(e,false)).join('')}`
         :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`
       }
       ${archived.length?`

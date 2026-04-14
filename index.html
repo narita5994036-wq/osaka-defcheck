@@ -1950,7 +1950,7 @@ function render(){
               const grpAllOk=grpOkCnt===grpAll.length;
               const collapsed=!!S.grpCollapsed[it.subOf];
               const statusSummary=collapsed
-                ?` &nbsp;<span style="color:${grpAllOk?'var(--green)':grpDefCnt?'var(--red)':'var(--g400)'}">${grpAllOk?'全OK':grpDefCnt?`OK ${grpOkCnt} · D ${grpDefCnt} / ${grpAll.length}点`:`${grpAll.length}点 未検品`}</span>`
+                ?` &nbsp;<span style="color:${grpAllOk?'var(--green)':grpDefCnt?'var(--red)':'var(--g400)'}">${grpAllOk?'ALL OK':grpDefCnt?`OK ${grpOkCnt} · D ${grpDefCnt} / ${grpAll.length}点`:`${grpAll.length}点 未検品`}</span>`
                 :'';
               html+=`<div class="grp-hdr" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
@@ -1960,7 +1960,7 @@ function render(){
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点${statusSummary}</div>
                   <div style="font-size:10px;color:var(--g300);margin-top:2px">${collapsed?'▶':'▼'}</div>
                 </div>
-                <button onclick="event.stopPropagation();bulkOk('${it.subOf}')" style="flex-shrink:0;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;border:1px solid ${grpAllOk?'var(--green)':'var(--g300)'};background:${grpAllOk?'var(--green)':'none'};color:${grpAllOk?'#fff':'var(--g600)'};cursor:pointer;font-family:inherit;font-weight:600">${grpAllOk?'✓ 全OK':'全部 OK'}</button>
+                <button onclick="event.stopPropagation();bulkOk('${it.subOf}')" style="flex-shrink:0;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;border:1px solid ${grpAllOk?'var(--green)':'var(--g300)'};background:${grpAllOk?'var(--green)':'none'};color:${grpAllOk?'#fff':'var(--g600)'};cursor:pointer;font-family:inherit;font-weight:600">${grpAllOk?'✓ ALL OK':'ALL OK'}</button>
               </div>`;
             }
             // SUB-ITEM (part of multi-qty group) — skip if group collapsed

@@ -535,11 +535,12 @@ function invCardTap(id){
 }
 
 function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.parse(d):[]}catch(e){return[];}}
-function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling)_dirty=true;}
+function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling)_setDirty(true);}
 
 /* ── GIST SYNC ── */
-const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
-let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
+const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_DIRTY='mykita_dc_dirty';
+let _syncSt=null,_syncMsg='',_dirty=localStorage.getItem(GK_DIRTY)==='1',_settingsShowCreds=false,_gistPulling=false;
+function _setDirty(v){_dirty=v;if(v)localStorage.setItem(GK_DIRTY,'1');else localStorage.removeItem(GK_DIRTY);}
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
 function gAt(){return localStorage.getItem(GK_AT)||'';}
@@ -566,7 +567,7 @@ async function _gistDoPull(){
     for(const[k,v]of Object.entries(ph))idbPut(k,v);
   }
   _gistPulling=false;
-  _dirty=false;
+  _setDirty(false);
   localStorage.setItem(GK_AT,new Date().toISOString());
   if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
 }
@@ -588,7 +589,7 @@ async function gistPush(){
       localStorage.setItem(GK_ID,data.id);
     }
     localStorage.setItem(GK_AT,new Date().toISOString());
-    _dirty=false;_syncSt='ok';_syncMsg='Push完了';
+    _setDirty(false);_syncSt='ok';_syncMsg='Push完了';
   }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;}
   render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }
@@ -620,7 +621,7 @@ function save(){
   if(!S.invoice||!S.invoiceId)return;
   try{
     localStorage.setItem('mykita_dc_inv_'+S.invoiceId,JSON.stringify(S.invoice));
-    if(!_gistPulling)_dirty=true;
+    if(!_gistPulling)_setDirty(true);
     const list=loadList();
     const idx=list.findIndex(e=>e.id===S.invoiceId);
     if(idx>=0){

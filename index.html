@@ -827,12 +827,26 @@ function parseMykita(text){
     let cat='rx';
     if(hsCode==='90039000')cat='parts';
     else if(hsCode==='90041091')cat='sun';
-    // Extract 3-digit color code for non-parts items
+    // Extract color code for non-parts items
     let name=descRaw,colorCode='';
     if(cat!=='parts'){
-      // Pattern: description ends with " NNN " where NNN = 3-digit standalone number
-      const cm=descRaw.match(/^(.*?)\s+(\d{3})(?:\s+.*)?$/);
-      if(cm&&!/^\d/.test(cm[1].trim())){name=cm[1].trim();colorCode=cm[2]}
+      // 1st priority: explicit "Color NNN" label from PDF
+      const clm=descRaw.match(/\bColor\s+(\d{3})\b/i);
+      if(clm){
+        colorCode=clm[1];
+        name=descRaw.replace(clm[0],'').replace(/\s{2,}/g,' ').trim();
+      } else {
+        // 2nd priority: C-prefixed code e.g. "C234"
+        const cpm=descRaw.match(/\bC(\d{3})\b/);
+        if(cpm){
+          colorCode=cpm[1];
+          name=descRaw.replace(cpm[0],'').replace(/\s{2,}/g,' ').trim();
+        } else {
+          // Fallback: standalone 3-digit number at end of description
+          const cm=descRaw.match(/^(.*?)\s+(\d{3})(?:\s+.*)?$/);
+          if(cm&&!/^\d/.test(cm[1].trim())){name=cm[1].trim();colorCode=cm[2]}
+        }
+      }
     } else {
       // For parts: strip everything from customer-reference keywords onward
       name=descRaw.replace(/\s+(def |wrong |NURIA |Shop |Personal |C\d{3}\s*\/|\/\s*).*/i,'').trim();

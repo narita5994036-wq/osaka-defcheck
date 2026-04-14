@@ -275,7 +275,8 @@
   .home-sec{padding:16px 20px 6px;font-size:9px;letter-spacing:3px;color:var(--g400);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px}
   /* SWIPE CARD */
   .inv-swipe-wrap{position:relative;overflow:hidden;margin:0 20px 10px;border-radius:6px}
-  .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex}
+  .inv-swipe-left{position:absolute;left:0;top:0;bottom:0;display:flex}
+  .inv-swipe-right{position:absolute;right:0;top:0;bottom:0;display:flex}
   .isw-btn{display:flex;align-items:center;justify-content:center;padding:0 14px;font-size:9px;letter-spacing:1.5px;font-weight:600;border:none;cursor:pointer;color:#fff;font-family:inherit;white-space:nowrap}
   .isw-btn.isw-mail{background:var(--blue)}
   .isw-btn.isw-csv{background:var(--teal)}
@@ -321,7 +322,7 @@ const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false};
-let _sw={state:null,openId:null,moved:false};
+let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
   try{
@@ -458,13 +459,15 @@ function swStart(e,id){
   if(_sw.openId&&_sw.openId!==id){
     const prev=document.querySelector(`.inv-swipe-wrap[data-id="${_sw.openId}"] .inv-card`);
     if(prev){prev.style.transition='transform .2s ease';prev.style.transform='translateX(0)';}
-    _sw.openId=null;
+    _sw.openId=null;_sw.openDir=null;
   }
   const wrap=e.currentTarget;
   const el=wrap.querySelector('.inv-card');
-  const actEl=wrap.querySelector('.inv-swipe-actions');
+  const actLeft=wrap.querySelector('.inv-swipe-left');
+  const actRight=wrap.querySelector('.inv-swipe-right');
   const t=e.touches[0];
-  _sw.state={el,actEl,id,startX:t.clientX,startY:t.clientY,started:false,initOffset:_sw.openId===id?-(actEl.offsetWidth):0};
+  const initOffset=_sw.openId===id?(_sw.openDir==='right'?actLeft.offsetWidth:-(actRight.offsetWidth)):0;
+  _sw.state={el,actLeft,actRight,id,startX:t.clientX,startY:t.clientY,started:false,initOffset,dir:null};
 }
 function swMove(e){
   const s=_sw.state;if(!s)return;
@@ -474,12 +477,18 @@ function swMove(e){
     if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
     if(Math.abs(dy)>=Math.abs(dx)){_sw.state=null;return;}
     s.started=true;
+    s.dir=_sw.openId===s.id?_sw.openDir:(dx>0?'right':'left');
   }
   e.preventDefault();
-  const aw=s.actEl.offsetWidth;
   const raw=s.initOffset+dx;
   s.el.style.transition='none';
-  s.el.style.transform=`translateX(${Math.max(-aw,Math.min(0,raw))}px)`;
+  if(s.dir==='right'){
+    const aw=s.actLeft.offsetWidth;
+    s.el.style.transform=`translateX(${Math.min(aw,Math.max(0,raw))}px)`;
+  }else{
+    const aw=s.actRight.offsetWidth;
+    s.el.style.transform=`translateX(${Math.max(-aw,Math.min(0,raw))}px)`;
+  }
 }
 function swEnd(e){
   const s=_sw.state;_sw.state=null;
@@ -487,17 +496,23 @@ function swEnd(e){
   _sw.moved=true;setTimeout(()=>{_sw.moved=false;},300);
   const t=e.changedTouches[0];
   const dx=t.clientX-s.startX+s.initOffset;
-  const aw=s.actEl.offsetWidth;
   s.el.style.transition='transform .2s ease';
-  if(dx<-(aw*0.3)){s.el.style.transform=`translateX(-${aw}px)`;_sw.openId=s.id;}
-  else{s.el.style.transform='translateX(0)';_sw.openId=null;}
+  if(s.dir==='right'){
+    const aw=s.actLeft.offsetWidth;
+    if(dx>(aw*0.3)){s.el.style.transform=`translateX(${aw}px)`;_sw.openId=s.id;_sw.openDir='right';}
+    else{s.el.style.transform='translateX(0)';_sw.openId=null;_sw.openDir=null;}
+  }else{
+    const aw=s.actRight.offsetWidth;
+    if(dx<-(aw*0.3)){s.el.style.transform=`translateX(-${aw}px)`;_sw.openId=s.id;_sw.openDir='left';}
+    else{s.el.style.transform='translateX(0)';_sw.openId=null;_sw.openDir=null;}
+  }
 }
 function invCardTap(id){
   if(_sw.moved)return;
   if(_sw.openId===id){
     const el=document.querySelector(`.inv-swipe-wrap[data-id="${id}"] .inv-card`);
     if(el){el.style.transition='transform .2s ease';el.style.transform='translateX(0)';}
-    _sw.openId=null;return;
+    _sw.openId=null;_sw.openDir=null;return;
   }
   openInvoice(id);
 }
@@ -706,13 +721,15 @@ function invCardHtml(e,isArchived){
   const dateStr=e.date||'';
   const createdStr=e.createdAt?new Date(e.createdAt).toLocaleDateString('ja-JP'):'';
   return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)">
-    <div class="inv-swipe-actions">
+    <div class="inv-swipe-left">
+      <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
+      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
+    </div>
+    <div class="inv-swipe-right">
       ${isArchived
         ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
         :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`
       }
-      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
-      <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
     </div>
     <div class="inv-card${isArchived?' arc':''}" onclick="invCardTap('${e.id}')">
       <div class="inv-card-body">

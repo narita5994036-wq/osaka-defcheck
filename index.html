@@ -774,7 +774,7 @@ function initApp(){
       localStorage.removeItem(SK);
     }
   }catch(e){localStorage.removeItem(SK);}
-  _initMsal().catch(()=>{});
+  _initMsal().then(r=>{if(r&&r.ok&&_msalAccount)render();}).catch(()=>{});
 }
 
 /* PDF EXTRACTION */
@@ -1132,33 +1132,49 @@ function buildEmail(){
 const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
 let _msalApp=null,_msalAccount=null,_settingsShowMs=false;
+let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
 async function _initMsal(){
-  const clientId=getMsClientId();
-  if(!clientId)return {ok:false,err:'Client IDが未設定です'};
-  if(typeof msal==='undefined')return {ok:false,err:'MSALライブラリの読み込みに失敗しました。ネットワーク接続を確認してください'};
-  try{
-    const app=new msal.PublicClientApplication({
-      auth:{clientId,authority:'https://login.microsoftonline.com/'+getMsTenantId(),redirectUri:location.origin+location.pathname},
-      cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
-    });
-    if(typeof app.initialize==='function')await app.initialize();
-    _msalApp=app;
-    const accs=_msalApp.getAllAccounts();
-    if(accs.length)_msalAccount=accs[0];
-    return {ok:true};
-  }catch(e){console.error('MSAL init:',e);return {ok:false,err:e.message||String(e)};}
+  // Singleton: reuse in-flight promise to avoid duplicate MSAL instances
+  if(_msalInitPromise)return _msalInitPromise;
+  _msalInitPromise=(async()=>{
+    const clientId=getMsClientId();
+    if(!clientId)return {ok:false,err:'Client IDが未設定です'};
+    if(typeof msal==='undefined')return {ok:false,err:'MSALライブラリの読み込みに失敗しました。ネットワーク接続を確認してください'};
+    try{
+      const app=new msal.PublicClientApplication({
+        auth:{clientId,authority:'https://login.microsoftonline.com/'+getMsTenantId(),redirectUri:location.origin+location.pathname},
+        cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
+      });
+      if(typeof app.initialize==='function')await app.initialize();
+      _msalApp=app;
+      const accs=_msalApp.getAllAccounts();
+      if(accs.length)_msalAccount=accs[0];
+      return {ok:true};
+    }catch(e){console.error('MSAL init:',e);_msalInitPromise=null;return {ok:false,err:e.message||String(e)};}
+  })();
+  return _msalInitPromise;
 }
 async function msSignIn(){
   if(!getMsClientId()){alert('Client IDを設定してください（SET → Microsoft）');return;}
-  if(!_msalApp){
-    const {ok,err}=await _initMsal();
-    if(!ok){alert('MSALの初期化に失敗しました\n'+err);return;}
-  }
+  // Wait for any in-flight init (started by initApp) before proceeding
+  const initResult=await _initMsal();
+  if(!initResult.ok){alert('MSALの初期化に失敗しました\n'+initResult.err);return;}
+  // Preserve email modal state across the async popup (popup may take time)
+  const _prevShowEmail=S.showEmail;
+  const _prevInvoiceId=S.invoiceId;
+  const _prevInvoice=S.invoice;
   try{
     const r=await _msalApp.loginPopup({scopes:['Mail.Send','User.Read'],prompt:'select_account'});
-    _msalAccount=r.account;render();
+    _msalAccount=r.account||(_msalApp.getAllAccounts()[0]||null);
+    // Restore email modal if it was open when sign-in was triggered
+    if(_prevShowEmail&&_prevInvoice){
+      S.showEmail=true;
+      S.invoiceId=_prevInvoiceId;
+      S.invoice=_prevInvoice;
+    }
+    render();
   }catch(e){if(e.errorCode!=='user_cancelled')alert('サインインエラー: '+(e.message||e.errorCode||e));}
 }
 async function msSignOut(){
@@ -1947,12 +1963,12 @@ function render(){
           <div class="ef" style="margin-top:12px">
             <label>CLIENT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（Azure AD アプリ登録）</span></label>
             <input type="text" value="${esc(getMsClientId())}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              onchange="localStorage.setItem('${MK_MS_CLIENT}',this.value);_msalApp=null;_initMsal();render()">
+              onchange="localStorage.setItem('${MK_MS_CLIENT}',this.value);_msalApp=null;_msalInitPromise=null;_initMsal();render()">
           </div>
           <div class="ef">
             <label>TENANT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（空欄で common）</span></label>
             <input type="text" value="${esc(getMsTenantId()==='common'?'':getMsTenantId())}" placeholder="common"
-              onchange="localStorage.setItem('${MK_MS_TENANT}',this.value||'common');_msalApp=null;_initMsal();render()">
+              onchange="localStorage.setItem('${MK_MS_TENANT}',this.value||'common');_msalApp=null;_msalInitPromise=null;_initMsal();render()">
           </div>
           <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>

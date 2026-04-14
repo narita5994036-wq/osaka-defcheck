@@ -554,18 +554,21 @@ async function _gistDoPull(){
   const data=await _gFetch('https://api.github.com/gists/'+id);
   const getC=async fi=>fi.truncated?(await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text())):fi.content;
   _gistPulling=true;
-  if(data.files['list.json'])saveList(JSON.parse(await getC(data.files['list.json'])));
-  for(const fn of Object.keys(data.files)){
-    if(fn.startsWith('inv_')&&fn.endsWith('.json')){
-      localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),await getC(data.files[fn]));
+  try{
+    if(data.files['list.json'])saveList(JSON.parse(await getC(data.files['list.json'])));
+    for(const fn of Object.keys(data.files)){
+      if(fn.startsWith('inv_')&&fn.endsWith('.json')){
+        localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),await getC(data.files[fn]));
+      }
     }
+    if(data.files['photos.json']){
+      const ph=JSON.parse(await getC(data.files['photos.json']));
+      for(const[k,v]of Object.entries(ph))idbPut(k,v);
+    }
+    _setDirty(false);
+  }finally{
+    _gistPulling=false;
   }
-  if(data.files['photos.json']){
-    const ph=JSON.parse(await getC(data.files['photos.json']));
-    for(const[k,v]of Object.entries(ph))idbPut(k,v);
-  }
-  _gistPulling=false;
-  _setDirty(false);
   localStorage.setItem(GK_AT,new Date().toISOString());
   if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
 }

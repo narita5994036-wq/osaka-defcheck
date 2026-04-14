@@ -774,7 +774,7 @@ function initApp(){
       localStorage.removeItem(SK);
     }
   }catch(e){localStorage.removeItem(SK);}
-  _initMsal();
+  _initMsal().catch(()=>{});
 }
 
 /* PDF EXTRACTION */
@@ -1134,14 +1134,16 @@ const MK_MS_TENANT='mykita_ms_tenant_id';
 let _msalApp=null,_msalAccount=null,_settingsShowMs=false;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
-function _initMsal(){
+async function _initMsal(){
   const clientId=getMsClientId();
   if(!clientId||typeof msal==='undefined')return false;
   try{
-    _msalApp=new msal.PublicClientApplication({
+    const app=new msal.PublicClientApplication({
       auth:{clientId,authority:'https://login.microsoftonline.com/'+getMsTenantId(),redirectUri:location.origin+location.pathname},
       cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
     });
+    if(typeof app.initialize==='function')await app.initialize();
+    _msalApp=app;
     const accs=_msalApp.getAllAccounts();
     if(accs.length)_msalAccount=accs[0];
     return true;
@@ -1149,11 +1151,14 @@ function _initMsal(){
 }
 async function msSignIn(){
   if(!getMsClientId()){alert('Client IDを設定してください（SET → Microsoft）');return;}
-  if(!_msalApp)_initMsal();
+  if(!_msalApp){
+    const ok=await _initMsal();
+    if(!ok||!_msalApp){alert('MSALの初期化に失敗しました。Client IDを確認してください');return;}
+  }
   try{
     const r=await _msalApp.loginPopup({scopes:['Mail.Send','User.Read'],prompt:'select_account'});
     _msalAccount=r.account;render();
-  }catch(e){if(e.errorCode!=='user_cancelled')alert('サインインエラー: '+e.message);}
+  }catch(e){if(e.errorCode!=='user_cancelled')alert('サインインエラー: '+(e.message||e.errorCode||e));}
 }
 async function msSignOut(){
   if(!_msalApp||!_msalAccount)return;

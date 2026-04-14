@@ -1819,7 +1819,7 @@ function render(){
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">LIST DOWNLOAD(.xlsx)</button>
       <div style="margin:12px 20px 0;position:relative">
-        <input type="search" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
+        <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"
           style="width:100%;padding:9px 32px 9px 12px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
         ${q?`<button onclick="S.homeSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
@@ -2220,6 +2220,9 @@ function render(){
       </div>`
     :'';
 
+  const _focId=document.activeElement&&document.activeElement.id||null;
+  const _focSS=_focId&&document.activeElement.selectionStart!=null?document.activeElement.selectionStart:null;
+  const _focSE=_focId&&document.activeElement.selectionEnd!=null?document.activeElement.selectionEnd:null;
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
@@ -2286,6 +2289,7 @@ function render(){
 
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
+  if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}
   const fab=document.getElementById('scroll-fab');
   if(fab){
     fab.style.display=(S.screen==='checklist'&&!S.markup&&!S.viewPhoto&&!S.showEmail)?'flex':'none';

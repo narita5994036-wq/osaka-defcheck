@@ -56,7 +56,7 @@
   .ibtn{background:none;border:none;cursor:pointer;padding:6px;color:var(--g600);font-size:16px;border-radius:6px}
   .ibtn:active{background:var(--g100)}
   @keyframes ibtn-spin{to{transform:rotate(360deg)}}
-  .ibtn-spin{display:inline-block;animation:ibtn-spin .9s linear infinite}
+  .ibtn-spin{display:flex;align-items:center;justify-content:center;animation:ibtn-spin .9s linear infinite;transform-origin:center center}
   .upzone{margin:28px 20px;border:1px dashed var(--g400);border-radius:4px;padding:44px 20px;text-align:center;cursor:pointer;position:relative;transition:background .15s}
   .upzone:active{background:var(--g50)}
   .upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}

@@ -55,8 +55,6 @@
   .hdr-acts{display:flex;gap:10px}
   .ibtn{background:none;border:none;cursor:pointer;padding:6px;color:var(--g600);font-size:16px;border-radius:6px}
   .ibtn:active{background:var(--g100)}
-  @keyframes ibtn-spin{to{transform:rotate(360deg)}}
-  .ibtn-spin{display:flex;align-items:center;justify-content:center;animation:ibtn-spin .9s linear infinite;transform-origin:center center}
   .upzone{margin:28px 20px;border:1px dashed var(--g400);border-radius:4px;padding:44px 20px;text-align:center;cursor:pointer;position:relative;transition:background .15s}
   .upzone:active{background:var(--g50)}
   .upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
@@ -2145,7 +2143,7 @@ function render(){
     <div class="hdr">
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
       <div class="hdr-acts">
-        ${S.screen==='home'?`<div style="position:relative;display:inline-flex"><button class="ibtn" style="color:${_syncSt==='err'?'var(--red)':_syncSt==='ok'?'var(--green)':'var(--g500)'};padding:5px;display:flex;align-items:center" onclick="S.showSettings=!S.showSettings;render()"><span ${_syncSt==='push'||_syncSt==='pull'?'class="ibtn-spin"':''}><svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg></span></button>${_dirty?`<span style="position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid #fff;pointer-events:none"></span>`:''}</div>`:''}
+        ${S.screen==='home'?`${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--g600);padding:6px 2px;font-weight:500">SYNC</span>`:''}${_syncSt==='ok'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--green);padding:6px 2px;font-weight:500">DONE</span>`:''}${_syncSt==='err'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--red);padding:6px 2px;font-weight:500">ERR</span>`:''}<button class="ibtn" style="font-size:11px;letter-spacing:1.5px;font-weight:500;position:relative" onclick="S.showSettings=!S.showSettings;render()">SET${_dirty?`<span style="position:absolute;top:4px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--red);display:block"></span>`:''}</button>`:''}
         ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:(S.screen==='checklist'||S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
       </div>
     </div>

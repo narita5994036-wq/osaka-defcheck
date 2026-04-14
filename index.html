@@ -394,9 +394,7 @@ function exportDispCSV(){
   const inv=_dispSheet.inv;
   const rows=_dispRows(inv);
   if(!rows.length){alert('Defective items がありません');return;}
-  const fname='disposition_'+(inv.number||'export')+'.csv';
-  if(!confirm(`"${fname}" をダウンロードしますか？`))return;
-  _downloadCSV(fname,rows);
+  _downloadCSV('disposition_'+(inv.number||'export')+'.csv',rows);
 }
 function exportDispCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -405,9 +403,7 @@ function exportDispCSVById(id){
     const inv=JSON.parse(d);
     const rows=_dispRows(inv);
     if(!rows.length){alert('Defective items がありません');return;}
-    const fname='disposition_'+(inv.number||id)+'.csv';
-    if(!confirm(`"${fname}" をダウンロードしますか？`))return;
-    _downloadCSV(fname,rows);
+    _downloadCSV('disposition_'+(inv.number||id)+'.csv',rows);
   }catch(err){alert('エラー: '+err.message);}
 }
 function exportAllDispExcel(){

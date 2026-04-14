@@ -728,7 +728,12 @@ function archiveInvoice(id){
   const list=loadList();
   const idx=list.findIndex(e=>e.id===id);
   if(idx<0)return;
-  if(list[idx].archived){alert('アーカイブからアクティブには戻せません。');return;}
+  if(list[idx].archived){
+    const num=list[idx].number;
+    if(list.some(e=>!e.archived&&e.number===num))alert('同名インボイスが存在するため、アーカイブからアクティブには戻せません。');
+    else{list[idx].archived=false;saveList(list);render();}
+    return;
+  }
   list[idx].archived=true;
   saveList(list);
   render();

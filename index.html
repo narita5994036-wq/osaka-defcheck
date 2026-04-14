@@ -323,7 +323,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={};
 function openDispSheet(id){
@@ -538,6 +538,7 @@ function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}
 /* ── GIST SYNC ── */
 const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_DIRTY='mykita_dc_dirty';
 let _syncSt=null,_syncMsg='',_dirty=localStorage.getItem(GK_DIRTY)==='1',_settingsShowCreds=false,_gistPulling=false;
+let _preEditDirty=false,_invoiceSnap=null;
 function _setDirty(v){_dirty=v;if(v)localStorage.setItem(GK_DIRTY,'1');else localStorage.removeItem(GK_DIRTY);}
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
@@ -710,6 +711,7 @@ function openInvoice(id){
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
+    _preEditDirty=_dirty; _invoiceSnap=d;
     S.invoiceId=id; S.invoice=inv; S.screen='checklist';
     S.filter='ALL'; S.pickerOpen={}; S.showEmail=false;
     render();
@@ -1306,12 +1308,33 @@ function toggleAllEmailPhotos(){
   else S.emailSelKeys=new Set(S.emailPhotoKeys.map(p=>p.key));
   render();
 }
-function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null};render()}
-async function leaveChecklist(){
-  if(_dirty&&gPat()&&gId()){
-    const ans=confirm('未送信の変更があります。\nPushしてから戻りますか？\n\nOK = Push して戻る\nキャンセル = Push せず戻る');
-    if(ans)await gistPush();
+function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null,showLeavePrompt:false};render()}
+function leaveChecklist(){
+  if(_dirty){S.showLeavePrompt=true;render();return;}
+  resetApp();
+}
+function stayOnChecklist(){S.showLeavePrompt=false;render();}
+function leaveWithoutPush(){S.showLeavePrompt=false;resetApp();}
+async function pushAndLeave(){S.showLeavePrompt=false;render();await gistPush();resetApp();}
+function discardAndLeave(){
+  if(_invoiceSnap&&S.invoiceId){
+    try{
+      localStorage.setItem('mykita_dc_inv_'+S.invoiceId,_invoiceSnap);
+      const inv=JSON.parse(_invoiceSnap);
+      const list=loadList();
+      const idx=list.findIndex(e=>e.id===S.invoiceId);
+      if(idx>=0){
+        list[idx].tot=inv.items.length;
+        list[idx].pend=inv.items.filter(i=>i.status==='pending').length;
+        const defItems=inv.items.filter(i=>i.status==='defective');
+        list[idx].dispTotal=defItems.length;
+        list[idx].dispSet=defItems.filter(i=>i.disp).length;
+        localStorage.setItem(SK_LIST,JSON.stringify(list));
+      }
+    }catch(e){console.warn('discardAndLeave:',e);}
   }
+  _setDirty(_preEditDirty);
+  S.showLeavePrompt=false;
   resetApp();
 }
 function g(id){return document.getElementById(id)}
@@ -2190,7 +2213,18 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}
+})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.showLeavePrompt?`
+  <div class="overlay" onclick="if(event.target===this)stayOnChecklist()">
+    <div class="sheet">
+      <div class="sheet-tit">チェックリストを離れますか？</div>
+      <div style="font-size:12px;color:var(--g600);margin-bottom:20px;line-height:1.7">未送信の変更があります。</div>
+      ${gPat()&&gId()?`<button class="btn blk" style="margin-top:0;margin-bottom:10px" onclick="pushAndLeave()">↑ Push して戻る</button>`:''}
+      <button class="btn out" style="margin-top:0;margin-bottom:10px" onclick="leaveWithoutPush()">${gPat()&&gId()?'Push せず戻る':'このまま戻る'}</button>
+      ${_invoiceSnap?`<button class="btn out" style="margin-top:0;margin-bottom:10px;color:var(--red);border-color:var(--redM)" onclick="discardAndLeave()">変更を破棄して戻る</button>`:''}
+      <button class="btn out" style="margin-top:0" onclick="stayOnChecklist()">このまま続ける</button>
+    </div>
+  </div>`:''}
+
     `;
   if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
   const fab=document.getElementById('scroll-fab');

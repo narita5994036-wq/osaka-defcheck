@@ -1236,6 +1236,7 @@ function normalizeId(s){return String(s||'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,
 
 /* DEFECT PICKER HTML */
 const DEF_PART_DETAIL=['rim','nose bridge','hinge','ling','end piece','pad arm'];
+const DEF_TEMPLE_DETAIL=['hinge','temple tip'];
 function defEntryHtml(no,d,idx,total){
   const partOtherOn=d.partOther!==null&&d.partOther!==undefined;
   const condOtherOn=d.condOther!==null&&d.condOther!==undefined;
@@ -1258,9 +1259,9 @@ function defEntryHtml(no,d,idx,total){
         <span class="pill-other${partOtherOn?' sel':''}" onclick="toggleDefPartOther('${no}',${idx})">Other</span>
       </div>
       ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)"></div>`:''}
-      ${d.part==='Front Parts'?`<div style="margin-top:4px">
+      ${(d.part==='Front Parts'||d.part==='Temple')?`<div style="margin-top:4px">
         <button class="dpick-detail-toggle${d.partDetail?' has-val':''}" onclick="togglePartDetailOpen('${no}',${idx})">${d.partDetail?'▸ '+d.partDetail:'+ detail'}</button>
-        ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${DEF_PART_DETAIL.map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="setPartDetail('${no}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
+        ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${(d.part==='Temple'?DEF_TEMPLE_DETAIL:DEF_PART_DETAIL).map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="setPartDetail('${no}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
       </div>`:''}
     </div>
     <div class="dpick-row">

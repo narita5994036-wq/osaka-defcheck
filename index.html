@@ -711,7 +711,7 @@ function openInvoice(id){
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
-    _preEditDirty=_dirty; _invoiceSnap=d;
+    _preEditDirty=_dirty; _invoiceSnap=JSON.stringify(inv);
     S.invoiceId=id; S.invoice=inv; S.screen='checklist';
     S.filter='ALL'; S.pickerOpen={}; S.showEmail=false;
     render();
@@ -1310,8 +1310,18 @@ function toggleAllEmailPhotos(){
 }
 function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',pickerOpen:{},viewPhoto:null,markup:null,showLeavePrompt:false};render()}
 function leaveChecklist(){
-  if(_dirty){S.showLeavePrompt=true;render();return;}
-  resetApp();
+  if(_invoiceSnap){
+    if(JSON.stringify(S.invoice)===_invoiceSnap){
+      // 実質変更なし — spurious dirty を元に戻す
+      _setDirty(_preEditDirty);
+      resetApp();
+      return;
+    }
+    S.showLeavePrompt=true;render();
+  }else{
+    // 新規インボイス: _dirty で判断
+    if(_dirty){S.showLeavePrompt=true;render();}else{resetApp();}
+  }
 }
 function stayOnChecklist(){S.showLeavePrompt=false;render();}
 function leaveWithoutPush(){S.showLeavePrompt=false;resetApp();}

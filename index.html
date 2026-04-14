@@ -380,19 +380,23 @@ function _dispRows(inv){
   ]);
 }
 const DISP_HEADER=['INVOICE','LIST NO.','ITEM NAME','PN','PART/CONDITION'];
-function _openCSV(rows){
+function _downloadCSV(fname,rows){
   const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  window.open(url,'_blank');
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  const a=document.createElement('a');
+  a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 function exportDispCSV(){
   if(!_dispSheet)return;
   const inv=_dispSheet.inv;
   const rows=_dispRows(inv);
   if(!rows.length){alert('Defective items がありません');return;}
-  _openCSV(rows);
+  const fname='disposition_'+(inv.number||'export')+'.csv';
+  if(!confirm(`"${fname}" をダウンロードしますか？`))return;
+  _downloadCSV(fname,rows);
 }
 function exportDispCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -401,7 +405,9 @@ function exportDispCSVById(id){
     const inv=JSON.parse(d);
     const rows=_dispRows(inv);
     if(!rows.length){alert('Defective items がありません');return;}
-    _openCSV(rows);
+    const fname='disposition_'+(inv.number||id)+'.csv';
+    if(!confirm(`"${fname}" をダウンロードしますか？`))return;
+    _downloadCSV(fname,rows);
   }catch(err){alert('エラー: '+err.message);}
 }
 function exportAllDispExcel(){

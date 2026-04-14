@@ -697,12 +697,11 @@ function migrateItem(it){
 }
 function registerInvoice(inv){
   const list=loadList();
-  const base=inv.number;
-  const existing=list.map(e=>e.number);
-  if(existing.includes(base)){
-    let n=1;
-    while(existing.includes(base+'-'+n))n++;
-    inv.number=base+'-'+n;
+  const dup=list.find(e=>!e.archived&&e.number===inv.number);
+  if(dup){
+    if(!confirm(`インボイス番号 "${inv.number}" は既にアクティブにあります。\n既存をアーカイブして続けますか？\n\nOK = 既存をアーカイブしてアップロード\nキャンセル = 中止`))return false;
+    const dupIdx=list.findIndex(e=>e.id===dup.id);
+    list[dupIdx].archived=true;
   }
   const id=genId();
   S.invoiceId=id;
@@ -729,7 +728,8 @@ function archiveInvoice(id){
   const list=loadList();
   const idx=list.findIndex(e=>e.id===id);
   if(idx<0)return;
-  list[idx].archived=!list[idx].archived;
+  if(list[idx].archived){alert('アーカイブからアクティブには戻せません。');return;}
+  list[idx].archived=true;
   saveList(list);
   render();
 }
@@ -827,7 +827,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;registerInvoice(inv);S.screen='checklist';}
+    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)===false){S.invoice=null;S.screen='home';}else{S.screen='checklist';}}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -908,7 +908,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};registerInvoice(S.invoice);S.screen='checklist';render();
+  S.invoice={number,date,items};if(registerInvoice(S.invoice)===false){S.invoice=null;}else{S.screen='checklist';}render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');

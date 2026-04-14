@@ -1235,7 +1235,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function normalizeId(s){return String(s||'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase().trim();}
 
 /* DEFECT PICKER HTML */
-const DEF_PART_DETAIL=['lim','nose bridge','hinge','ling'];
+const DEF_PART_DETAIL=['rim','nose bridge','hinge','ling','End piece','pad arm'];
 function defEntryHtml(no,d,idx,total){
   const partOtherOn=d.partOther!==null&&d.partOther!==undefined;
   const condOtherOn=d.condOther!==null&&d.condOther!==undefined;

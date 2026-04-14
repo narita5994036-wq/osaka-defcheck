@@ -1056,6 +1056,11 @@ function setItemId(no,v){
   S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,itemId:v});
   save();
 }
+function setColorCodeManual(no,v){
+  if(checkArchived())return;
+  S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,colorCode:v});
+  save();
+}
 function stampAllFilled(){
   const defs=S.invoice.items.filter(i=>i.status==='defective');
   return defs.length>0 && defs.every(i=>i.stampNo&&i.stampNo.trim());
@@ -1748,6 +1753,13 @@ function render(){
               inputmode="numeric" value="${esc(it.stampNo||'')}"
               placeholder="none"
               oninput="setStampNo('${it.no}',this.value)">
+          </div>
+          <div class="stamp-field" style="margin-top:8px">
+            <label>COLOR NUMBER</label>
+            <input class="stamp-inp${it.colorCode&&it.colorCode.trim()?' filled':''}" type="text"
+              value="${esc(it.colorCode||'')}"
+              placeholder=""
+              oninput="setColorCodeManual('${it.no}',this.value)">
           </div>
           <div class="stamp-field" style="margin-top:8px">
             <label>ID NUMBER</label>

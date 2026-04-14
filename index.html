@@ -410,15 +410,15 @@ function exportDispCSVById(id){
   }catch(err){alert('エラー: '+err.message);}
 }
 function openXlsxSel(){
-  const list=loadList();
-  // Pre-select all invoices that have defective items
+  const list=loadList().filter(e=>!e.archived);
+  // Pre-select active invoices that have defective items
   const ids=new Set();
   list.forEach(entry=>{
     const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
     if(!d)return;
     try{const inv=JSON.parse(d);if(_dispRows(inv).length)ids.add(entry.id);}catch(e){}
   });
-  if(!ids.size){alert('Defective itemsのあるインボイスがありません');return;}
+  if(!ids.size){alert('Defective itemsのあるアクティブなインボイスがありません');return;}
   S.xlsxSelIds=ids;S.showXlsxSel=true;render();
 }
 function toggleXlsxInv(id){
@@ -697,8 +697,13 @@ function migrateItem(it){
 }
 function registerInvoice(inv){
   const list=loadList();
-  const dup=list.find(e=>!e.archived&&e.number===inv.number);
-  if(dup&&!confirm(`インボイス番号 "${inv.number}" は既にリストにあります。\n続けて追加しますか？`))return false;
+  const base=inv.number;
+  const existing=list.map(e=>e.number);
+  if(existing.includes(base)){
+    let n=1;
+    while(existing.includes(base+'-'+n))n++;
+    inv.number=base+'-'+n;
+  }
   const id=genId();
   S.invoiceId=id;
   const tot=inv.items.length;
@@ -706,7 +711,6 @@ function registerInvoice(inv){
   list.unshift({id,number:inv.number,date:inv.date||'',createdAt:new Date().toISOString(),archived:false,tot,pend});
   saveList(list);
   try{localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));}catch(e){console.warn('registerInvoice save failed:',e);}
-  return true;
 }
 function openInvoice(id){
   try{
@@ -823,7 +827,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)){S.screen='checklist';}else{S.invoice=null;S.screen='home';}}
+    if(inv&&inv.items.length>0){S.invoice=inv;registerInvoice(inv);S.screen='checklist';}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -904,7 +908,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};if(registerInvoice(S.invoice)){S.screen='checklist';}else{S.invoice=null;}render();
+  S.invoice={number,date,items};registerInvoice(S.invoice);S.screen='checklist';render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');
@@ -2023,8 +2027,8 @@ function render(){
 
   const xlsxSelSheet=(()=>{
     if(!S.showXlsxSel||!S.xlsxSelIds)return '';
-    const list=loadList();
-    // Collect invoices that have defective rows
+    const list=loadList().filter(e=>!e.archived);
+    // Collect active invoices that have defective rows
     const candidates=[];
     list.forEach(entry=>{
       const d=localStorage.getItem('mykita_dc_inv_'+entry.id);

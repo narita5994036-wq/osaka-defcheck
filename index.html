@@ -428,12 +428,15 @@ function exportAllDispExcel(){
       }catch(e){}
     });
     if(!allRows.length){alert('出力対象のDefective itemsがありません');return;}
+    const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
+    const fname=`DEFECTIVE ITEM LIST_${ts}.xlsx`;
+    if(!confirm(`"${fname}" をダウンロードしますか？`))return;
     const data=[DISP_HEADER,...allRows];
     const ws=XLSX.utils.aoa_to_sheet(data);
     ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:40}];
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Disposition');  // ws before sheet name
-    XLSX.writeFile(wb,'disposition_all.xlsx');
+    XLSX.writeFile(wb,fname);
   }catch(e){
     alert('出力エラー: '+e.message);
     console.error('exportAllDispExcel:',e);

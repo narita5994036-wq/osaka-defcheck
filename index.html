@@ -696,14 +696,17 @@ function migrateItem(it){
   return {stampNo:'', ...it};
 }
 function registerInvoice(inv){
+  const list=loadList();
+  const dup=list.find(e=>!e.archived&&e.number===inv.number);
+  if(dup&&!confirm(`インボイス番号 "${inv.number}" は既にリストにあります。\n続けて追加しますか？`))return false;
   const id=genId();
   S.invoiceId=id;
   const tot=inv.items.length;
   const pend=inv.items.filter(i=>i.status==='pending').length;
-  const list=loadList();
   list.unshift({id,number:inv.number,date:inv.date||'',createdAt:new Date().toISOString(),archived:false,tot,pend});
   saveList(list);
   try{localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));}catch(e){console.warn('registerInvoice save failed:',e);}
+  return true;
 }
 function openInvoice(id){
   try{
@@ -820,7 +823,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;registerInvoice(inv);S.screen='checklist';}
+    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)){S.screen='checklist';}else{S.invoice=null;S.screen='home';}}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -901,7 +904,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};registerInvoice(S.invoice);S.screen='checklist';render();
+  S.invoice={number,date,items};if(registerInvoice(S.invoice)){S.screen='checklist';}else{S.invoice=null;}render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');
@@ -1785,7 +1788,7 @@ function render(){
     const archived=list.filter(e=>e.archived);
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE ITEM LIST_(.xlsx)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">LISTS DOWNLOAD (.xlsx)</button>
       ${active.length
         ?`<div class="home-sec">ACTIVE</div>${active.map(e=>invCardHtml(e,false)).join('')}`
         :`<div style="text-align:center;padding:40px 20px;font-size:10px;color:var(--g400);letter-spacing:1px">インボイスがありません</div>`

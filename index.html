@@ -599,14 +599,14 @@ async function gistPush(){
     }
     localStorage.setItem(GK_AT,new Date().toISOString());
     _markClean();_syncSt='ok';_syncMsg='Push完了';
-  }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;}
+  }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;alert('Push失敗: '+e.message);}
   S.pushing=false;render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }
 async function gistPull(){
   if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
   _syncSt='pull';_syncMsg='';render();
   try{await _gistDoPull();_syncSt='ok';_syncMsg='Pull完了';}
-  catch(e){_syncSt='err';_syncMsg='Pull失敗: '+e.message;}
+  catch(e){_syncSt='err';_syncMsg='Pull失敗: '+e.message;alert('Pull失敗: '+e.message);}
   render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }
 async function gistAutoSync(){
@@ -2182,7 +2182,9 @@ function render(){
             <div><b>⑤ Disposition設定</b></div>
             <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ドイツ担当者からのメール返信で指示を受けた後、ホームの「DISP」ボタンから Return / Sample を選択</div>
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">同期</div>
-            <div style="color:var(--g600);margin-bottom:8px">SET → Push でGistに保存。別デバイスはPullで取得</div>
+            <div style="color:var(--g600);margin-bottom:4px">SET → Push でGistに保存。別デバイスはPullで取得</div>
+            <div style="color:var(--g600);margin-bottom:4px">初回Push後、「Gist IDをコピー（別デバイス用）」ボタンでIDを取得し、他のデバイスに入力</div>
+            <div style="color:var(--amber);margin-bottom:8px">⚠ PATはGitHub classic tokenの gist スコープが必要。fine-grained tokenは非対応</div>
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:4px;margin-bottom:10px">フィルター</div>
             <div style="color:var(--g600);margin-bottom:4px">ステータス：全て / 未確認 / OK / D</div>
             <div style="color:var(--g600)">カテゴリ：RX / SUN / PARTS（複数選択可）</div>

@@ -566,18 +566,29 @@ async function _gistDoPull(){
   const pat=gPat(),id=gId();
   if(!pat||!id)throw new Error('Token/ID未設定');
   const data=await _gFetch('https://api.github.com/gists/'+id);
-  const getC=async fi=>{if(!fi.truncated)return fi.content;try{return await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text());}catch(fe){throw new Error('rawファイル取得失敗: '+fe.message);}};
+  // getC: fetch file content; if raw_url fetch fails, returns null (caller decides how to handle)
+  const getC=async fi=>{
+    if(!fi.truncated)return fi.content;
+    try{return await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text());}
+    catch(fe){console.warn('raw fetch failed:',fi.raw_url,fe.message);return null;}
+  };
   _gistPulling=true;
+  const _skipped=[];
   try{
-    if(data.files['list.json'])saveList(JSON.parse(await getC(data.files['list.json'])));
+    if(data.files['list.json']){
+      const c=await getC(data.files['list.json']);
+      if(c)saveList(JSON.parse(c));else _skipped.push('list');
+    }
     for(const fn of Object.keys(data.files)){
       if(fn.startsWith('inv_')&&fn.endsWith('.json')){
-        localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),await getC(data.files[fn]));
+        const c=await getC(data.files[fn]);
+        if(c)localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),c);else _skipped.push(fn);
       }
     }
     if(data.files['photos.json']){
-      const ph=JSON.parse(await getC(data.files['photos.json']));
-      for(const[k,v]of Object.entries(ph))idbPut(k,v);
+      const c=await getC(data.files['photos.json']);
+      if(c){const ph=JSON.parse(c);for(const[k,v]of Object.entries(ph))idbPut(k,v);}
+      else _skipped.push('photos');
     }
     _markClean();
   }finally{
@@ -585,6 +596,7 @@ async function _gistDoPull(){
   }
   localStorage.setItem(GK_AT,new Date().toISOString());
   if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
+  if(_skipped.length)_syncMsg='Pull完了（一部スキップ: '+_skipped.join(', ')+'）';
 }
 async function gistPush(){
   if(!gPat()){alert('GitHub Personal Access Tokenを設定してください');return;}
@@ -611,7 +623,7 @@ async function gistPush(){
 async function gistPull(){
   if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
   _syncSt='pull';_syncMsg='';render();
-  try{await _gistDoPull();_syncSt='ok';_syncMsg='Pull完了';}
+  try{await _gistDoPull();_syncSt='ok';if(!_syncMsg)_syncMsg='Pull完了';}
   catch(e){_syncSt='err';_syncMsg='Pull失敗: '+e.message;alert('Pull失敗: '+e.message);}
   render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }

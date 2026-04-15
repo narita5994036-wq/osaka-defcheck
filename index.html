@@ -596,7 +596,10 @@ async function _gistDoPull(){
   }
   localStorage.setItem(GK_AT,new Date().toISOString());
   if(S.invoiceId){const d=localStorage.getItem('mykita_dc_inv_'+S.invoiceId);if(d){const inv=JSON.parse(d);inv.items=inv.items.map(migrateItem);S.invoice=inv;}}
-  if(_skipped.length)_syncMsg='Pull完了（一部スキップ: '+_skipped.join(', ')+'）';
+  const _loadedInvs=Object.keys(data.files).filter(fn=>fn.startsWith('inv_')&&fn.endsWith('.json')&&!_skipped.includes(fn)).length;
+  const _diagParts=['Gist: '+id.slice(0,8)+'…','ファイル: '+Object.keys(data.files).length+'個','インボイス: '+_loadedInvs+'件'];
+  if(_skipped.length)_diagParts.push('スキップ: '+_skipped.join(', '));
+  _syncMsg='Pull完了 ('+_diagParts.join(' / ')+')';
 }
 async function gistPush(){
   if(!gPat()){alert('GitHub Personal Access Tokenを設定してください');return;}
@@ -623,7 +626,7 @@ async function gistPush(){
 async function gistPull(){
   if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
   _syncSt='pull';_syncMsg='';render();
-  try{await _gistDoPull();_syncSt='ok';if(!_syncMsg)_syncMsg='Pull完了';}
+  try{await _gistDoPull();_syncSt='ok';}
   catch(e){_syncSt='err';_syncMsg='Pull失敗: '+e.message;alert('Pull失敗: '+e.message);}
   render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
 }

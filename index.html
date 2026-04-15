@@ -576,17 +576,44 @@ async function _gistDoPull(){
     }
   };
   _gistPulling=true;
-  const _skipped=[];
+  let _skipped=[];
   try{
+    let _listFromFile=false;
     if(data.files['list.json']){
       const c=await getC(data.files['list.json']);
-      if(c)saveList(JSON.parse(c));else _skipped.push('list');
+      if(c){saveList(JSON.parse(c));_listFromFile=true;}
+      else _skipped.push('list');
     }
+    const _invLoaded={};
     for(const fn of Object.keys(data.files)){
       if(fn.startsWith('inv_')&&fn.endsWith('.json')){
         const c=await getC(data.files[fn]);
-        if(c)localStorage.setItem('mykita_dc_inv_'+fn.slice(4,-5),c);else _skipped.push(fn);
+        if(c){const iid=fn.slice(4,-5);localStorage.setItem('mykita_dc_inv_'+iid,c);_invLoaded[iid]=c;}
+        else _skipped.push(fn);
       }
+    }
+    // If list.json was unavailable (>1MB), rebuild list from inv_ files
+    if(!_listFromFile&&Object.keys(_invLoaded).length>0){
+      const localList=loadList();
+      const localById={};localList.forEach(e=>localById[e.id]=e);
+      const seen=new Set();const newList=[];
+      for(const e of localList){
+        if(_invLoaded[e.id]){
+          const inv=JSON.parse(_invLoaded[e.id]);
+          const defItems=inv.items.filter(i=>i.status==='defective');
+          newList.push({id:e.id,number:inv.number||e.number,date:inv.date||e.date,createdAt:e.createdAt,archived:e.archived,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.disp).length,updatedAt:e.updatedAt});
+        }else{newList.push(e);}
+        seen.add(e.id);
+      }
+      for(const[iid,c]of Object.entries(_invLoaded)){
+        if(!seen.has(iid)){
+          const inv=JSON.parse(c);
+          const defItems=inv.items.filter(i=>i.status==='defective');
+          newList.unshift({id:iid,number:inv.number||'',date:inv.date||'',createdAt:inv.createdAt||new Date().toISOString(),archived:false,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.disp).length});
+        }
+      }
+      saveList(newList);
+      _skipped=_skipped.filter(s=>s!=='list');
     }
     if(data.files['photos.json']){
       const c=await getC(data.files['photos.json']);
@@ -610,7 +637,7 @@ async function gistPush(){
   try{
     const list=loadList();
     const files={'list.json':{content:JSON.stringify(list)}};
-    list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)files['inv_'+e.id+'.json']={content:d};});
+    list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d){try{const inv=JSON.parse(d);const clean={...inv,items:inv.items.map(it=>({...it,photos:(it.photos||[]).filter(p=>p&&!p.startsWith('data:'))}))};files['inv_'+e.id+'.json']={content:JSON.stringify(clean)};}catch(x){files['inv_'+e.id+'.json']={content:d};}}});
     const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
     files['photos.json']={content:JSON.stringify(photos)};
     const id=gId();

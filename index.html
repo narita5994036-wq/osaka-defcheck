@@ -1184,7 +1184,7 @@ function buildEmail(){
 /* MICROSOFT GRAPH API */
 const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
-let _msalApp=null,_msalAccount=null,_settingsShowMs=false;
+let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false;
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
@@ -2160,6 +2160,32 @@ function render(){
             <div>② <b>Generate new token</b> → scope: <b>gist</b> にチェック</div>
             <div>③ Tokenを入力 → Push でアップロード</div>
             <div>④ 別デバイスでToken + Gist IDを入力 → Pull</div>
+          </div>
+        </div>`:''}
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
+          <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
+        </button>
+        ${_settingsShowHelp?`<div style="padding-top:10px">
+          <div style="background:var(--g50);border-radius:6px;padding:14px 16px;font-size:11px;color:var(--g800);line-height:2">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:10px">基本フロー</div>
+            <div><b>① インボイスアップロード</b></div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ホーム画面の「+ NEW INVOICE」からPDFをアップロード</div>
+            <div><b>② チェックリスト入力</b></div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:4px">インボイスをタップして開く</div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:4px">各アイテムのステータスをタップで切り替え：<br>— (未確認) → OK → D (不良) → —</div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">Dのアイテムは詳細（部位・状態・写真）を記録可</div>
+            <div><b>③ Disposition設定</b></div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ホームの「DISP」ボタンから Return / Sample を選択</div>
+            <div><b>④ スタンプ番号入力</b></div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">チェックリスト下部「→ スタンプ番号・IDを入力」から記録</div>
+            <div><b>⑤ 同期（Push / Pull）</b></div>
+            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">SET → Push でGistに保存。別デバイスはPullで取得</div>
+            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">フィルター</div>
+            <div style="color:var(--g600);margin-bottom:4px">ステータス：全て / 未確認 / OK / D</div>
+            <div style="color:var(--g600)">カテゴリ：RX / SUN / PARTS（複数選択可）</div>
+            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">リスト管理</div>
+            <div style="color:var(--g600);margin-bottom:4px">アーカイブ：スワイプ → Archiveで非表示化</div>
+            <div style="color:var(--g600)">LIST DOWNLOAD：アクティブなインボイスをXLSXで出力</div>
           </div>
         </div>`:''}
       </div>

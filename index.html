@@ -2029,7 +2029,7 @@ function render(){
     }).join('');
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT TO EXCEL</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE TO EXCEL</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"
@@ -2403,7 +2403,7 @@ function render(){
             <div style="color:var(--g600)">カテゴリ：RX / SUN / PARTS（複数選択可）</div>
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">リスト管理</div>
             <div style="color:var(--g600);margin-bottom:4px">アーカイブ：スワイプ → Archiveで非表示化</div>
-            <div style="color:var(--g600)">EXPORT TO EXCEL：アクティブなインボイスをXLSXで出力</div>
+            <div style="color:var(--g600)">EXPORT ACTIVE TO EXCEL：アクティブなインボイスをXLSXで出力</div>
           </div>
         </div>`:''}
       </div>

@@ -1365,18 +1365,22 @@ function setAllOk(){
   S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
   save();render();
 }
+function resetAllStatus(){
+  if(!S.invoice)return;
+  const pend=S.invoice.items.filter(i=>i.status==='pending').length;
+  const tot=S.invoice.items.length;
+  if(pend===tot){alert('全て既に未確認です');return;}
+  if(!confirm('ステータスを全て未確認にリセットしますか？\n（ディフェクティブの入力内容は保持されます）\n\nOK = リセット\nキャンセル = 中止'))return;
+  S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending'}));
+  save();render();
+  alert('ステータスを全て未確認にリセットしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
+}
 function clearAllStatus(){
   if(!S.invoice)return;
-  if(confirm('ステータスのみ全て未確認に変更しますか？\n（ディフェクティブの入力内容は保持されます）\n\nOK = ステータスのみリセット\nキャンセル = 全てクリアへ')){
-    S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending'}));
-    save();render();
-    alert('ステータスを全て未確認にリセットしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
-  }else{
-    if(!confirm('ステータス・ディフェクティブ内容を全てクリアしますか？\nこの操作は取り消せません（PUSH前を除く）。\n\nOK = 全てクリア\nキャンセル = 中止'))return;
-    S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
-    save();render();
-    alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
-  }
+  if(!confirm('ステータス・ディフェクティブ内容を全てクリアしますか？\nこの操作は取り消せません（PUSH前を除く）。\n\nOK = 全てクリア\nキャンセル = 中止'))return;
+  S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
+  save();render();
+  alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
 }
 function goToStamp(){
   const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
@@ -2215,7 +2219,7 @@ function render(){
       </div>
       <div style="display:flex;gap:8px;padding:8px 20px 0">
         <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">全て OK</button>
-        <button onclick="clearAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--red);border-color:var(--redM);font-family:inherit;font-weight:600">全てクリア</button>
+        <button onclick="resetAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">ステータスリセット</button>
       </div>
       <div class="cl">
         ${(()=>{
@@ -2279,7 +2283,11 @@ function render(){
         ${defItems.map(it=>`<div class="def-li"><div class="def-li-hd"><span class="def-li-no">${it.no}.</span>${esc(it.name)}${it.colorCode?' #'+it.colorCode:''}</div>${it.remark?`<div class="def-li-rm">▸ ${esc(it.remark)}</div>`:''}</div>`).join('')}
         <button class="btn blk" onclick="goToStamp()">→ スタンプ番号・IDを入力</button>
       </div>`:''}
-      ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}`;
+      ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}
+      <div style="margin:24px 20px 8px;border:1px solid var(--redM);border-radius:4px;padding:14px 16px">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:10px">DANGER ZONE</div>
+        <button onclick="clearAllStatus()" style="width:100%;font-size:9px;letter-spacing:1px;padding:7px 0;border:1px solid var(--redM);border-radius:3px;background:none;cursor:pointer;color:var(--red);font-family:inherit;font-weight:600">全てクリア</button>
+      </div>`;
   }
 
   const emailModal=S.showEmail?`

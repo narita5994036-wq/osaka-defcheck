@@ -327,7 +327,7 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
-let _dispSheet=null,_dispOrigDisp={};
+let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
 function openDispSheet(id){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -335,8 +335,8 @@ function openDispSheet(id){
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
     // snapshot original disposition values for dirty detection
-    _dispOrigDisp={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;});
+    _dispOrigDisp={};_dispOrigPn={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';});
     if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
     _dispSheet={id,inv};render();
   }catch(e){console.warn('openDispSheet failed:',e);}
@@ -353,7 +353,7 @@ function setDispInSheet(no,val){
 function _dispIsDirty(){
   if(!_dispSheet)return false;
   const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
-  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null));
+  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||''));
 }
 function saveDispSheet(){
   if(!_dispSheet)return;
@@ -369,7 +369,7 @@ function saveDispSheet(){
       saveList(list);
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}
-  _dispSheet=null;_dispOrigDisp={};render();
+  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};render();
 }
 function setPnInSheet(no,val){
   if(!_dispSheet)return;
@@ -463,10 +463,10 @@ function tryCloseDispSheet(){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
       saveDispSheet();
     }else{
-      _dispSheet=null;_dispOrigDisp={};render();
+      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};render();
     }
   }else{
-    _dispSheet=null;_dispOrigDisp={};render();
+    _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};render();
   }
 }
 function _swGetXY(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}

@@ -1357,6 +1357,20 @@ function syncRemark(it){
 }
 
 /* STAMP PHASE */
+function setAllOk(){
+  if(!S.invoice)return;
+  const pend=S.invoice.items.filter(i=>i.status==='pending').length;
+  if(!pend){alert('未確認のアイテムはありません');return;}
+  if(!confirm('未確認（'+pend+'件）を全てOKに変更しますか？'))return;
+  S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
+  save();render();
+}
+function clearAllStatus(){
+  if(!S.invoice)return;
+  if(!confirm('全てのステータスをクリアして未確認に戻しますか？\nこの操作は取り消せません。'))return;
+  S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
+  save();render();
+}
 function goToStamp(){
   const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
   if(pend){
@@ -2191,6 +2205,10 @@ function render(){
       <div style="display:flex;align-items:center;gap:6px;padding:8px 20px 0">
         ${[['rx','RX'],['sun','SUN'],['parts','PARTS']].map(([k,l])=>{const on=S.tagFilter.includes(k);return `<button onclick="(()=>{const f=S.tagFilter.includes('${k}')?S.tagFilter.filter(x=>x!=='${k}'):[...S.tagFilter,'${k}'];S.tagFilter=f;render()})()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:3px;border:1px solid ${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g200)'};background:${on?(k==='parts'?'var(--tealL)':k==='sun'?'var(--amberL)':'var(--blueL)'):'transparent'};color:${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:600">${l}</button>`;}).join('')}
         ${S.tagFilter.length>0?`<span style="font-size:10px;color:var(--g600);margin-left:4px">${vis.length} / ${tot}</span>`:''}
+      </div>
+      <div style="display:flex;gap:8px;padding:8px 20px 0">
+        <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">全て OK</button>
+        <button onclick="clearAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--red);border-color:var(--redM);font-family:inherit;font-weight:600">全てクリア</button>
       </div>
       <div class="cl">
         ${(()=>{

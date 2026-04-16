@@ -979,7 +979,13 @@ function invCardHtml(e,isArchived){
       <div class="inv-card-body">
         <div style="display:flex;align-items:center;gap:8px">
           <div class="inv-card-no">${esc(e.number||'—')}</div>
-          ${e.sent?(()=>{const allDispDone=e.dispTotal>0&&e.dispSet===e.dispTotal;return`<span style="font-size:9px;letter-spacing:1px;background:${allDispDone?'var(--green)':'var(--blue)'};color:#fff;border-radius:3px;padding:2px 6px;font-weight:600;flex-shrink:0">${allDispDone?'COMPLETE':'✓ SENT'}</span>`;})():''}
+          ${e.sent?(()=>{
+            const allDispDone=e.dispTotal>0&&e.dispSet===e.dispTotal;
+            const planeIcon=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            const checkIcon=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0"><polyline points="20 6 9 17 4 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            if(allDispDone)return`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;letter-spacing:1px;background:var(--green);color:#fff;border-radius:3px;padding:2px 6px;font-weight:600;flex-shrink:0">${checkIcon}COMPLETE</span>`;
+            return`<span style="display:inline-flex;align-items:center;background:var(--blue);border-radius:3px;padding:3px 6px;flex-shrink:0">${planeIcon}</span>`;
+          })():''}
         </div>
         <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>

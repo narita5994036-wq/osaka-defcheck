@@ -282,6 +282,8 @@
   .isw-btn{display:flex;align-items:center;justify-content:center;padding:0 14px;font-size:9px;letter-spacing:1.5px;font-weight:600;border:none;cursor:pointer;color:#fff;font-family:inherit;white-space:nowrap}
   .isw-btn.isw-mail{background:var(--blue)}
   .isw-btn.isw-csv{background:var(--teal)}
+  .isw-btn.isw-sent{background:var(--g300);color:var(--g700)}
+  .isw-btn.isw-sent.on{background:var(--blue);color:#fff}
   .isw-btn.isw-arc{background:var(--g800)}
   .isw-btn.isw-restore{background:var(--green)}
   .isw-btn.isw-del{background:var(--red)}
@@ -955,6 +957,7 @@ function invCardHtml(e,isArchived){
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
       <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
+      <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?'✓ SENT':'SENT'}</button>
     </div>
     <div class="inv-swipe-right">
       ${isArchived
@@ -964,7 +967,10 @@ function invCardHtml(e,isArchived){
     </div>
     <div class="inv-card${isArchived?' arc':''}" onclick="invCardTap('${e.id}')">
       <div class="inv-card-body">
-        <div class="inv-card-no">${esc(e.number||'—')}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="inv-card-no">${esc(e.number||'—')}</div>
+          ${e.sent?`<span style="font-size:9px;letter-spacing:1px;background:var(--blue);color:#fff;border-radius:3px;padding:2px 6px;font-weight:600;flex-shrink:0">SENT</span>`:''}
+        </div>
         <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
@@ -976,6 +982,14 @@ function invCardHtml(e,isArchived){
       <div class="inv-card-arr">›</div>
     </div>
   </div>`;
+}
+function toggleSent(id){
+  _sw.openId=null;
+  const list=loadList();
+  const idx=list.findIndex(e=>e.id===id);
+  if(idx<0)return;
+  list[idx].sent=!list[idx].sent;
+  saveList(list);render();
 }
 function quickMail(id){
   try{

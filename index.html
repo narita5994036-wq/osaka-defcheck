@@ -542,6 +542,7 @@ function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}
 /* ── GIST SYNC ── */
 const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_REPO='mykita_dc_repo';
 let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
+let _credsDraft=null,_msDraft=null;
 let _preEditDirty=false,_preEditInvsDirty=false,_invoiceSnap=null;
 let _listSnap=null,_invsDirty=false,_dispSyncSnap={},_dispDirtyIds=new Set();
 function _listForSnap(list){return JSON.stringify(list.map(e=>{const{updatedAt,...r}=e;return r;}));}
@@ -705,6 +706,49 @@ function gistCopyId(){
     const btn=document.getElementById('g-cpid');
     if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='Gist IDをコピー';},1500);}
   });
+}
+
+/* ── Settings draft helpers ── */
+function _credsDraftIsDirty(){return _credsDraft&&(_credsDraft.pat!==gPat()||_credsDraft.gistId!==gId()||_credsDraft.repo.trim()!==gRepo());}
+function _msDraftIsDirty(){return _msDraft&&(_msDraft.clientId!==getMsClientId()||_msDraft.tenantId!==(getMsTenantId()==='common'?'':getMsTenantId()));}
+function saveCredsDraft(){
+  if(!_credsDraft)return;
+  localStorage.setItem(GK_PAT,_credsDraft.pat);
+  localStorage.setItem(GK_ID,_credsDraft.gistId);
+  localStorage.setItem(GK_REPO,_credsDraft.repo.trim());
+  _ghRelId=null;_credsDraft=null;_settingsShowCreds=false;render();
+}
+function saveMsDraft(){
+  if(!_msDraft)return;
+  localStorage.setItem(MK_MS_CLIENT,_msDraft.clientId);
+  localStorage.setItem(MK_MS_TENANT,_msDraft.tenantId||'common');
+  _msalApp=null;_msalInitPromise=null;_initMsal();
+  _msDraft=null;_settingsShowMs=false;render();
+}
+function tryToggleCreds(){
+  if(_settingsShowCreds&&_credsDraftIsDirty()){
+    if(confirm('変更があります。\nOK = 保存して閉じる\nキャンセル = 破棄して閉じる'))saveCredsDraft();
+    else{_credsDraft=null;_settingsShowCreds=false;render();}
+  }else{
+    _credsDraft=null;_settingsShowCreds=!_settingsShowCreds;render();
+  }
+}
+function tryToggleMs(){
+  if(_settingsShowMs&&_msDraftIsDirty()){
+    if(confirm('変更があります。\nOK = 保存して閉じる\nキャンセル = 破棄して閉じる'))saveMsDraft();
+    else{_msDraft=null;_settingsShowMs=false;render();}
+  }else{
+    _msDraft=null;_settingsShowMs=!_settingsShowMs;render();
+  }
+}
+function tryCloseSettings(){
+  if(_credsDraftIsDirty()||_msDraftIsDirty()){
+    if(confirm('未保存の変更があります。\nOK = 保存して閉じる\nキャンセル = 破棄して閉じる')){
+      if(_credsDraftIsDirty()){localStorage.setItem(GK_PAT,_credsDraft.pat);localStorage.setItem(GK_ID,_credsDraft.gistId);localStorage.setItem(GK_REPO,_credsDraft.repo.trim());_ghRelId=null;}
+      if(_msDraftIsDirty()){localStorage.setItem(MK_MS_CLIENT,_msDraft.clientId);localStorage.setItem(MK_MS_TENANT,_msDraft.tenantId||'common');_msalApp=null;_msalInitPromise=null;_initMsal();}
+    }
+  }
+  _credsDraft=null;_msDraft=null;_settingsShowCreds=false;_settingsShowMs=false;S.showSettings=false;render();
 }
 
 /* ── GitHub Releases photo helpers ── */
@@ -2242,9 +2286,9 @@ function render(){
   })();
 
   const settingsSheet=S.showSettings?`
-    <div class="overlay" onclick="if(event.target===this){S.showSettings=false;_settingsShowCreds=false;render()}">
+    <div class="overlay" onclick="if(event.target===this)tryCloseSettings()">
       <div class="sheet">
-        <div class="sheet-tit">SYNC<button class="close-btn" onclick="S.showSettings=false;_settingsShowCreds=false;render()">×</button></div>
+        <div class="sheet-tit">SYNC<button class="close-btn" onclick="tryCloseSettings()">×</button></div>
         ${gAt()?`<div style="font-size:10px;color:var(--g600);margin-bottom:4px;letter-spacing:.5px">最終同期: ${new Date(gAt()).toLocaleString('ja-JP')}</div>`:`<div style="font-size:10px;color:var(--g400);margin-bottom:4px">未同期</div>`}
         ${_dirty?`<div style="font-size:10px;color:var(--amber);margin-bottom:10px;letter-spacing:.3px">未アップロードの変更があります</div>`:'<div style="margin-bottom:14px"></div>'}
         ${_syncSt?`<div style="text-align:center;font-size:11px;padding:6px 0 10px;color:${_syncSt==='err'?'var(--red)':_syncSt==='ok'?'var(--green)':'var(--g600)'}">${_syncSt==='push'?'プッシュ中…':_syncSt==='pull'?'プル中…':_syncMsg}</div>`:''}
@@ -2253,27 +2297,27 @@ function render(){
           <button class="btn out" style="margin-top:0;flex:1" onclick="gistPull()">↓ Pull</button>
         </div>
         ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:0;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
-        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:16px" onclick="_settingsShowCreds=!_settingsShowCreds;render()">
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:16px" onclick="tryToggleCreds()">
           <span>認証情報を変更</span><span style="font-size:12px">${_settingsShowCreds?'−':'+'}
           </span>
         </button>
-        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowMs=!_settingsShowMs;render()">
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="tryToggleMs()">
           <span>Microsoft</span><span style="font-size:12px">${_settingsShowMs?'−':'+'}</span>
         </button>
-        ${_settingsShowMs?`<div style="padding-top:10px">
+        ${_settingsShowMs?(()=>{if(!_msDraft)_msDraft={clientId:getMsClientId(),tenantId:getMsTenantId()==='common'?'':getMsTenantId()};return`<div style="padding-top:10px">
           ${_msalAccount
             ?`<div style="font-size:11px;color:var(--green);margin-bottom:10px">${esc(_msalAccount.username)}</div>
                <button class="btn out" style="margin-top:0;font-size:9px" onclick="msSignOut()">サインアウト</button>`
             :`<button class="btn blk" style="margin-top:0" onclick="msSignIn()">Microsoftでサインイン</button>`}
           <div class="ef" style="margin-top:12px">
             <label>CLIENT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（Azure AD アプリ登録）</span></label>
-            <input type="text" value="${esc(getMsClientId())}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              onchange="localStorage.setItem('${MK_MS_CLIENT}',this.value);_msalApp=null;_msalInitPromise=null;_initMsal();render()">
+            <input type="text" value="${esc(_msDraft.clientId)}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              oninput="if(!_msDraft)_msDraft={clientId:getMsClientId(),tenantId:getMsTenantId()==='common'?'':getMsTenantId()};_msDraft.clientId=this.value">
           </div>
           <div class="ef">
             <label>TENANT ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（空欄で common）</span></label>
-            <input type="text" value="${esc(getMsTenantId()==='common'?'':getMsTenantId())}" placeholder="common"
-              onchange="localStorage.setItem('${MK_MS_TENANT}',this.value||'common');_msalApp=null;_msalInitPromise=null;_initMsal();render()">
+            <input type="text" value="${esc(_msDraft.tenantId)}" placeholder="common"
+              oninput="if(!_msDraft)_msDraft={clientId:getMsClientId(),tenantId:getMsTenantId()==='common'?'':getMsTenantId()};_msDraft.tenantId=this.value">
           </div>
           <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>
@@ -2282,22 +2326,23 @@ function render(){
             <div>③ API のアクセス許可 → <b>Mail.Send</b> を追加</div>
             <div>④ アプリケーション（クライアント）IDを入力</div>
           </div>
-        </div>`:''}
-        ${_settingsShowCreds?`<div style="padding-top:10px">
+          <button class="btn blk" style="margin-top:12px" onclick="saveMsDraft()">DONE</button>
+        </div>`})():''}
+        ${_settingsShowCreds?(()=>{if(!_credsDraft)_credsDraft={pat:gPat(),gistId:gId(),repo:gRepo()};return`<div style="padding-top:10px">
           <div class="ef">
             <label>PERSONAL ACCESS TOKEN</label>
-            <input type="password" id="g-pat" value="${esc(gPat())}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              onchange="localStorage.setItem('mykita_gist_pat',this.value)">
+            <input type="password" id="g-pat" value="${esc(_credsDraft.pat)}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              oninput="if(!_credsDraft)_credsDraft={pat:gPat(),gistId:gId(),repo:gRepo()};_credsDraft.pat=this.value">
           </div>
           <div class="ef">
             <label>GIST ID &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（初回Pushで自動設定）</span></label>
-            <input type="text" id="g-id" value="${esc(gId())}" placeholder="自動設定されます"
-              onchange="localStorage.setItem('mykita_gist_id',this.value)">
+            <input type="text" id="g-id" value="${esc(_credsDraft.gistId)}" placeholder="自動設定されます"
+              oninput="if(!_credsDraft)_credsDraft={pat:gPat(),gistId:gId(),repo:gRepo()};_credsDraft.gistId=this.value">
           </div>
           <div class="ef">
             <label>REPOSITORY &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（写真保存用・owner/repo 形式）</span></label>
-            <input type="text" id="g-repo" value="${esc(gRepo())}" placeholder="username/repo-name"
-              onchange="localStorage.setItem('${GK_REPO}',this.value.trim());_ghRelId=null">
+            <input type="text" id="g-repo" value="${esc(_credsDraft.repo)}" placeholder="username/repo-name"
+              oninput="if(!_credsDraft)_credsDraft={pat:gPat(),gistId:gId(),repo:gRepo()};_credsDraft.repo=this.value">
           </div>
           <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>
@@ -2308,7 +2353,8 @@ function render(){
             <div>④ Token・Repo名を入力 → Push でアップロード</div>
             <div>⑤ 別デバイスでToken + Gist ID + Repo名を入力 → Pull</div>
           </div>
-        </div>`:''}
+          <button class="btn blk" style="margin-top:12px" onclick="saveCredsDraft()">DONE</button>
+        </div>`})():''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
           <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
         </button>

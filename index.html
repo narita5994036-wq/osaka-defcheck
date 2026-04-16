@@ -343,6 +343,16 @@ function openDispSheet(id){
     _dispSheet={id,inv};render();
   }catch(e){console.warn('openDispSheet failed:',e);}
 }
+function openDefSheet(id){
+  try{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    if(!d)return;
+    const inv=JSON.parse(d);
+    _dispOrigDisp={};_dispOrigPn={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';});
+    _dispSheet={id,inv,pnOnly:true};render();
+  }catch(e){console.warn('openDefSheet failed:',e);}
+}
 function setDispInSheet(no,val){
   if(!_dispSheet)return;
   // update in-memory only — save happens on DONE
@@ -976,7 +986,9 @@ function invCardHtml(e,isArchived){
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
         ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
         ${e.dispTotal>0?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
-          <button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>
+          ${e.sent
+            ?`<button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`
+            :`<button class="inv-card-act-btn" onclick="event.stopPropagation();openDefSheet('${e.id}')">DEF LIST</button>`}
         </div>`:''}
       </div>
       <div class="inv-card-arr">›</div>
@@ -2483,7 +2495,7 @@ function render(){
   const dispDirty=_dispIsDirty();
   return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
-      <div class="sheet-tit">DISPOSITION<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
+      <div class="sheet-tit">${ds.pnOnly?'DEFECTIVE LIST':'DISPOSITION'}<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);margin-bottom:16px">${esc(ds.inv.number||'—')}</div>
       ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
         :defs.map(it=>{
@@ -2495,8 +2507,8 @@ function render(){
             </div>
             ${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
-              <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>
+              ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
+              <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
               <input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
                 style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
                 oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">
@@ -2504,7 +2516,7 @@ function render(){
           </div>`;
         }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>
+        ${ds.pnOnly?'':`<button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>`}
         <button class="btn blk" style="margin-top:0;flex:2;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
       </div>
     </div>

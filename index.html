@@ -540,7 +540,7 @@ function loadList(){try{const d=localStorage.getItem(SK_LIST);return d?JSON.pars
 function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}catch(e){console.warn('saveList failed:',e);}if(!_gistPulling){const _ld=_listSnap!==null&&_listForSnap(list)!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}}
 
 /* ── GIST SYNC ── */
-const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at';
+const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_REPO='mykita_dc_repo';
 let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
 let _preEditDirty=false,_preEditInvsDirty=false,_invoiceSnap=null;
 let _listSnap=null,_invsDirty=false,_dispSyncSnap={},_dispDirtyIds=new Set();
@@ -550,6 +550,7 @@ function _setDirty(v){_dirty=v;}
 function gPat(){return localStorage.getItem(GK_PAT)||'';}
 function gId(){return localStorage.getItem(GK_ID)||'';}
 function gAt(){return localStorage.getItem(GK_AT)||'';}
+function gRepo(){return localStorage.getItem(GK_REPO)||'';}
 async function _gFetch(url,opts={}){
   if(location.protocol==='file:')throw new Error('file://では外部APIにアクセスできません。HTTPSで配信してください');
   const pat=gPat();
@@ -615,7 +616,24 @@ async function _gistDoPull(){
       saveList(newList);
       _skipped=_skipped.filter(s=>s!=='list');
     }
-    if(data.files['photos.json']){
+    // 写真同期: photo_index.json + Releases（設定済み）、なければ legacy photos.json
+    if(data.files['photo_index.json']&&gRepo()){
+      const c=await getC(data.files['photo_index.json']);
+      if(c){
+        const idx=JSON.parse(c);_photoIdx=idx;
+        const repo=gRepo();
+        const needed=new Set();
+        for(const fn of Object.keys(_invLoaded)){
+          try{const inv=JSON.parse(_invLoaded[fn]);inv.items.forEach(it=>{(it.photos||[]).concat(it.origPhotos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))needed.add(k);});});}catch(e){}
+        }
+        for(const key of needed){
+          if(!_pc[key]&&idx[key]){
+            try{const url=await _ghDownloadAsset(repo,idx[key]);idbPut(key,url);}
+            catch(e){console.warn('Photo download failed:',key,e.message);}
+          }
+        }
+      }else _skipped.push('photos');
+    }else if(data.files['photos.json']){
       const c=await getC(data.files['photos.json']);
       if(c){const ph=JSON.parse(c);for(const[k,v]of Object.entries(ph))idbPut(k,v);}
       else _skipped.push('photos');
@@ -638,18 +656,25 @@ async function gistPush(){
     const list=loadList();
     const files={'list.json':{content:JSON.stringify(list)}};
     list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d){try{const inv=JSON.parse(d);const clean={...inv,items:inv.items.map(it=>({...it,photos:(it.photos||[]).filter(p=>p&&!p.startsWith('data:'))}))};files['inv_'+e.id+'.json']={content:JSON.stringify(clean)};}catch(x){files['inv_'+e.id+'.json']={content:d};}}});
-    const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
-    files['photos.json']={content:JSON.stringify(photos)};
-    const id=gId();
-    let data;
-    if(id){
-      // Gistの現在のファイル一覧を取得し、ローカルリストにない inv_ を null で削除指示
-      const cur=await _gFetch('https://api.github.com/gists/'+id);
+    const gistId=gId();
+    let cur=null;
+    if(gistId){
+      cur=await _gFetch('https://api.github.com/gists/'+gistId);
       const localIds=new Set(list.map(e=>e.id));
       for(const fn of Object.keys(cur.files)){
         if(fn.startsWith('inv_')&&fn.endsWith('.json')&&!localIds.has(fn.slice(4,-5)))files[fn]=null;
       }
-      data=await _gFetch('https://api.github.com/gists/'+id,{method:'PATCH',body:JSON.stringify({files})});
+    }
+    // 写真: Releases（repo設定済み）または Legacy photos.json
+    if(gRepo()){
+      await _pushPhotosToRelease(gRepo(),cur,files);
+    }else{
+      const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
+      files['photos.json']={content:JSON.stringify(photos)};
+    }
+    let data;
+    if(gistId){
+      data=await _gFetch('https://api.github.com/gists/'+gistId,{method:'PATCH',body:JSON.stringify({files})});
     }else{
       data=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files})});
       localStorage.setItem(GK_ID,data.id);
@@ -680,6 +705,64 @@ function gistCopyId(){
     const btn=document.getElementById('g-cpid');
     if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='Gist IDをコピー';},1500);}
   });
+}
+
+/* ── GitHub Releases photo helpers ── */
+function _dataURLtoBlob(d){const[h,b]=d.split(',');const m=h.match(/:(.*?);/)[1];const s=atob(b);const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a],{type:m});}
+let _ghRelId=null;
+async function _ghGetOrCreateRelease(repo){
+  if(_ghRelId)return _ghRelId;
+  const rels=await _gFetch('https://api.github.com/repos/'+repo+'/releases');
+  const rel=rels.find(r=>r.tag_name==='photos');
+  if(rel){_ghRelId=rel.id;return rel.id;}
+  const created=await _gFetch('https://api.github.com/repos/'+repo+'/releases',{method:'POST',body:JSON.stringify({tag_name:'photos',name:'Photo Storage',body:'MYKITA DC photo storage',draft:false,prerelease:true})});
+  _ghRelId=created.id;return created.id;
+}
+async function _ghUploadAsset(repo,releaseId,name,blob){
+  const pat=gPat();let res;
+  try{res=await fetch('https://uploads.github.com/repos/'+repo+'/releases/'+releaseId+'/assets?name='+encodeURIComponent(name)+'.jpg',{method:'POST',headers:{'Authorization':'token '+pat,'Content-Type':'image/jpeg'},body:blob});}
+  catch(fe){throw new Error('写真アップロード失敗: '+fe.message);}
+  if(!res.ok){let m='HTTP '+res.status;try{const e=await res.clone().json();if(e.message)m=e.message;}catch(x){}throw new Error('写真アップロード失敗: '+m);}
+  return (await res.json()).id;
+}
+async function _ghDownloadAsset(repo,assetId){
+  const pat=gPat();let res;
+  try{res=await fetch('https://api.github.com/repos/'+repo+'/releases/assets/'+assetId,{headers:{'Authorization':'token '+pat,'Accept':'application/octet-stream'}});}
+  catch(fe){throw new Error('写真ダウンロード失敗: '+fe.message);}
+  if(!res.ok)throw new Error('写真ダウンロード失敗: HTTP '+res.status);
+  const blob=await res.blob();
+  return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+}
+async function _ghDeleteAsset(repo,assetId){
+  const pat=gPat();
+  try{await fetch('https://api.github.com/repos/'+repo+'/releases/assets/'+assetId,{method:'DELETE',headers:{'Authorization':'token '+pat}});}
+  catch(e){console.warn('asset delete failed:',e);}
+}
+function _deletePhoto(key){
+  idbDel(key);
+  if(gRepo()&&_photoIdx&&_photoIdx[key]){
+    _ghDeleteAsset(gRepo(),_photoIdx[key]).catch(()=>{});
+    delete _photoIdx[key];
+  }
+}
+async function _pushPhotosToRelease(repo,cur,files){
+  let existingIdx={};
+  if(cur&&cur.files['photo_index.json']&&!cur.files['photo_index.json'].truncated){
+    try{existingIdx=JSON.parse(cur.files['photo_index.json'].content||'{}');}catch(e){}
+  }
+  const relId=await _ghGetOrCreateRelease(repo);
+  const newIdx={...existingIdx};
+  for(const[key,dataURL]of Object.entries(_pc)){
+    if(!existingIdx[key]){
+      try{newIdx[key]=await _ghUploadAsset(repo,relId,key,_dataURLtoBlob(dataURL));}
+      catch(e){console.warn('Photo upload skipped:',key,e.message);}
+    }
+  }
+  for(const key of Object.keys(existingIdx)){
+    if(!_pc[key]){_ghDeleteAsset(repo,existingIdx[key]).catch(()=>{});delete newIdx[key];}
+  }
+  _photoIdx=newIdx;
+  files['photo_index.json']={content:JSON.stringify(newIdx)};
 }
 
 function genId(){return 'inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
@@ -715,6 +798,7 @@ function setDisp(no,val){
 
 /* ── IndexedDB photo store ── */
 const _pc={};          // in-memory photo cache {key→dataURL}
+let _photoIdx=null;    // {photoKey→releaseAssetId} loaded from photo_index.json
 let _idb=null;
 function _openIdb(){
   if(_idb)return Promise.resolve(_idb);
@@ -807,7 +891,7 @@ function deleteInvoice(id){
   _sw.openId=null;
   if(!confirm('このインボイスを削除しますか？\nこの操作は取り消せません。'))return;
   // 写真をIndexedDB・メモリキャッシュから削除
-  try{const d=localStorage.getItem('mykita_dc_inv_'+id);if(d){const inv=JSON.parse(d);inv.items.forEach(it=>(it.photos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))idbDel(k);}));}}catch(e){}
+  try{const d=localStorage.getItem('mykita_dc_inv_'+id);if(d){const inv=JSON.parse(d);inv.items.forEach(it=>(it.photos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))_deletePhoto(k);}));}}catch(e){}
   const list=loadList().filter(e=>e.id!==id);
   saveList(list);
   localStorage.removeItem('mykita_dc_inv_'+id);
@@ -1829,7 +1913,7 @@ function muSave(){
     if(it.no!==no)return it;
     const photos=[...(it.photos||[])];
     const old=photos[idx];
-    if(old&&!old.startsWith('data:'))idbDel(old);
+    if(old&&!old.startsWith('data:'))_deletePhoto(old);
     photos[idx]=key;
     return{...it,photos};
   });
@@ -2218,13 +2302,19 @@ function render(){
             <input type="text" id="g-id" value="${esc(gId())}" placeholder="自動設定されます"
               onchange="localStorage.setItem('mykita_gist_id',this.value)">
           </div>
+          <div class="ef">
+            <label>REPOSITORY &nbsp;<span style="font-weight:400;letter-spacing:0;color:var(--g600)">（写真保存用・owner/repo 形式）</span></label>
+            <input type="text" id="g-repo" value="${esc(gRepo())}" placeholder="username/repo-name"
+              onchange="localStorage.setItem('${GK_REPO}',this.value.trim());_ghRelId=null">
+          </div>
           <div style="background:var(--g50);border-radius:6px;padding:12px 14px;font-size:11px;color:var(--g800);line-height:1.9">
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:6px">設定方法</div>
             <div>① GitHub → アカウントの Settings（右上アイコン）</div>
             <div style="padding-left:14px;color:var(--g600)">→ Developer settings → Personal access tokens → Tokens (classic)</div>
-            <div>② <b>Generate new token</b> → scope: <b>gist</b> にチェック</div>
-            <div>③ Tokenを入力 → Push でアップロード</div>
-            <div>④ 別デバイスでToken + Gist IDを入力 → Pull</div>
+            <div>② <b>Generate new token</b> → scope: <b>gist</b> と <b>repo</b> にチェック</div>
+            <div>③ GitHubで写真保存用の<b>プライベートリポジトリ</b>を作成（README付きで初期化）</div>
+            <div>④ Token・Repo名を入力 → Push でアップロード</div>
+            <div>⑤ 別デバイスでToken + Gist ID + Repo名を入力 → Pull</div>
           </div>
         </div>`:''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
@@ -2564,7 +2654,7 @@ function confirmMarkup(){
         photos.push(bKey);
       } else {
         const old=photos[photoIdx];
-        if(old&&!old.startsWith('data:'))idbDel(old);
+        if(old&&!old.startsWith('data:'))_deletePhoto(old);
         photos[photoIdx]=bKey;
       }
       return{...it,photos,origPhotos};

@@ -997,6 +997,7 @@ function quickMail(id){
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
+    if(inv.items.some(i=>i.status==='pending')){alert('チェックリストが完了していません。\n全アイテムのステータスを確認してください。');return;}
     S.invoiceId=id; S.invoice=inv;
     S.pickerOpen={}; S.showEmail=false;
     const defs=inv.items.filter(i=>i.status==='defective');
@@ -2116,9 +2117,7 @@ function render(){
         </div>`;
       }).join('')}
       <div style="padding:0 20px 8px">
-        <button class="btn blk" onclick="buildEmail()" ${stampAllFilled()?'':'style="opacity:.45"'}>MAIL メール下書きを作成</button>
-        ${!stampAllFilled()?'<div style="text-align:center;font-size:10px;color:var(--g400);margin-top:8px;letter-spacing:1px">全項目のスタンプ番号を入力してください</div>':''}
-        <button class="btn out" onclick="buildEmail()" style="margin-top:6px">スキップしてメール作成</button>
+        <button class="btn blk" onclick="(()=>{const pend=S.invoice&&S.invoice.items.filter(i=>i.status==='pending').length;if(pend){alert('チェックリストが完了していません。\n全アイテムのステータスを確認してください。');return;}buildEmail();})()">${'MAIL メール下書きを作成'}</button>
       </div>`;
   }
 

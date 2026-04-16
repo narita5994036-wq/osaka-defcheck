@@ -991,18 +991,25 @@ function toggleSent(id){
   list[idx].sent=!list[idx].sent;
   saveList(list);render();
 }
+function _checkPendingAndBuild(){
+  if(!S.invoice)return;
+  const pend=S.invoice.items.filter(i=>i.status==='pending').length;
+  if(pend){
+    if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
+  }
+  buildEmail();
+}
 function quickMail(id){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
-    if(inv.items.some(i=>i.status==='pending')){alert('チェックリストが完了していません。\n全アイテムのステータスを確認してください。');return;}
     S.invoiceId=id; S.invoice=inv;
     S.pickerOpen={}; S.showEmail=false;
     const defs=inv.items.filter(i=>i.status==='defective');
     if(!defs.length){alert('Defectiveのアイテムがありません');return;}
-    buildEmail();
+    _checkPendingAndBuild();
   }catch(e){console.warn('quickMail failed:',e);}
 }
 function initApp(){
@@ -2117,7 +2124,7 @@ function render(){
         </div>`;
       }).join('')}
       <div style="padding:0 20px 8px">
-        <button class="btn blk" onclick="(()=>{const pend=S.invoice&&S.invoice.items.filter(i=>i.status==='pending').length;if(pend){alert('チェックリストが完了していません。\n全アイテムのステータスを確認してください。');return;}buildEmail();})()">${'MAIL メール下書きを作成'}</button>
+        <button class="btn blk" onclick="_checkPendingAndBuild()">MAIL メール下書きを作成</button>
       </div>`;
   }
 

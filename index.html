@@ -1021,11 +1021,11 @@ function _checkPendingAndBuild(){
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
   }
-  if(noStamp){
-    if(!confirm('スタンプナンバーが未入力のアイテムがあります（'+noStamp+'件）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
-  }
-  if(noId){
-    if(!confirm('ID ナンバーが未入力のアイテムがあります（'+noId+'件）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
+  if(noStamp||noId){
+    const lines=[];
+    if(noStamp)lines.push('・スタンプナンバー未入力（'+noStamp+'件）');
+    if(noId)lines.push('・IDナンバー未入力（'+noId+'件）');
+    if(!confirm('未入力の項目があります。\n'+lines.join('\n')+'\n\nOK = スキップして作成\nキャンセル = 作成中止'))return;
   }
   buildEmail();
 }

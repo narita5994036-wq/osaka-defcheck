@@ -2431,7 +2431,7 @@ function render(){
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>
-              <input type="text" inputmode="numeric" value="${esc(it.pn||'')}" placeholder="PN"
+              <input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
                 style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
                 oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">
             </div>

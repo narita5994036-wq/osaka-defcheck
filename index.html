@@ -806,9 +806,13 @@ function archiveInvoice(id){
 function deleteInvoice(id){
   _sw.openId=null;
   if(!confirm('このインボイスを削除しますか？\nこの操作は取り消せません。'))return;
+  // 写真をIndexedDB・メモリキャッシュから削除
+  try{const d=localStorage.getItem('mykita_dc_inv_'+id);if(d){const inv=JSON.parse(d);inv.items.forEach(it=>(it.photos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))idbDel(k);}));}}catch(e){}
   const list=loadList().filter(e=>e.id!==id);
   saveList(list);
   localStorage.removeItem('mykita_dc_inv_'+id);
+  // Gistからも即時削除
+  if(gPat()&&gId())_gFetch('https://api.github.com/gists/'+gId(),{method:'PATCH',body:JSON.stringify({files:{['inv_'+id+'.json']:null}})}).catch(e=>console.warn('Gist delete failed:',e));
   if(S.invoiceId===id){S.invoiceId=null;S.invoice=null;S.screen='home';}
   render();
 }

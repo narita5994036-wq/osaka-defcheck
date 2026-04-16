@@ -643,6 +643,12 @@ async function gistPush(){
     const id=gId();
     let data;
     if(id){
+      // Gistの現在のファイル一覧を取得し、ローカルリストにない inv_ を null で削除指示
+      const cur=await _gFetch('https://api.github.com/gists/'+id);
+      const localIds=new Set(list.map(e=>e.id));
+      for(const fn of Object.keys(cur.files)){
+        if(fn.startsWith('inv_')&&fn.endsWith('.json')&&!localIds.has(fn.slice(4,-5)))files[fn]=null;
+      }
       data=await _gFetch('https://api.github.com/gists/'+id,{method:'PATCH',body:JSON.stringify({files})});
     }else{
       data=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files})});

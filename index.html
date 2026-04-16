@@ -1821,12 +1821,16 @@ function muConfirmText(){
 }
 function muSave(){
   drawMarkup();
-  const b64=MU.canvas.toDataURL("image/jpeg",0.9);
+  const b64=MU.canvas.toDataURL("image/jpeg",0.65);
   const {no,idx}=S.markup;
+  const key=photoKey();
+  idbPut(key,b64);
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const photos=[...(it.photos||[])];
-    photos[idx]=b64;
+    const old=photos[idx];
+    if(old&&!old.startsWith('data:'))idbDel(old);
+    photos[idx]=key;
     return{...it,photos};
   });
   save();

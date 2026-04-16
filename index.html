@@ -957,9 +957,9 @@ function invCardHtml(e,isArchived){
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
       <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
-      <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?'✓ SENT':'SENT'}</button>
     </div>
     <div class="inv-swipe-right">
+      <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?'✓ SENT':'SENT'}</button>
       ${isArchived
         ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
         :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`

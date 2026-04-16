@@ -1367,10 +1367,16 @@ function setAllOk(){
 }
 function clearAllStatus(){
   if(!S.invoice)return;
-  if(!confirm('全てのステータスをクリアして未確認に戻しますか？\nこの操作は取り消せません。'))return;
-  S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
-  save();render();
-  alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
+  if(confirm('ステータスのみ全て未確認に変更しますか？\n（不良内容は保持されます）\n\nOK = ステータスのみリセット\nキャンセル = 全てクリアへ')){
+    S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending'}));
+    save();render();
+    alert('ステータスを全て未確認にリセットしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
+  }else{
+    if(!confirm('ステータス・不良内容を全てクリアしますか？\nこの操作は取り消せません（PUSH前を除く）。\n\nOK = 全てクリア\nキャンセル = 中止'))return;
+    S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
+    save();render();
+    alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
+  }
 }
 function goToStamp(){
   const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;

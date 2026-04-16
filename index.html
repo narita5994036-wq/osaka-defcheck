@@ -386,7 +386,10 @@ function saveDispSheet(){
 function setPnInSheet(no,val){
   if(!_dispSheet)return;
   _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:val});
-  // no render() to keep input focus
+  if(_dispSheet.pnOnly){
+    const btn=document.getElementById('disp-done-btn');
+    if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
+  }
 }
 function _dispRows(inv){
   return inv.items.filter(i=>i.status==='defective').map(it=>[
@@ -413,7 +416,7 @@ function exportDispCSV(){
   const inv=_dispSheet.inv;
   const rows=_dispRows(inv);
   if(!rows.length){alert('Defective items がありません');return;}
-  _downloadCSV('disposition_'+(inv.number||'export')+'.csv',rows);
+  _downloadCSV('defective list_'+(inv.number||'export')+'.csv',rows);
 }
 function exportDispCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -422,7 +425,7 @@ function exportDispCSVById(id){
     const inv=JSON.parse(d);
     const rows=_dispRows(inv);
     if(!rows.length){alert('Defective items がありません');return;}
-    _downloadCSV('disposition_'+(inv.number||id)+'.csv',rows);
+    _downloadCSV('defective list_'+(inv.number||id)+'.csv',rows);
   }catch(err){alert('エラー: '+err.message);}
 }
 function openXlsxSel(){
@@ -2522,8 +2525,8 @@ function render(){
           </div>`;
         }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
-        ${ds.pnOnly?'':`<button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>`}
-        <button class="btn blk" style="margin-top:0;flex:2;opacity:${ds.pnOnly||dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
+        <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>
+        <button id="disp-done-btn" class="btn blk" style="margin-top:0;flex:2;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
       </div>
     </div>
   </div>`;

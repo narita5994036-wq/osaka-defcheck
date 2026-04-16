@@ -1014,9 +1014,18 @@ function toggleSent(id){
 }
 function _checkPendingAndBuild(){
   if(!S.invoice)return;
+  const defs=S.invoice.items.filter(i=>i.status==='defective');
   const pend=S.invoice.items.filter(i=>i.status==='pending').length;
+  const noStamp=defs.filter(i=>!i.stampNo||!i.stampNo.trim()).length;
+  const noId=defs.filter(i=>!i.itemId||!i.itemId.trim()).length;
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
+  }
+  if(noStamp){
+    if(!confirm('スタンプナンバーが未入力のアイテムがあります（'+noStamp+'件）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
+  }
+  if(noId){
+    if(!confirm('ID ナンバーが未入力のアイテムがあります（'+noId+'件）。\nOK = スキップして作成\nキャンセル = 作成中止'))return;
   }
   buildEmail();
 }

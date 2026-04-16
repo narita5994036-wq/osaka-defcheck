@@ -1370,7 +1370,7 @@ function clearAllStatus(){
   if(!confirm('全てのステータスをクリアして未確認に戻しますか？\nこの操作は取り消せません。'))return;
   S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
   save();render();
-  alert('全てクリアしました。\n\n誤って操作した場合の復帰方法:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
+  alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
 }
 function goToStamp(){
   const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;

@@ -1367,7 +1367,7 @@ function setAllOk(){
 }
 function clearAllStatus(){
   if(!S.invoice)return;
-  if(confirm('ステータスのみ全て未確認に変更しますか？\n（不良内容は保持されます）\n\nOK = ステータスのみリセット\nキャンセル = 全てクリアへ')){
+  if(confirm('ステータスのみ全て未確認に変更しますか？\n（ディフェクティブの入力内容は保持されます）\n\nOK = ステータスのみリセット\nキャンセル = 全てクリアへ')){
     S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending'}));
     save();render();
     alert('ステータスを全て未確認にリセットしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');

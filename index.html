@@ -566,13 +566,13 @@ async function _gistDoPull(){
   const pat=gPat(),id=gId();
   if(!pat||!id)throw new Error('Token/ID未設定');
   const data=await _gFetch('https://api.github.com/gists/'+id);
-  // getC: fetch file content; truncated→try raw_url; if raw fails fallback to fi.content
+  // getC: fetch file content; truncated→try raw_url; if raw fails return null (fi.content is partial/broken)
   const getC=async fi=>{
     if(!fi.truncated)return fi.content||null;
     try{return await fetch(fi.raw_url,{headers:{'Authorization':'token '+pat}}).then(r=>r.text());}
     catch(fe){
-      console.warn('raw fetch failed, using fi.content fallback:',fi.raw_url,fe.message);
-      return fi.content||null;  // use partial/full content as fallback
+      console.warn('raw fetch failed (file >1MB, raw_url blocked):',fi.raw_url,fe.message);
+      return null;  // fi.content is truncated partial JSON — do NOT parse it
     }
   };
   _gistPulling=true;

@@ -1358,8 +1358,24 @@ function syncRemark(it){
 
 /* STAMP PHASE */
 function goToStamp(){
-  S.screen='stamp';
-  render();
+  const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
+  if(pend){
+    if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
+  }
+  S.screen='stamp';render();
+}
+function _checkStampIdAndBuild(){
+  if(!S.invoice)return;
+  const defs=S.invoice.items.filter(i=>i.status==='defective');
+  const noStamp=defs.filter(i=>!i.stampNo||!i.stampNo.trim()).length;
+  const noId=defs.filter(i=>!i.itemId||!i.itemId.trim()).length;
+  if(noStamp||noId){
+    const lines=[];
+    if(noStamp)lines.push('・スタンプナンバー未入力（'+noStamp+'件）');
+    if(noId)lines.push('・IDナンバー未入力（'+noId+'件）');
+    if(!confirm('未入力の項目があります。\n'+lines.join('\n')+'\n\nOK = スキップして作成\nキャンセル = 作成中止'))return;
+  }
+  buildEmail();
 }
 function setStampNo(no,v){
   if(checkArchived())return;
@@ -2154,7 +2170,7 @@ function render(){
         </div>`;
       }).join('')}
       <div style="padding:0 20px 8px">
-        <button class="btn blk" onclick="_checkPendingAndBuild()">MAIL メール下書きを作成</button>
+        <button class="btn blk" onclick="_checkStampIdAndBuild()">MAIL メール下書きを作成</button>
       </div>`;
   }
 

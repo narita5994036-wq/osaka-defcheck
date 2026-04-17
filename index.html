@@ -331,7 +331,7 @@ let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
-const _DSW=64;
+const _DSW=80;
 function defSwStart(e,no){
   if(e.touches.length!==1)return;
   _defSw={openNo:_defSw.openNo,no,startX:e.touches[0].clientX,startY:e.touches[0].clientY,curX:e.touches[0].clientX,moved:false};
@@ -2666,7 +2666,7 @@ function render(){
           if(ds.pnOnly){
             return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
               <div style="position:absolute;right:0;top:0;bottom:0;width:${_DSW}px;display:flex;align-items:center;justify-content:center;background:${isOk?'var(--g300)':'var(--green)'}">
-                <button onclick="defToggleOk('${it.no}')" style="color:${isOk?'var(--g600)':'#fff'};font-size:10px;letter-spacing:1.5px;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">${isOk?'UNDO':'OK'}</button>
+                <button onclick="defToggleOk('${it.no}')" style="color:${isOk?'var(--g600)':'#fff'};font-size:9px;letter-spacing:0.5px;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">${isOk?'UNDO':'DEF → OK'}</button>
               </div>
               <div data-defno="${it.no}"
                 ontouchstart="defSwStart(event,'${it.no}')" ontouchmove="defSwMove(event)" ontouchend="defSwEnd(event)"

@@ -1060,9 +1060,9 @@ function toggleSent(id){
   if(idx<0)return;
   const cur=list[idx].sent;
   if(cur){
-    if(!confirm('現在のフェーズ: ✈ SENT\n= DEFECTIVE REPORTメール送信済み\n\nUNSENTに戻しますか？\nOK = UNSENTに戻す\nキャンセル = 中止'))return;
+    if(!confirm('現在のフェーズ: ✈ SENT\n= DEFECTIVE REPORTメール送信済み\n\nOK = UNSENT（未送信）に戻す\nキャンセル = 中止'))return;
   }else{
-    if(!confirm('現在のフェーズ: UNSENT\n= DEFECTIVE REPORTメール未送信\n\n✈ SENTに変更しますか？\nOK = SENTに変更\nキャンセル = 中止'))return;
+    if(!confirm('現在のフェーズ: UNSENT\n= DEFECTIVE REPORTメール未送信\n\nOK = SENT（送信済み）に変更\nキャンセル = 中止'))return;
   }
   list[idx].sent=!cur;
   saveList(list);render();

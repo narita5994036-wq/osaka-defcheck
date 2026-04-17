@@ -1463,7 +1463,7 @@ function resetAllStatus(){
 }
 function clearAllStatus(){
   if(!S.invoice)return;
-  if(!confirm('ステータス・ディフェクティブ内容を全てクリアしますか？\nこの操作は取り消せません（PUSH前を除く）。\n\nOK = 全てクリア\nキャンセル = 中止'))return;
+  if(!confirm('ステータス・ディフェクティブ内容を全てクリアしますか？\nこの操作は取り消せません。\n\nOK = 全てクリア\nキャンセル = 中止'))return;
   S.invoice.items=S.invoice.items.map(it=>({...it,status:'pending',remark:'',defects:[newDefect()]}));
   save();render();
   alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');

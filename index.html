@@ -1069,7 +1069,7 @@ function toggleSent(id){
   list[idx].sent=!cur;
   saveList(list);render();
   if(!cur){
-    alert('DISPOSITION入力が可能になりました。\n担当者からのメール受信後に処理（sample/return）を入力してください。');
+    alert('DISPOSITION入力が可能になりました。\n担当者からのメール受信後に処理（Return/Sample）を入力してください。');
     requestAnimationFrame(()=>{
       const btn=document.getElementById('disp-btn-'+id);
       if(btn){btn.classList.add('disp-hop');setTimeout(()=>btn.classList.remove('disp-hop'),800);}

@@ -1692,6 +1692,14 @@ function toggleAllEmailPhotos(){
   render();
 }
 function resetApp(){S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},viewPhoto:null,markup:null,showLeavePrompt:false};render()}
+function completeAndLeave(){
+  if(gPat()&&gId()&&_dirty){
+    if(confirm('変更をPUSHしてホームに戻りますか？\nOK = Push して戻る\nキャンセル = Push せず戻る')){
+      gistPush().then(()=>resetApp());return;
+    }
+  }
+  resetApp();
+}
 function leaveChecklist(){
   if(_invoiceSnap){
     if(JSON.stringify(S.invoice)===_invoiceSnap){
@@ -2242,7 +2250,7 @@ function render(){
       <div style="padding:20px 20px 4px;display:flex;align-items:baseline;justify-content:space-between">
         <div>
           <div style="font-size:9px;letter-spacing:3px;color:var(--g400)">STEP 2 OF 3</div>
-          <div style="font-size:16px;font-weight:500;letter-spacing:1px;margin-top:2px">Stamp Numbers</div>
+          <div style="font-size:16px;font-weight:500;letter-spacing:1px;margin-top:2px">Stamp & ID Numbers</div>
         </div>
         <div style="font-size:11px;color:var(--g600)">${filled}/${defs.length} 入力済</div>
       </div>
@@ -2282,6 +2290,7 @@ function render(){
       }).join('')}
       <div style="padding:0 20px 8px">
         <button class="btn blk" onclick="_checkStampIdAndBuild()">MAIL メール下書きを作成</button>
+        <button class="btn out" style="margin-top:8px" onclick="completeAndLeave()">完了して戻る</button>
       </div>`;
   }
 

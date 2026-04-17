@@ -1473,7 +1473,7 @@ function goToStamp(){
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
   }
-  S.screen='stamp';render();
+  S.screen='stamp';render();window.scrollTo(0,0);
 }
 function _checkStampIdAndBuild(){
   if(!S.invoice)return;

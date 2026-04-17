@@ -1365,6 +1365,25 @@ function setAllOk(){
   S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
   save();render();
 }
+let _clearHoldTimer=null;
+function _clearHoldStart(btn){
+  if(_clearHoldTimer)return;
+  btn.style.transition='background 1s linear';
+  btn.style.background='var(--redL)';
+  _clearHoldTimer=setTimeout(()=>{
+    _clearHoldTimer=null;
+    btn.style.transition='';
+    btn.style.background='';
+    clearAllStatus();
+  },1000);
+}
+function _clearHoldEnd(btn){
+  if(!_clearHoldTimer)return;
+  clearTimeout(_clearHoldTimer);
+  _clearHoldTimer=null;
+  btn.style.transition='background 0.2s';
+  btn.style.background='';
+}
 function resetAllStatus(){
   if(!S.invoice)return;
   const pend=S.invoice.items.filter(i=>i.status==='pending').length;
@@ -2286,7 +2305,12 @@ function render(){
       ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}
       <div style="margin:24px 20px 8px;border:1px solid var(--redM);border-radius:4px;padding:14px 16px">
         <div style="font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:10px">DANGER ZONE</div>
-        <button onclick="clearAllStatus()" style="width:100%;font-size:9px;letter-spacing:1px;padding:7px 0;border:1px solid var(--redM);border-radius:3px;background:none;cursor:pointer;color:var(--red);font-family:inherit;font-weight:600">全てクリア</button>
+        <button
+          onmousedown="_clearHoldStart(this)" onmouseup="_clearHoldEnd(this)" onmouseleave="_clearHoldEnd(this)"
+          ontouchstart="_clearHoldStart(this)" ontouchend="_clearHoldEnd(this)" ontouchcancel="_clearHoldEnd(this)"
+          oncontextmenu="return false"
+          style="width:100%;font-size:9px;letter-spacing:1px;padding:7px 0;border:1px solid var(--redM);border-radius:3px;background:none;cursor:pointer;color:var(--red);font-family:inherit;font-weight:600;user-select:none;-webkit-user-select:none">全てクリア</button>
+        <div style="font-size:8px;color:var(--g400);text-align:center;margin-top:5px;letter-spacing:0.5px">1秒長押しで実行</div>
       </div>`;
   }
 

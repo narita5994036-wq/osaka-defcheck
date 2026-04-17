@@ -1368,12 +1368,15 @@ function setAllOk(){
 let _clearHoldTimer=null;
 function _clearHoldStart(btn){
   if(_clearHoldTimer)return;
+  btn.style.transition='none';
+  btn.style.background='transparent';
+  btn.offsetHeight; // force reflow
   btn.style.transition='background 1s linear';
   btn.style.background='var(--redL)';
   _clearHoldTimer=setTimeout(()=>{
     _clearHoldTimer=null;
-    btn.style.transition='';
-    btn.style.background='';
+    btn.style.transition='none';
+    btn.style.background='transparent';
     clearAllStatus();
   },1000);
 }
@@ -1382,7 +1385,7 @@ function _clearHoldEnd(btn){
   clearTimeout(_clearHoldTimer);
   _clearHoldTimer=null;
   btn.style.transition='background 0.2s';
-  btn.style.background='';
+  btn.style.background='transparent';
 }
 function resetAllStatus(){
   if(!S.invoice)return;

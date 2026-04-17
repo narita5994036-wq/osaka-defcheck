@@ -972,7 +972,7 @@ function invCardHtml(e,isArchived){
       <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
     </div>
     <div class="inv-swipe-right">
-      <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0;margin-right:4px"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>SENT`:'OPEN'}</button>
+      <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0;margin-right:4px"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>SENT`:'UNSENT'}</button>
       ${isArchived
         ?`<button class="isw-btn isw-restore" onclick="archiveInvoice('${e.id}')">Restore</button><button class="isw-btn isw-del" onclick="deleteInvoice('${e.id}')">Delete</button>`
         :`<button class="isw-btn isw-arc" onclick="archiveInvoice('${e.id}')">Archive</button>`
@@ -1009,7 +1009,13 @@ function toggleSent(id){
   const list=loadList();
   const idx=list.findIndex(e=>e.id===id);
   if(idx<0)return;
-  list[idx].sent=!list[idx].sent;
+  const cur=list[idx].sent;
+  if(cur){
+    if(!confirm('現在のフェーズ: ✈ SENT（メール送信済み）\n\nUNSENT（未送信）に戻しますか？\nOK = UNSENTに戻す\nキャンセル = 中止'))return;
+  }else{
+    if(!confirm('現在のフェーズ: UNSENT（未送信）\n\n✈ SENTに変更しますか？\nOK = SENTに変更\nキャンセル = 中止'))return;
+  }
+  list[idx].sent=!cur;
   saveList(list);render();
 }
 function _checkPendingAndBuild(){

@@ -608,7 +608,7 @@ function saveList(list){try{localStorage.setItem(SK_LIST,JSON.stringify(list));}
 /* ── GIST SYNC ── */
 const GK_PAT='mykita_gist_pat',GK_ID='mykita_gist_id',GK_AT='mykita_gist_at',GK_REPO='mykita_dc_repo';
 let _syncSt=null,_syncMsg='',_dirty=false,_settingsShowCreds=false,_gistPulling=false;
-let _credsDraft=null,_msDraft=null;
+let _credsDraft=null,_msDraft=null,_forceScrollTop=false;
 let _preEditDirty=false,_preEditInvsDirty=false,_invoiceSnap=null;
 let _listSnap=null,_invsDirty=false,_dispSyncSnap={},_dispDirtyIds=new Set();
 function _listForSnap(list){return JSON.stringify(list.map(e=>{const{updatedAt,...r}=e;return r;}));}
@@ -1473,7 +1473,7 @@ function goToStamp(){
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
   }
-  S.screen='stamp';render();window.scrollTo(0,0);
+  S.screen='stamp';_forceScrollTop=true;render();
 }
 function _checkStampIdAndBuild(){
   if(!S.invoice)return;
@@ -2725,7 +2725,7 @@ function render(){
   </div>`:''}
 
     `;
-  if(!S.markup) requestAnimationFrame(()=>window.scrollTo(0,_sy));
+  if(!S.markup) requestAnimationFrame(()=>{if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}else{window.scrollTo(0,_sy);}});
   if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}
   const fab=document.getElementById('scroll-fab');
   if(fab){

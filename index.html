@@ -330,6 +330,51 @@ const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
+let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
+const _DSW=64;
+function defSwStart(e,no){
+  if(e.touches.length!==1)return;
+  _defSw={openNo:_defSw.openNo,no,startX:e.touches[0].clientX,startY:e.touches[0].clientY,curX:e.touches[0].clientX,moved:false};
+}
+function defSwMove(e){
+  if(!_defSw.no)return;
+  const dx=e.touches[0].clientX-_defSw.startX;
+  const dy=e.touches[0].clientY-_defSw.startY;
+  if(!_defSw.moved&&Math.abs(dx)<6)return;
+  if(!_defSw.moved&&Math.abs(dy)>Math.abs(dx)){_defSw.no=null;return;}
+  _defSw.moved=true;
+  _defSw.curX=e.touches[0].clientX;
+  e.preventDefault();
+  const el=document.querySelector(`[data-defno="${_defSw.no}"]`);
+  if(!el)return;
+  const base=_defSw.openNo===_defSw.no?-_DSW:0;
+  el.style.transition='none';
+  el.style.transform=`translateX(${Math.min(0,Math.max(base+dx,-_DSW))}px)`;
+}
+function defSwEnd(e){
+  if(!_defSw.no)return;
+  const no=_defSw.no;
+  const el=document.querySelector(`[data-defno="${no}"]`);
+  const dx=_defSw.curX-_defSw.startX;
+  const wasOpen=_defSw.openNo===no;
+  if(el)el.style.transition='transform 0.2s';
+  if(!_defSw.moved){
+    if(wasOpen){_defSw.openNo=null;if(el)el.style.transform='translateX(0)';}
+  }else if(dx<-_DSW/3||(!wasOpen&&dx<-16)){
+    _defSw.openNo=no;
+    if(el)el.style.transform=`translateX(-${_DSW}px)`;
+  }else{
+    _defSw.openNo=null;
+    if(el)el.style.transform='translateX(0)';
+  }
+  _defSw.no=null;
+}
+function defToggleOk(no){
+  if(_defOkSet.has(no))_defOkSet.delete(no);
+  else _defOkSet.add(no);
+  _defSw.openNo=null;
+  render();
+}
 function openDispSheet(id){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -350,6 +395,7 @@ function openDefSheet(id){
     const inv=JSON.parse(d);
     _dispOrigDisp={};_dispOrigPn={};
     inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';});
+    _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
 }
@@ -364,12 +410,14 @@ function setDispInSheet(no,val){
 }
 function _dispIsDirty(){
   if(!_dispSheet)return false;
+  if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||''));
   const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
   return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||''));
 }
 function saveDispSheet(){
   if(!_dispSheet)return;
   try{
+    if(_dispSheet.pnOnly&&_defOkSet.size>0)_dispSheet.inv.items=_dispSheet.inv.items.map(it=>_defOkSet.has(it.no)?{...it,status:'ok'}:it);
     localStorage.setItem('mykita_dc_inv_'+_dispSheet.id,JSON.stringify(_dispSheet.inv));
     const list=loadList();
     const idx=list.findIndex(e=>e.id===_dispSheet.id);
@@ -381,6 +429,7 @@ function saveDispSheet(){
       saveList(list);
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}
+  _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
   _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};render();
 }
 function setPnInSheet(no,val){
@@ -2600,7 +2649,8 @@ function render(){
       ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
         :defs.map(it=>{
           const pos=it.subOf||it.no;
-          return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">
+          const isOk=_defOkSet.has(it.no);
+          const innerContent=`
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
               <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
               <span style="font-size:13px;font-weight:500">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
@@ -2609,11 +2659,23 @@ function render(){
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
-              <input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
+              ${ds.pnOnly&&isOk?`<span style="font-size:10px;letter-spacing:1px;color:var(--green);font-weight:600">→ OK</span>`:`<input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
                 style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">
-            </div>
-          </div>`;
+                oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`}
+            </div>`;
+          if(ds.pnOnly){
+            return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
+              <div style="position:absolute;right:0;top:0;bottom:0;width:${_DSW}px;display:flex;align-items:center;justify-content:center;background:${isOk?'var(--g300)':'var(--green)'}">
+                <button onclick="defToggleOk('${it.no}')" style="color:${isOk?'var(--g600)':'#fff'};font-size:10px;letter-spacing:1.5px;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">${isOk?'UNDO':'OK'}</button>
+              </div>
+              <div data-defno="${it.no}"
+                ontouchstart="defSwStart(event,'${it.no}')" ontouchmove="defSwMove(event)" ontouchend="defSwEnd(event)"
+                style="background:var(--w);transform:translateX(${_defSw.openNo===it.no?-_DSW:0}px);transition:transform 0.2s;opacity:${isOk?0.35:1};padding:12px 0;border-bottom:1px solid var(--g100);pointer-events:${isOk?'none':'auto'}">
+                ${innerContent}
+              </div>
+            </div>`;
+          }
+          return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">${innerContent}</div>`;
         }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>

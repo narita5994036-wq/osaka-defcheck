@@ -287,6 +287,8 @@
   .isw-btn.isw-arc{background:var(--g800)}
   .isw-btn.isw-restore{background:var(--green)}
   .isw-btn.isw-del{background:var(--red)}
+  @keyframes disp-hop{0%{transform:translateY(0)}20%{transform:translateY(-9px)}40%{transform:translateY(-2px)}60%{transform:translateY(-6px)}80%{transform:translateY(-1px)}100%{transform:translateY(0)}}
+  .disp-hop{animation:disp-hop 0.7s ease;}
   .inv-card{border:1px solid var(--g200);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--w);position:relative;z-index:1}
   .inv-card:active{background:var(--g50)}
   .inv-card.arc .inv-card-body,.inv-card.arc .inv-card-arr{opacity:.45}
@@ -1045,7 +1047,7 @@ function invCardHtml(e,isArchived){
         ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
         ${e.dispTotal>0?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
           ${e.sent
-            ?`<button class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`
+            ?`<button id="disp-btn-${e.id}" class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`
             :`<button class="inv-card-act-btn" style="border-color:var(--red);color:var(--red)" onclick="event.stopPropagation();openDefSheet('${e.id}')">DEF LIST</button>`}
         </div>`:''}
       </div>
@@ -1066,6 +1068,13 @@ function toggleSent(id){
   }
   list[idx].sent=!cur;
   saveList(list);render();
+  if(!cur){
+    alert('DISPOSITION入力が可能になりました。\n担当者からのメール受信後に入力してください');
+    requestAnimationFrame(()=>{
+      const btn=document.getElementById('disp-btn-'+id);
+      if(btn){btn.classList.add('disp-hop');setTimeout(()=>btn.classList.remove('disp-hop'),800);}
+    });
+  }
 }
 function _checkPendingAndBuild(){
   if(!S.invoice)return;

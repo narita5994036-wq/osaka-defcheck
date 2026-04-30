@@ -322,6 +322,7 @@
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -524,6 +525,43 @@ function exportSelectedExcel(){
     XLSX.writeFile(wb,fname);
     S.showXlsxSel=false;S.xlsxSelIds=null;render();
   }catch(e){alert('出力エラー: '+e.message);console.error('exportSelectedExcel:',e);}
+}
+function exportSumarejiCSV(){
+  const list=loadList().filter(e=>!e.archived);
+  const grouped={};
+  list.forEach(entry=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    if(!d)return;
+    try{
+      const inv=JSON.parse(d);
+      inv.items.forEach(it=>{
+        if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
+          if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name};
+          grouped[it.itemNo].count++;
+        }
+      });
+    }catch(e){}
+  });
+  const keys=Object.keys(grouped);
+  if(!keys.length){alert('SUN/RXのOKアイテムが見つかりません');return;}
+  const rows=[];
+  for(const itemNo of keys){
+    const {count,name}=grouped[itemNo];
+    if(count>=10){
+      if(!confirm('商品番号: '+itemNo+'\n品名: '+name+'\n数量: '+count+'個\n\n数量が10個以上です。CSVに含めますか？\nOK = 含める\nキャンセル = スキップ'))continue;
+    }
+    rows.push([itemNo,count]);
+  }
+  if(!rows.length){alert('出力するデータがありません');return;}
+  const csvText=['商品コード,数量',...rows.map(r=>r.join(','))].join('\r\n');
+  if(typeof Encoding==='undefined'){alert('エンコーディングライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');return;}
+  const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
+  const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='smaregi_nyuko.csv';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
@@ -2197,6 +2235,7 @@ function render(){
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE LIST (.xlsx)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="exportSumarejiCSV()">スマレジ 入庫CSV (.csv)</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"

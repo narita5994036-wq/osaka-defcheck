@@ -907,7 +907,7 @@ function tryToggleCreds(){
   }else{
     const pw=prompt('パスワードを入力してください');
     if(pw===null)return;
-    if(pw!=='1120'){alert('パスワードが違います');return;}
+    if(pw!=='1120'){alert('パスワードが違います。\nヒント：OSAKAのパスワード');return;}
     _credsDraft=null;_settingsShowCreds=true;render();
   }
 }

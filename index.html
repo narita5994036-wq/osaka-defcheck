@@ -2464,19 +2464,23 @@ function render(){
             // SUB-ITEM (part of multi-qty group) — skip if group collapsed
             if(it.subOf!==null&&S.grpCollapsed[it.subOf]){}
             else if(it.subOf!==null){
-              const smBtn=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:8px;letter-spacing:.5px;padding:2px 7px;border-radius:3px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;flex-shrink:0">${it.smDone?'入庫済':'入庫済?'}</button>`:'';
+              const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
+                ?`<div style="padding:3px 0 3px 32px">
+                    <button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫済':'入庫'}</button>
+                  </div>`:'';
               html+=`<div class="sub-item">
                 <div class="sub-item-row">
                   <div class="sub-bar"></div>
                   <div class="sub-idx">${it.subIdx}/${it.subTotal}</div>
-                  ${smBtn}
                   <button class="sbtn ${sc}" style="margin-left:auto" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
                 </div>
+                ${smChip}
                 ${it.status==='defective'?defAreaHtml(it):''}
               </div>`;
             } else {
               // NORMAL SINGLE ITEM
-              const smBtn=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:8px;letter-spacing:.5px;padding:2px 7px;border-radius:3px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;flex-shrink:0">${it.smDone?'入庫済':'入庫済?'}</button>`:'';
+              const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
+                ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫済':'入庫'}</button>`:'';
               html+=`<div class="item">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
@@ -2484,11 +2488,9 @@ function render(){
                     <div class="item-tags">${catTag}</div>
                     <div class="item-name">${esc(it.name)}</div>
                     <div class="item-code">${esc(it.itemNo)}${it.colorCode?' · #'+it.colorCode:''}</div>
+                    ${smChip}
                   </div>
-                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-                    ${smBtn}
-                    <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
-                  </div>
+                  <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
                 </div>
                 ${it.status==='defective'?defAreaHtml(it):''}
               </div>`;

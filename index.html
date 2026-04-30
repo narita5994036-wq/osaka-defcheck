@@ -445,6 +445,10 @@ function setPnInSheet(no,val){
     if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
   }
 }
+const CSV_FIELD_KEYS=['invoiceNo','positionNo','item','pn','colorId','defParts','disposition'];
+function getCsvFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_csv_fields')||'{}');}catch(e){return {};}}
+function isCsvFieldOn(key){const s=getCsvFieldSettings();return s[key]!==false;}
+function toggleCsvField(key){const s=getCsvFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_csv_fields',JSON.stringify(s));render();}
 function _dispRows(inv){
   return inv.items.filter(i=>i.status==='defective').map(it=>[
     inv.number||'',
@@ -452,13 +456,16 @@ function _dispRows(inv){
     it.name||'',
     it.pn||'',
     [it.colorCode?'C'+it.colorCode:'',it.itemId||''].filter(Boolean).join('/'),
-    it.remark||''
+    it.remark||'',
+    it.disp?it.disp.charAt(0).toUpperCase()+it.disp.slice(1):''
   ]);
 }
-const DISP_HEADER=['INVOICE NO.','POSITION NO.','ITEM','PN','COLOR/ID','DEFECTIVE PARTS/CONDITIONS'];
+const DISP_HEADER=['INVOICE NO.','POSITION NO.','ITEM','PN','COLOR/ID','DEFECTIVE PARTS/CONDITIONS','DISPOSITION'];
 function _downloadCSV(fname,rows){
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-  const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const fs=getCsvFieldSettings();
+  const masked=rows.map(r=>r.map((c,i)=>fs[CSV_FIELD_KEYS[i]]===false?'':c));
+  const csv=[DISP_HEADER,...masked].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const arr=Encoding.convert(Encoding.stringToCode(csv),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
@@ -907,7 +914,7 @@ function tryCloseSettings(){
       if(_msDraftIsDirty()){localStorage.setItem(MK_MS_CLIENT,_msDraft.clientId);localStorage.setItem(MK_MS_TENANT,_msDraft.tenantId||'common');_msalApp=null;_msalInitPromise=null;_initMsal();}
     }
   }
-  _credsDraft=null;_msDraft=null;_settingsShowCreds=false;_settingsShowMs=false;S.showSettings=false;render();
+  _credsDraft=null;_msDraft=null;_settingsShowCreds=false;_settingsShowMs=false;_settingsShowCsvFields=false;S.showSettings=false;render();
 }
 
 /* ── GitHub Releases photo helpers ── */
@@ -1640,7 +1647,7 @@ function buildEmail(){
 /* MICROSOFT GRAPH API */
 const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
-let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false;
+let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false;
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
@@ -2713,6 +2720,22 @@ function render(){
           </div>
           <button class="btn blk" style="margin-top:12px" onclick="saveCredsDraft()">DONE</button>
         </div>`})():''}
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowCsvFields=!_settingsShowCsvFields;render()">
+          <span>CSV FIELDS</span><span style="font-size:12px">${_settingsShowCsvFields?'−':'+'}</span>
+        </button>
+        ${_settingsShowCsvFields?(()=>{
+          const labels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
+          const fs=getCsvFieldSettings();
+          return `<div style="padding-top:8px">
+            <div style="font-size:10px;color:var(--g500);margin-bottom:10px;line-height:1.6">ヘッダーは変更されません。OFFにした列は値が空白で出力されます。</div>
+            ${CSV_FIELD_KEYS.map((k,i)=>{const on=fs[k]!==false;return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
+              <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${labels[i]}</span>
+              <button onclick="toggleCsvField('${k}')" style="width:42px;height:24px;border-radius:12px;border:none;background:${on?'var(--green)':'var(--g200)'};cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0">
+                <span style="position:absolute;top:3px;${on?'right:3px':'left:3px'};width:18px;height:18px;border-radius:9px;background:#fff;display:block;transition:all 0.2s"></span>
+              </button>
+            </div>`;}).join('')}
+          </div>`;
+        })():''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
           <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
         </button>

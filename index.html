@@ -536,7 +536,7 @@ function exportSumarejiCSV(){
       const inv=JSON.parse(d);
       inv.items.forEach(it=>{
         if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
-          if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name};
+          if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
           grouped[it.itemNo].count++;
         }
       });
@@ -550,10 +550,10 @@ function exportSumarejiCSV(){
     if(count>=10){
       if(!confirm('商品番号: '+itemNo+'\n品名: '+name+'\n数量: '+count+'個\n\n数量が10個以上です。CSVに含めますか？\nOK = 含める\nキャンセル = スキップ'))continue;
     }
-    rows.push([itemNo,count]);
+    rows.push([itemNo,count,grouped[itemNo].unitPrice]);
   }
   if(!rows.length){alert('出力するデータがありません');return;}
-  const csvText=['商品コード,数量',...rows.map(r=>r.join(','))].join('\r\n');
+  const csvText=['商品コード,検品数,原価（税抜）',...rows.map(r=>r.join(','))].join('\r\n');
   if(typeof Encoding==='undefined'){alert('エンコーディングライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');return;}
   const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});

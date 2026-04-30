@@ -332,7 +332,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
@@ -526,11 +526,31 @@ function exportSelectedExcel(){
     S.showXlsxSel=false;S.xlsxSelIds=null;render();
   }catch(e){alert('出力エラー: '+e.message);console.error('exportSelectedExcel:',e);}
 }
-function exportSumarejiCSV(){
+function openCsvSel(){
   const list=loadList().filter(e=>!e.archived);
-  const grouped={};
+  const ids=new Set();
   list.forEach(entry=>{
     const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    if(!d)return;
+    try{const inv=JSON.parse(d);if(inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'))ids.add(entry.id);}catch(e){}
+  });
+  if(!ids.size){alert('SUN/RXのOKアイテムがあるアクティブなインボイスがありません');return;}
+  S.csvSelIds=ids;S.showCsvSel=true;render();
+}
+function toggleCsvInv(id){
+  if(!S.csvSelIds)return;
+  S.csvSelIds.has(id)?S.csvSelIds.delete(id):S.csvSelIds.add(id);render();
+}
+function toggleAllCsvInv(ids){
+  if(!S.csvSelIds)return;
+  const allSel=ids.every(id=>S.csvSelIds.has(id));
+  ids.forEach(id=>allSel?S.csvSelIds.delete(id):S.csvSelIds.add(id));render();
+}
+function exportSumarejiCSV(){
+  if(!S.csvSelIds||!S.csvSelIds.size){alert('インボイスを選択してください');return;}
+  const grouped={};
+  S.csvSelIds.forEach(id=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
     try{
       const inv=JSON.parse(d);
@@ -562,6 +582,7 @@ function exportSumarejiCSV(){
   a.href=url;a.download='smaregi_nyuko.csv';
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  S.showCsvSel=false;S.csvSelIds=null;render();
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
@@ -2235,7 +2256,7 @@ function render(){
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE LIST (.xlsx)</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="exportSumarejiCSV()">スマレジ 入庫CSV (.csv)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">スマレジ 入庫CSV (.csv)</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"
@@ -2525,6 +2546,48 @@ function render(){
     </div>`;
   })();
 
+  const csvSelSheet=(()=>{
+    if(!S.showCsvSel||!S.csvSelIds)return '';
+    const list=loadList().filter(e=>!e.archived);
+    const candidates=[];
+    list.forEach(entry=>{
+      const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+      if(!d)return;
+      try{
+        const inv=JSON.parse(d);
+        const cnt=inv.items.filter(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok').length;
+        if(cnt)candidates.push({entry,cnt});
+      }catch(e){}
+    });
+    const allIds=candidates.map(c=>c.entry.id);
+    const selCnt=S.csvSelIds.size;
+    const allSel=allIds.every(id=>S.csvSelIds.has(id));
+    return `<div class="overlay" onclick="if(event.target===this){S.showCsvSel=false;S.csvSelIds=null;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">スマレジ 入庫CSV — インボイス選択<button class="close-btn" onclick="S.showCsvSel=false;S.csvSelIds=null;render()">×</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} 件選択</span>
+          <button onclick="toggleAllCsvInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'全解除':'全選択'}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:16px">
+          ${candidates.map(({entry,cnt})=>{
+            const sel=S.csvSelIds.has(entry.id);
+            return `<div onclick="toggleCsvInv('${entry.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--g100);cursor:pointer">
+              <div style="width:20px;height:20px;border-radius:4px;border:2px solid ${sel?'var(--teal)':'var(--g200)'};background:${sel?'var(--teal)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center">
+                ${sel?'<span style="color:#fff;font-size:12px;font-weight:700">✓</span>':''}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;font-weight:500">${esc(entry.number||'—')}</div>
+                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; SUN/RX OK ${cnt}点</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="btn blk" style="margin-top:0;background:var(--teal);opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportSumarejiCSV()':'void 0'}">ダウンロード${selCnt?' ('+selCnt+'件)':''}</button>
+      </div>
+    </div>`;
+  })();
+
   const settingsSheet=S.showSettings?`
     <div class="overlay" onclick="if(event.target===this)tryCloseSettings()">
       <div class="sheet">
@@ -2742,7 +2805,7 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

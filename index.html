@@ -538,7 +538,7 @@ function openCsvSel(){
   list.forEach(entry=>{
     const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
     if(!d)return;
-    try{const inv=JSON.parse(d);if(inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'))ids.add(entry.id);}catch(e){}
+    try{const inv=JSON.parse(d);if(inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone))ids.add(entry.id);}catch(e){}
   });
   if(!ids.size){alert('SUN/RXのOKアイテムがあるアクティブなインボイスがありません');return;}
   S.csvSelIds=ids;S.showCsvSel=true;render();
@@ -563,7 +563,7 @@ function exportSumarejiCSV(){
       const inv=JSON.parse(d);
       if(inv.number)invNums.push(inv.number);
       inv.items.forEach(it=>{
-        if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
+        if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
           if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
           grouped[it.itemNo].count++;
         }
@@ -602,7 +602,7 @@ function exportSumarejiCSVById(id){
     const inv=JSON.parse(d);
     const grouped={};
     inv.items.forEach(it=>{
-      if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
+      if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
         if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
         grouped[it.itemNo].count++;
       }
@@ -1393,6 +1393,11 @@ function cycle(no){
   save();render();
 }
 function toggleGrp(subOf){S.grpCollapsed[subOf]=!S.grpCollapsed[subOf];render();}
+function toggleSmDone(no){
+  if(checkArchived())return;
+  S.invoice.items=S.invoice.items.map(it=>it.no!==no?it:{...it,smDone:!it.smDone});
+  save();render();
+}
 function bulkOk(subOf){
   if(checkArchived())return;
   const grpItems=S.invoice.items.filter(it=>it.subOf===subOf);
@@ -2459,16 +2464,19 @@ function render(){
             // SUB-ITEM (part of multi-qty group) — skip if group collapsed
             if(it.subOf!==null&&S.grpCollapsed[it.subOf]){}
             else if(it.subOf!==null){
+              const smBtn=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:8px;letter-spacing:.5px;padding:2px 7px;border-radius:3px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;flex-shrink:0">${it.smDone?'入庫済':'入庫済?'}</button>`:'';
               html+=`<div class="sub-item">
                 <div class="sub-item-row">
                   <div class="sub-bar"></div>
                   <div class="sub-idx">${it.subIdx}/${it.subTotal}</div>
+                  ${smBtn}
                   <button class="sbtn ${sc}" style="margin-left:auto" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
                 </div>
                 ${it.status==='defective'?defAreaHtml(it):''}
               </div>`;
             } else {
               // NORMAL SINGLE ITEM
+              const smBtn=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:8px;letter-spacing:.5px;padding:2px 7px;border-radius:3px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;flex-shrink:0">${it.smDone?'入庫済':'入庫済?'}</button>`:'';
               html+=`<div class="item">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
@@ -2477,7 +2485,10 @@ function render(){
                     <div class="item-name">${esc(it.name)}</div>
                     <div class="item-code">${esc(it.itemNo)}${it.colorCode?' · #'+it.colorCode:''}</div>
                   </div>
-                  <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+                    ${smBtn}
+                    <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
+                  </div>
                 </div>
                 ${it.status==='defective'?defAreaHtml(it):''}
               </div>`;
@@ -2606,7 +2617,7 @@ function render(){
       if(!d)return;
       try{
         const inv=JSON.parse(d);
-        const cnt=inv.items.filter(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok').length;
+        const cnt=inv.items.filter(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone).length;
         if(cnt)candidates.push({entry,cnt});
       }catch(e){}
     });
@@ -2644,7 +2655,7 @@ function render(){
     const id=S.csvPickerId;
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     let hasDefective=false,hasSumareji=false;
-    if(d){try{const inv=JSON.parse(d);hasDefective=_dispRows(inv).length>0;hasSumareji=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok');}catch(e){}}
+    if(d){try{const inv=JSON.parse(d);hasDefective=_dispRows(inv).length>0;hasSumareji=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone);}catch(e){}}
     return `<div class="overlay" onclick="if(event.target===this){S.showCsvPicker=false;S.csvPickerId=null;render()}">
       <div class="sheet">
         <div class="sheet-tit">CSV EXPORT<button class="close-btn" onclick="S.showCsvPicker=false;S.csvPickerId=null;render()">×</button></div>

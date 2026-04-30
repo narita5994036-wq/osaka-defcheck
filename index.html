@@ -449,6 +449,10 @@ const CSV_FIELD_KEYS=['invoiceNo','positionNo','item','pn','colorId','defParts',
 function getCsvFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_csv_fields')||'{}');}catch(e){return {};}}
 function isCsvFieldOn(key){const s=getCsvFieldSettings();return s[key]!==false;}
 function toggleCsvField(key){const s=getCsvFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_csv_fields',JSON.stringify(s));render();}
+const SM_FIELD_KEYS=['itemNo','qty','unitPrice'];
+function getSmFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_sm_fields')||'{}');}catch(e){return {};}}
+function toggleSmField(key){const s=getSmFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_sm_fields',JSON.stringify(s));render();}
+function _applySmMask(rows){const s=getSmFieldSettings();return rows.map(r=>r.map((c,i)=>s[SM_FIELD_KEYS[i]]===false?'':c));}
 function _dispRows(inv){
   return inv.items.filter(i=>i.status==='defective').map(it=>[
     inv.number||'',
@@ -575,7 +579,7 @@ function exportSumarejiCSV(){
   }
   if(!rows.length){alert('No data to export.');return;}
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-  const csvText=['商品コード,検品数,原価（税抜）',...rows.map(r=>r.join(','))].join('\r\n');
+  const csvText=['商品コード,検品数,原価（税抜）',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
   const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
@@ -612,7 +616,7 @@ function exportSumarejiCSVById(id){
     }
     if(!rows.length){alert('No data to export.');return;}
     if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-    const csvText=['商品コード,検品数,原価（税抜）',...rows.map(r=>r.join(','))].join('\r\n');
+    const csvText=['商品コード,検品数,原価（税抜）',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
     const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
     const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
     const url=URL.createObjectURL(blob);
@@ -2724,16 +2728,21 @@ function render(){
           <span>CSV FIELDS</span><span style="font-size:12px">${_settingsShowCsvFields?'−':'+'}</span>
         </button>
         ${_settingsShowCsvFields?(()=>{
-          const labels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
-          const fs=getCsvFieldSettings();
-          return `<div style="padding-top:8px">
-            <div style="font-size:10px;color:var(--g500);margin-bottom:10px;line-height:1.6">ヘッダーは変更されません。OFFにした列は値が空白で出力されます。</div>
-            ${CSV_FIELD_KEYS.map((k,i)=>{const on=fs[k]!==false;return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
-              <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${labels[i]}</span>
-              <button onclick="toggleCsvField('${k}')" style="width:42px;height:24px;border-radius:12px;border:none;background:${on?'var(--green)':'var(--g200)'};cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0">
+          const defLabels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
+          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜）'];
+          const fs=getCsvFieldSettings();const ss=getSmFieldSettings();
+          const toggle=(lbl,on,fn)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
+              <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${lbl}</span>
+              <button onclick="${fn}" style="width:42px;height:24px;border-radius:12px;border:none;background:${on?'var(--green)':'var(--g200)'};cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0">
                 <span style="position:absolute;top:3px;${on?'right:3px':'left:3px'};width:18px;height:18px;border-radius:9px;background:#fff;display:block;transition:all 0.2s"></span>
               </button>
-            </div>`;}).join('')}
+            </div>`;
+          return `<div style="padding-top:8px">
+            <div style="font-size:10px;color:var(--g500);margin-bottom:10px;line-height:1.6">ヘッダーは変更されません。OFFにした列は値が空白で出力されます。</div>
+            <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);font-weight:500;padding:6px 0 4px">DEFECTIVE LIST</div>
+            ${CSV_FIELD_KEYS.map((k,i)=>{const on=fs[k]!==false;return toggle(defLabels[i],on,`toggleCsvField('${k}')`)}).join('')}
+            <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);font-weight:500;padding:14px 0 4px;margin-top:4px">SMAREGI RECEIVING</div>
+            ${SM_FIELD_KEYS.map((k,i)=>{const on=ss[k]!==false;return toggle(smLabels[i],on,`toggleSmField('${k}')`)}).join('')}
           </div>`;
         })():''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">

@@ -902,8 +902,13 @@ function tryToggleCreds(){
   if(_settingsShowCreds&&_credsDraftIsDirty()){
     if(confirm('変更があります。\nOK = 保存して閉じる\nキャンセル = 破棄して閉じる'))saveCredsDraft();
     else{_credsDraft=null;_settingsShowCreds=false;render();}
+  }else if(_settingsShowCreds){
+    _credsDraft=null;_settingsShowCreds=false;render();
   }else{
-    _credsDraft=null;_settingsShowCreds=!_settingsShowCreds;render();
+    const pw=prompt('パスワードを入力してください');
+    if(pw===null)return;
+    if(pw!=='1120'){alert('パスワードが違います');return;}
+    _credsDraft=null;_settingsShowCreds=true;render();
   }
 }
 function tryToggleMs(){

@@ -457,8 +457,10 @@ function _dispRows(inv){
 }
 const DISP_HEADER=['INVOICE NO.','POSITION NO.','ITEM','PN','COLOR/ID','DEFECTIVE PARTS/CONDITIONS'];
 function _downloadCSV(fname,rows){
+  if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
   const csv=[DISP_HEADER,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const arr=Encoding.convert(Encoding.stringToCode(csv),'SJIS','UNICODE');
+  const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=fname;
@@ -537,13 +539,15 @@ function toggleAllCsvInv(ids){
   ids.forEach(id=>allSel?S.csvSelIds.delete(id):S.csvSelIds.add(id));render();
 }
 function exportSumarejiCSV(){
-  if(!S.csvSelIds||!S.csvSelIds.size){alert('インボイスを選択してください');return;}
+  if(!S.csvSelIds||!S.csvSelIds.size){alert('Select at least one invoice.');return;}
   const grouped={};
+  const invNums=[];
   S.csvSelIds.forEach(id=>{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
     try{
       const inv=JSON.parse(d);
+      if(inv.number)invNums.push(inv.number);
       inv.items.forEach(it=>{
         if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
           if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
@@ -553,23 +557,23 @@ function exportSumarejiCSV(){
     }catch(e){}
   });
   const keys=Object.keys(grouped);
-  if(!keys.length){alert('SUN/RXのOKアイテムが見つかりません');return;}
+  if(!keys.length){alert('No SUN/RX OK items found.');return;}
   const rows=[];
   for(const itemNo of keys){
     const {count,name}=grouped[itemNo];
     if(count>=10){
-      if(!confirm('商品番号: '+itemNo+'\n品名: '+name+'\n数量: '+count+'個\n\n数量が10個以上です。CSVに含めますか？\nOK = 含める\nキャンセル = スキップ'))continue;
+      if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
     }
     rows.push([itemNo,count,grouped[itemNo].unitPrice]);
   }
-  if(!rows.length){alert('出力するデータがありません');return;}
+  if(!rows.length){alert('No data to export.');return;}
+  if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
   const csvText=['商品コード,検品数,原価（税抜）',...rows.map(r=>r.join(','))].join('\r\n');
-  if(typeof Encoding==='undefined'){alert('エンコーディングライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');return;}
   const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='smaregi_nyuko.csv';
+  a.href=url;a.download='smaregi_receiving_'+(invNums.join('_')||'export')+'.csv';
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
   S.showCsvSel=false;S.csvSelIds=null;render();
@@ -606,7 +610,7 @@ function exportSumarejiCSVById(id){
     const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    a.href=url;a.download='smaregi_nyuko.csv';
+    a.href=url;a.download='smaregi_receiving_'+(inv.number||id)+'.csv';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
     S.showCsvPicker=false;S.csvPickerId=null;render();

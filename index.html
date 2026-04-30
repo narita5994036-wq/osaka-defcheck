@@ -332,7 +332,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','ok','defective'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
@@ -503,28 +503,18 @@ function toggleAllXlsxInv(ids){
   const allSel=ids.every(id=>S.xlsxSelIds.has(id));
   ids.forEach(id=>allSel?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id));render();
 }
-function exportSelectedExcel(){
-  if(typeof XLSX==='undefined'){alert('Excelライブラリの読み込みに失敗しました。\nページを再読み込みしてお試しください。');return;}
-  if(!S.xlsxSelIds||!S.xlsxSelIds.size){alert('インボイスを選択してください');return;}
-  try{
-    const allRows=[];
-    S.xlsxSelIds.forEach(id=>{
-      const d=localStorage.getItem('mykita_dc_inv_'+id);
-      if(!d)return;
-      try{const inv=JSON.parse(d);const rows=_dispRows(inv);if(rows.length)allRows.push(...rows);}catch(e){}
-    });
-    if(!allRows.length){alert('選択したインボイスにDefective itemsがありません');return;}
-    const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
-    const fname=`DEFECTIVE ITEM LIST_${ts}.xlsx`;
-    if(!confirm(`"${fname}" をダウンロードしますか？`))return;
-    const data=[DISP_HEADER,...allRows];
-    const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:16},{wch:10},{wch:32},{wch:14},{wch:14},{wch:40}];
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Disposition');
-    XLSX.writeFile(wb,fname);
-    S.showXlsxSel=false;S.xlsxSelIds=null;render();
-  }catch(e){alert('出力エラー: '+e.message);console.error('exportSelectedExcel:',e);}
+function exportActiveListCSV(){
+  if(!S.xlsxSelIds||!S.xlsxSelIds.size){alert('Select at least one invoice.');return;}
+  const allRows=[];
+  S.xlsxSelIds.forEach(id=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    if(!d)return;
+    try{const inv=JSON.parse(d);const rows=_dispRows(inv);if(rows.length)allRows.push(...rows);}catch(e){}
+  });
+  if(!allRows.length){alert('No defective items in selected invoices.');return;}
+  const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
+  _downloadCSV(`DEFECTIVE ITEM LIST_${ts}.csv`,allRows);
+  S.showXlsxSel=false;S.xlsxSelIds=null;render();
 }
 function openCsvSel(){
   const list=loadList().filter(e=>!e.archived);
@@ -583,6 +573,44 @@ function exportSumarejiCSV(){
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
   S.showCsvSel=false;S.csvSelIds=null;render();
+}
+function openCsvPicker(id){
+  S.showCsvPicker=true;S.csvPickerId=id;render();
+}
+function exportSumarejiCSVById(id){
+  const d=localStorage.getItem('mykita_dc_inv_'+id);
+  if(!d){alert('Data not found.');return;}
+  try{
+    const inv=JSON.parse(d);
+    const grouped={};
+    inv.items.forEach(it=>{
+      if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'){
+        if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
+        grouped[it.itemNo].count++;
+      }
+    });
+    const keys=Object.keys(grouped);
+    if(!keys.length){alert('No SUN/RX OK items found.');return;}
+    const rows=[];
+    for(const itemNo of keys){
+      const {count,name}=grouped[itemNo];
+      if(count>=10){
+        if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
+      }
+      rows.push([itemNo,count,grouped[itemNo].unitPrice]);
+    }
+    if(!rows.length){alert('No data to export.');return;}
+    if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
+    const csvText=['商品コード,検品数,原価（税抜）',...rows.map(r=>r.join(','))].join('\r\n');
+    const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
+    const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='smaregi_nyuko.csv';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+    S.showCsvPicker=false;S.csvPickerId=null;render();
+  }catch(err){alert('Error: '+err.message);}
 }
 function tryCloseDispSheet(){
   if(!_dispSheet)return;
@@ -1081,7 +1109,7 @@ function invCardHtml(e,isArchived){
   return `<div class="inv-swipe-wrap" data-id="${e.id}" ontouchstart="swStart(event,'${e.id}')" ontouchmove="swMove(event)" ontouchend="swEnd(event)" onmousedown="swStart(event,'${e.id}');document.addEventListener('mousemove',_swMouseMove);document.addEventListener('mouseup',_swMouseUp)">
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
-      <button class="isw-btn isw-csv" onclick="exportDispCSVById('${e.id}')">CSV</button>
+      <button class="isw-btn isw-csv" onclick="openCsvPicker('${e.id}')">CSV</button>
     </div>
     <div class="inv-swipe-right">
       <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0;margin-right:4px"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>SENT`:'UNSENT'}</button>
@@ -2255,8 +2283,8 @@ function render(){
     }).join('');
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE LIST (.xlsx)</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">スマレジ 入庫CSV (.csv)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE LIST (.csv)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"
@@ -2522,10 +2550,10 @@ function render(){
     const allSel=allIds.every(id=>S.xlsxSelIds.has(id));
     return `<div class="overlay" onclick="if(event.target===this){S.showXlsxSel=false;S.xlsxSelIds=null;render()}">
       <div class="sheet">
-        <div class="sheet-tit">EXCEL 出力 — インボイス選択<button class="close-btn" onclick="S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
+        <div class="sheet-tit">EXPORT ACTIVE LIST — Select Invoices<button class="close-btn" onclick="S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} 件選択</span>
-          <button onclick="toggleAllXlsxInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'全解除':'全選択'}</button>
+          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} selected</span>
+          <button onclick="toggleAllXlsxInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:16px">
           ${candidates.map(({entry,rows})=>{
@@ -2536,12 +2564,12 @@ function render(){
               </div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:12px;font-weight:500">${esc(entry.number||'—')}</div>
-                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; Defective ${rows.length}点</div>
+                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; Defective ${rows.length} items</div>
               </div>
             </div>`;
           }).join('')}
         </div>
-        <button class="btn blk" style="opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportSelectedExcel()':'void 0'}">ダウンロード${selCnt?' ('+selCnt+'件)':''}</button>
+        <button class="btn blk" style="opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportActiveListCSV()':'void 0'}">DOWNLOAD${selCnt?' ('+selCnt+')':''}</button>
       </div>
     </div>`;
   })();
@@ -2564,10 +2592,10 @@ function render(){
     const allSel=allIds.every(id=>S.csvSelIds.has(id));
     return `<div class="overlay" onclick="if(event.target===this){S.showCsvSel=false;S.csvSelIds=null;render()}">
       <div class="sheet">
-        <div class="sheet-tit">スマレジ 入庫CSV — インボイス選択<button class="close-btn" onclick="S.showCsvSel=false;S.csvSelIds=null;render()">×</button></div>
+        <div class="sheet-tit">SMAREGI RECEIVING CSV — Select Invoices<button class="close-btn" onclick="S.showCsvSel=false;S.csvSelIds=null;render()">×</button></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} 件選択</span>
-          <button onclick="toggleAllCsvInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'全解除':'全選択'}</button>
+          <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} selected</span>
+          <button onclick="toggleAllCsvInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:16px">
           ${candidates.map(({entry,cnt})=>{
@@ -2578,12 +2606,35 @@ function render(){
               </div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:12px;font-weight:500">${esc(entry.number||'—')}</div>
-                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; SUN/RX OK ${cnt}点</div>
+                <div style="font-size:10px;color:var(--g600)">${entry.date||''} &nbsp;·&nbsp; SUN/RX OK ${cnt} items</div>
               </div>
             </div>`;
           }).join('')}
         </div>
-        <button class="btn blk" style="margin-top:0;background:var(--teal);opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportSumarejiCSV()':'void 0'}">ダウンロード${selCnt?' ('+selCnt+'件)':''}</button>
+        <button class="btn blk" style="margin-top:0;background:var(--teal);opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportSumarejiCSV()':'void 0'}">DOWNLOAD${selCnt?' ('+selCnt+')':''}</button>
+      </div>
+    </div>`;
+  })();
+
+  const csvPickerSheet=(()=>{
+    if(!S.showCsvPicker||!S.csvPickerId)return '';
+    const id=S.csvPickerId;
+    const d=localStorage.getItem('mykita_dc_inv_'+id);
+    let hasDefective=false,hasSumareji=false;
+    if(d){try{const inv=JSON.parse(d);hasDefective=_dispRows(inv).length>0;hasSumareji=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok');}catch(e){}}
+    return `<div class="overlay" onclick="if(event.target===this){S.showCsvPicker=false;S.csvPickerId=null;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">CSV EXPORT<button class="close-btn" onclick="S.showCsvPicker=false;S.csvPickerId=null;render()">×</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:4px">
+          <button class="btn out" style="margin:0;opacity:${hasDefective?1:0.4}" onclick="${hasDefective?`exportDispCSVById('${id}');S.showCsvPicker=false;S.csvPickerId=null;render()`:'void 0'}">
+            DEFECTIVE LIST CSV
+            <div style="font-size:9px;font-weight:400;margin-top:2px;letter-spacing:.5px;color:var(--g500)">defective list_*.csv · UTF-8</div>
+          </button>
+          <button class="btn out" style="margin:0;border-color:var(--teal);color:var(--teal);opacity:${hasSumareji?1:0.4}" onclick="${hasSumareji?`exportSumarejiCSVById('${id}')`:'void 0'}">
+            SMAREGI RECEIVING CSV
+            <div style="font-size:9px;font-weight:400;margin-top:2px;letter-spacing:.5px;color:var(--g500)">smaregi_nyuko.csv · Shift-JIS · SUN/RX OK items</div>
+          </button>
+        </div>
       </div>
     </div>`;
   })();
@@ -2686,7 +2737,7 @@ function render(){
             <div style="color:var(--g600)">カテゴリ：RX / SUN / PARTS（複数選択可）</div>
             <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">リスト管理</div>
             <div style="color:var(--g600);margin-bottom:4px">アーカイブ：スワイプ → Archiveで非表示化</div>
-            <div style="color:var(--g600)">EXPORT ACTIVE LIST (.xlsx)：アクティブなインボイスをXLSXで出力</div>
+            <div style="color:var(--g600)">EXPORT ACTIVE LIST (.csv): Export active invoice defective items as CSV</div>
           </div>
         </div>`:''}
       </div>
@@ -2805,7 +2856,7 @@ function render(){
       </div>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

@@ -453,6 +453,9 @@ const SM_FIELD_KEYS=['itemNo','qty','unitPrice'];
 function getSmFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_sm_fields')||'{}');}catch(e){return {};}}
 function toggleSmField(key){const s=getSmFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_sm_fields',JSON.stringify(s));render();}
 function _applySmMask(rows){const s=getSmFieldSettings();return rows.map(r=>r.map((c,i)=>s[SM_FIELD_KEYS[i]]===false?'':c));}
+const MK_SM_QTY_ALERT='mykita_dc_sm_qty_alert';
+function getSmQtyAlert(){const v=parseInt(localStorage.getItem(MK_SM_QTY_ALERT));return(isNaN(v)||v<1)?10:v;}
+function setSmQtyAlert(v){const n=parseInt(v);if(!isNaN(n)&&n>=1)localStorage.setItem(MK_SM_QTY_ALERT,n);}
 function _dispRows(inv){
   return inv.items.filter(i=>i.status==='defective').map(it=>[
     inv.number||'',
@@ -572,7 +575,7 @@ function exportSumarejiCSV(){
   const rows=[];
   for(const itemNo of keys){
     const {count,name}=grouped[itemNo];
-    if(count>=10){
+    if(count>=getSmQtyAlert()){
       if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
     }
     rows.push([itemNo,count,grouped[itemNo].unitPrice]);
@@ -609,7 +612,7 @@ function exportSumarejiCSVById(id){
     const rows=[];
     for(const itemNo of keys){
       const {count,name}=grouped[itemNo];
-      if(count>=10){
+      if(count>=getSmQtyAlert()){
         if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
       }
       rows.push([itemNo,count,grouped[itemNo].unitPrice]);
@@ -2743,6 +2746,12 @@ function render(){
             ${CSV_FIELD_KEYS.map((k,i)=>{const on=fs[k]!==false;return toggle(defLabels[i],on,`toggleCsvField('${k}')`)}).join('')}
             <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);font-weight:500;padding:14px 0 4px;margin-top:4px">SMAREGI RECEIVING</div>
             ${SM_FIELD_KEYS.map((k,i)=>{const on=ss[k]!==false;return toggle(smLabels[i],on,`toggleSmField('${k}')`)}).join('')}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--g100)">
+              <span style="font-size:11px;color:var(--g800)">Qty alert threshold</span>
+              <input type="number" min="1" value="${getSmQtyAlert()}"
+                oninput="setSmQtyAlert(this.value)"
+                style="width:60px;padding:4px 8px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;text-align:center;background:var(--w);color:var(--g800)">
+            </div>
           </div>`;
         })():''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">

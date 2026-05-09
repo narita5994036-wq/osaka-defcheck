@@ -475,8 +475,9 @@ function saveDispSheet(){
     const idx=list.findIndex(e=>e.id===_dispSheet.id);
     if(idx>=0){
       const defItems=_dispSheet.inv.items.filter(i=>i.status==='defective');
-      list[idx].dispTotal=defItems.length;
-      list[idx].dispSet=defItems.filter(i=>i.disp).length;
+      list[idx].dispTotal=defItems.filter(i=>i.disp!=='receiving').length;
+      list[idx].dispSet=defItems.filter(i=>i.disp&&i.disp!=='receiving').length;
+      list[idx].receCount=defItems.filter(i=>i.disp==='receiving').length;
       {const _sid=_dispSheet.id;const _ss=_dispSyncSnap[_sid];const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');if(_ss){if(defs.some(it=>(it.disp||null)!==(_ss[it.no]||null)))_dispDirtyIds.add(_sid);else _dispDirtyIds.delete(_sid);}else if(_dispIsDirty())_dispDirtyIds.add(_sid);}
       saveList(list);
     }
@@ -821,7 +822,7 @@ async function _gistDoPull(){
         if(_invLoaded[e.id]){
           const inv=JSON.parse(_invLoaded[e.id]);
           const defItems=inv.items.filter(i=>i.status==='defective');
-          newList.push({id:e.id,number:inv.number||e.number,date:inv.date||e.date,createdAt:e.createdAt,archived:e.archived,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.disp).length,updatedAt:e.updatedAt});
+          newList.push({id:e.id,number:inv.number||e.number,date:inv.date||e.date,createdAt:e.createdAt,archived:e.archived,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.filter(i=>i.disp!=='receiving').length,dispSet:defItems.filter(i=>i.disp&&i.disp!=='receiving').length,receCount:defItems.filter(i=>i.disp==='receiving').length,updatedAt:e.updatedAt});
         }else{newList.push(e);}
         seen.add(e.id);
       }
@@ -829,7 +830,7 @@ async function _gistDoPull(){
         if(!seen.has(iid)){
           const inv=JSON.parse(c);
           const defItems=inv.items.filter(i=>i.status==='defective');
-          newList.unshift({id:iid,number:inv.number||'',date:inv.date||'',createdAt:inv.createdAt||new Date().toISOString(),archived:false,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.disp).length});
+          newList.unshift({id:iid,number:inv.number||'',date:inv.date||'',createdAt:inv.createdAt||new Date().toISOString(),archived:false,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.filter(i=>i.disp!=='receiving').length,dispSet:defItems.filter(i=>i.disp&&i.disp!=='receiving').length,receCount:defItems.filter(i=>i.disp==='receiving').length});
         }
       }
       saveList(newList);
@@ -1046,8 +1047,9 @@ function save(){
       list[idx].number=S.invoice.number;
       list[idx].date=S.invoice.date||'';
       const defItems=S.invoice.items.filter(i=>i.status==='defective');
-      list[idx].dispTotal=defItems.length;
-      list[idx].dispSet=defItems.filter(i=>i.disp).length;
+      list[idx].dispTotal=defItems.filter(i=>i.disp!=='receiving').length;
+      list[idx].dispSet=defItems.filter(i=>i.disp&&i.disp!=='receiving').length;
+      list[idx].receCount=defItems.filter(i=>i.disp==='receiving').length;
       list[idx].updatedAt=new Date().toISOString();
       saveList(list);
     }
@@ -1202,10 +1204,10 @@ function invCardHtml(e,isArchived){
         <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
-        ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;if(!dt)return '';const allSet=ds===dt;return `<div class="inv-card-prg" style="margin-top:2px;${allSet?'color:var(--teal)':'color:var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</div>`;})()}
-        ${e.dispTotal>0?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
+        ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;const rc=e.receCount||0;const parts=[];if(dt){const allSet=ds===dt;parts.push(`<span style="color:${allSet?'var(--teal)':'var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</span>`);}if(rc){const total=(dt||0)+rc;parts.push(`<span style="color:var(--blue)">RECE: ${rc} / ${total}</span>`);}return parts.length?`<div class="inv-card-prg" style="margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">${parts.join('')}</div>`:''})()}
+        ${(e.dispTotal>0||e.receCount>0)?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
           ${e.sent
-            ?`<button id="disp-btn-${e.id}" class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}</button>`
+            ?`<button id="disp-btn-${e.id}" class="inv-card-act-btn" style="border-color:var(--teal);color:var(--teal)" onclick="event.stopPropagation();openDispSheet('${e.id}')">DISP ${e.dispSet||0}/${e.dispTotal}${e.receCount?` · RECE ${e.receCount}`:''}</button>`
             :`<button class="inv-card-act-btn" style="border-color:var(--red);color:var(--red)" onclick="event.stopPropagation();openDefSheet('${e.id}')">DEF LIST</button>`}
         </div>`:''}
       </div>
@@ -1891,8 +1893,9 @@ function discardAndLeave(){
         list[idx].tot=inv.items.length;
         list[idx].pend=inv.items.filter(i=>i.status==='pending').length;
         const defItems=inv.items.filter(i=>i.status==='defective');
-        list[idx].dispTotal=defItems.length;
-        list[idx].dispSet=defItems.filter(i=>i.disp).length;
+        list[idx].dispTotal=defItems.filter(i=>i.disp!=='receiving').length;
+        list[idx].dispSet=defItems.filter(i=>i.disp&&i.disp!=='receiving').length;
+        list[idx].receCount=defItems.filter(i=>i.disp==='receiving').length;
         localStorage.setItem(SK_LIST,JSON.stringify(list));
       }
     }catch(e){console.warn('discardAndLeave:',e);}

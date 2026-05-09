@@ -497,7 +497,7 @@ function getCsvFieldSettings(){try{return JSON.parse(localStorage.getItem('mykit
 function isCsvFieldOn(key){const s=getCsvFieldSettings();return s[key]!==false;}
 function toggleCsvField(key){const s=getCsvFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_csv_fields',JSON.stringify(s));render();}
 const SM_FIELD_KEYS=['itemNo','qty','unitPrice','posNo','itemName'];
-const SM_FIELD_DEFAULT={posNo:false,itemName:false}; // OFF by default
+const SM_FIELD_DEFAULT={unitPrice:false,posNo:false,itemName:false}; // OFF by default
 function getSmFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_sm_fields')||'{}');}catch(e){return {};}}
 function isSmFieldOn(key){const s=getSmFieldSettings();return s[key]!==undefined?s[key]!==false:(SM_FIELD_DEFAULT[key]!==false);}
 function toggleSmField(key){const s=getSmFieldSettings();s[key]=!isSmFieldOn(key);localStorage.setItem('mykita_dc_sm_fields',JSON.stringify(s));render();}
@@ -2795,7 +2795,7 @@ function render(){
         </button>
         ${_settingsShowCsvFields?(()=>{
           const defLabels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
-          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜）','D: 行番号 (default OFF)','E: 商品名 (default OFF)'];
+          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜） (default OFF)','D: 行番号 (default OFF)','E: 商品名 (default OFF)'];
           const fs=getCsvFieldSettings();const ss=getSmFieldSettings();
           const toggle=(lbl,on,fn)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
               <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${lbl}</span>

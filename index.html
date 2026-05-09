@@ -601,7 +601,7 @@ function toggleAllCsvInv(ids){
 }
 function exportSumarejiCSV(){
   if(!S.csvSelIds||!S.csvSelIds.size){alert('Select at least one invoice.');return;}
-  const grouped={};
+  const grouped=new Map();
   const invNums=[];
   S.csvSelIds.forEach(id=>{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
@@ -611,21 +611,19 @@ function exportSumarejiCSV(){
       if(inv.number)invNums.push(inv.number);
       inv.items.forEach(it=>{
         if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
-          if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
-          grouped[it.itemNo].count++;
+          if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||''});
+          grouped.get(it.itemNo).count++;
         }
       });
     }catch(e){}
   });
-  const keys=Object.keys(grouped);
-  if(!keys.length){alert('No SUN/RX OK items found.');return;}
+  if(!grouped.size){alert('No SUN/RX OK items found.');return;}
   const rows=[];
-  for(const itemNo of keys){
-    const {count,name}=grouped[itemNo];
+  for(const [itemNo,{count,name,unitPrice}] of grouped){
     if(count>=getSmQtyAlert()){
       if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
     }
-    rows.push([itemNo,count,grouped[itemNo].unitPrice]);
+    rows.push([itemNo,count,unitPrice]);
   }
   if(!rows.length){alert('No data to export.');return;}
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
@@ -647,22 +645,20 @@ function exportSumarejiCSVById(id){
   if(!d){alert('Data not found.');return;}
   try{
     const inv=JSON.parse(d);
-    const grouped={};
+    const grouped=new Map();
     inv.items.forEach(it=>{
       if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
-        if(!grouped[it.itemNo])grouped[it.itemNo]={count:0,name:it.name,unitPrice:it.unitPrice||''};
-        grouped[it.itemNo].count++;
+        if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||''});
+        grouped.get(it.itemNo).count++;
       }
     });
-    const keys=Object.keys(grouped);
-    if(!keys.length){alert('No SUN/RX OK items found.');return;}
+    if(!grouped.size){alert('No SUN/RX OK items found.');return;}
     const rows=[];
-    for(const itemNo of keys){
-      const {count,name}=grouped[itemNo];
+    for(const [itemNo,{count,name,unitPrice}] of grouped){
       if(count>=getSmQtyAlert()){
         if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
       }
-      rows.push([itemNo,count,grouped[itemNo].unitPrice]);
+      rows.push([itemNo,count,unitPrice]);
     }
     if(!rows.length){alert('No data to export.');return;}
     if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}

@@ -2357,7 +2357,7 @@ function render(){
     }).join('');
     body=`
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">EXPORT ACTIVE LIST (.csv)</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--g200);color:var(--g800);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"

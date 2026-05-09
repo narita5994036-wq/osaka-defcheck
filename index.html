@@ -497,8 +497,8 @@ const CSV_FIELD_KEYS=['invoiceNo','positionNo','item','pn','colorId','defParts',
 function getCsvFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_csv_fields')||'{}');}catch(e){return {};}}
 function isCsvFieldOn(key){const s=getCsvFieldSettings();return s[key]!==false;}
 function toggleCsvField(key){const s=getCsvFieldSettings();s[key]=s[key]===false;localStorage.setItem('mykita_dc_csv_fields',JSON.stringify(s));render();}
-const SM_FIELD_KEYS=['itemNo','qty','unitPrice','posNo','itemName'];
-const SM_FIELD_DEFAULT={unitPrice:false,posNo:false,itemName:false}; // OFF by default
+const SM_FIELD_KEYS=['itemNo','qty','unitPrice','posNo','itemName','colorNo'];
+const SM_FIELD_DEFAULT={unitPrice:false,posNo:false,itemName:false,colorNo:false}; // OFF by default
 function getSmFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_sm_fields')||'{}');}catch(e){return {};}}
 function isSmFieldOn(key){const s=getSmFieldSettings();return s[key]!==undefined?s[key]!==false:(SM_FIELD_DEFAULT[key]!==false);}
 function toggleSmField(key){const s=getSmFieldSettings();s[key]=!isSmFieldOn(key);localStorage.setItem('mykita_dc_sm_fields',JSON.stringify(s));render();}
@@ -614,7 +614,7 @@ function exportSumarejiCSV(){
       if(inv.number)invNums.push(inv.number);
       inv.items.forEach(it=>{
         if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
-          if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no});
+          if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no,colorCode:it.colorCode||''});
           grouped.get(it.itemNo).count++;
         }
       });
@@ -622,15 +622,15 @@ function exportSumarejiCSV(){
   });
   if(!grouped.size){alert('No SUN/RX OK items found.');return;}
   const rows=[];
-  for(const [itemNo,{count,name,unitPrice,posNo}] of grouped){
+  for(const [itemNo,{count,name,unitPrice,posNo,colorCode}] of grouped){
     if(count>=getSmQtyAlert()){
       if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
     }
-    rows.push([itemNo,count,unitPrice,posNo,name]);
+    rows.push([itemNo,count,unitPrice,posNo,name,colorCode]);
   }
   if(!rows.length){alert('No data to export.');return;}
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-  const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
+  const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
   const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
@@ -651,21 +651,21 @@ function exportSumarejiCSVById(id){
     const grouped=new Map();
     inv.items.forEach(it=>{
       if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
-        if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no});
+        if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no,colorCode:it.colorCode||''});
         grouped.get(it.itemNo).count++;
       }
     });
     if(!grouped.size){alert('No SUN/RX OK items found.');return;}
     const rows=[];
-    for(const [itemNo,{count,name,unitPrice,posNo}] of grouped){
+    for(const [itemNo,{count,name,unitPrice,posNo,colorCode}] of grouped){
       if(count>=getSmQtyAlert()){
         if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
       }
-      rows.push([itemNo,count,unitPrice,posNo,name]);
+      rows.push([itemNo,count,unitPrice,posNo,name,colorCode]);
     }
     if(!rows.length){alert('No data to export.');return;}
     if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-    const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
+    const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
     const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
     const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
     const url=URL.createObjectURL(blob);
@@ -2799,7 +2799,7 @@ function render(){
         </button>
         ${_settingsShowCsvFields?(()=>{
           const defLabels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
-          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜） (default OFF)','D: 行番号 (default OFF)','E: 商品名 (default OFF)'];
+          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜） (default OFF)','D: 行番号 (default OFF)','E: 商品名 (default OFF)','F: カラー番号 (default OFF)'];
           const fs=getCsvFieldSettings();const ss=getSmFieldSettings();
           const toggle=(lbl,on,fn)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
               <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${lbl}</span>

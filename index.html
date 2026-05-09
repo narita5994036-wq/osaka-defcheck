@@ -501,7 +501,7 @@ const SM_FIELD_DEFAULT={unitPrice:false,posNo:false,itemName:false}; // OFF by d
 function getSmFieldSettings(){try{return JSON.parse(localStorage.getItem('mykita_dc_sm_fields')||'{}');}catch(e){return {};}}
 function isSmFieldOn(key){const s=getSmFieldSettings();return s[key]!==undefined?s[key]!==false:(SM_FIELD_DEFAULT[key]!==false);}
 function toggleSmField(key){const s=getSmFieldSettings();s[key]=!isSmFieldOn(key);localStorage.setItem('mykita_dc_sm_fields',JSON.stringify(s));render();}
-function _applySmMask(rows){const s=getSmFieldSettings();return rows.map(r=>r.map((c,i)=>{const k=SM_FIELD_KEYS[i];return(s[k]!==undefined?s[k]===false:(SM_FIELD_DEFAULT[k]===false))?'':c;});};
+function _applySmMask(rows){const s=getSmFieldSettings();return rows.map(r=>r.map((c,i)=>{const k=SM_FIELD_KEYS[i];return(s[k]!==undefined?s[k]===false:(SM_FIELD_DEFAULT[k]===false))?'':c;}));}
 const MK_SM_QTY_ALERT='mykita_dc_sm_qty_alert';
 function getSmQtyAlert(){const v=parseInt(localStorage.getItem(MK_SM_QTY_ALERT));return(isNaN(v)||v<1)?10:v;}
 function setSmQtyAlert(v){const n=parseInt(v);if(!isNaN(n)&&n>=1)localStorage.setItem(MK_SM_QTY_ALERT,n);}

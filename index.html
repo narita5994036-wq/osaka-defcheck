@@ -1089,8 +1089,9 @@ function idbLoadAll(){
 function photoKey(){return 'pk_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
 function idbGet(key){return _openIdb().then(db=>new Promise((res,rej)=>{const tx=db.transaction('p','readonly');const r=tx.objectStore('p').get(key);r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e.target.error);}));}
 async function resolvePhotoAsync(key){if(!key)return null;if(key.startsWith('data:'))return key;if(_pc[key])return _pc[key];const v=await idbGet(key).catch(()=>null);if(v)_pc[key]=v;return v||null;}
-// Resolve a photo value: IDB key → dataURL, legacy base64 → pass-through
-function photoSrc(v){if(!v)return '';if(v.startsWith('data:'))return v;return _pc[v]||'';}
+let _photoRenderPending=false;
+function _schedulePhotoRender(){if(_photoRenderPending)return;_photoRenderPending=true;setTimeout(()=>{_photoRenderPending=false;render();},200);}
+function photoSrc(v){if(!v)return '';if(v.startsWith('data:'))return v;if(_pc[v])return _pc[v];resolvePhotoAsync(v).then(url=>{if(url)_schedulePhotoRender();});return '';}
 function newDefect(){return {part:'',partOther:null,partDetail:null,side:'',cond:[],condOther:null};}
 function togglePartDetailOpen(no,idx){
   const k=no+'_'+idx;

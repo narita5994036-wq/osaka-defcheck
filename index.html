@@ -312,6 +312,7 @@
   .disp-btn:active{opacity:.7}
   .disp-btn.ret{background:var(--redL);color:var(--red);border-color:var(--red)}
   .disp-btn.smp{background:var(--tealL);color:var(--teal);border-color:var(--teal)}
+  .disp-btn.rec{background:var(--blueL);color:var(--blue);border-color:var(--blue)}
   @media (min-width:768px){body{zoom:1.15}}
 </style>
 </head>
@@ -336,6 +337,7 @@ let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={};
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
+let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80;
 function defSwStart(e,no){
   if(e.touches.length!==1)return;
@@ -374,6 +376,50 @@ function defSwEnd(e){
   }
   _defSw.no=null;
 }
+function dispSwStart(e,no){
+  if(e.touches.length!==1)return;
+  _dispSw={openNo:_dispSw.openNo,no,startX:e.touches[0].clientX,startY:e.touches[0].clientY,curX:e.touches[0].clientX,moved:false};
+}
+function dispSwMove(e){
+  if(!_dispSw.no)return;
+  const dx=e.touches[0].clientX-_dispSw.startX;
+  const dy=e.touches[0].clientY-_dispSw.startY;
+  if(!_dispSw.moved&&Math.abs(dx)<6)return;
+  if(!_dispSw.moved&&Math.abs(dy)>Math.abs(dx)){_dispSw.no=null;return;}
+  _dispSw.moved=true;
+  _dispSw.curX=e.touches[0].clientX;
+  e.preventDefault();
+  const el=document.querySelector(`[data-dispno="${_dispSw.no}"]`);
+  if(!el)return;
+  const base=_dispSw.openNo===_dispSw.no?-_DSW:0;
+  el.style.transform=`translateX(${Math.min(0,Math.max(base+dx,-_DSW))}px)`;
+}
+function dispSwEnd(e){
+  if(!_dispSw.no)return;
+  const no=_dispSw.no;
+  const el=document.querySelector(`[data-dispno="${no}"]`);
+  const dx=_dispSw.curX-_dispSw.startX;
+  const wasOpen=_dispSw.openNo===no;
+  if(!_dispSw.moved){
+    if(wasOpen){_dispSw.openNo=null;if(el)el.style.transform='translateX(0)';}
+  }else if(dx<-_DSW/3||(!wasOpen&&dx<-16)){
+    _dispSw.openNo=no;
+    if(el)el.style.transform=`translateX(-${_DSW}px)`;
+  }else{
+    _dispSw.openNo=null;
+    if(el)el.style.transform='translateX(0)';
+  }
+  _dispSw.no=null;
+}
+function toggleReceiving(no){
+  if(!_dispSheet)return;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>{
+    if(it.no!==no)return it;
+    return{...it,disp:it.disp==='receiving'?null:'receiving'};
+  });
+  _dispSw.openNo=null;
+  render();
+}
 function defToggleOk(no){
   if(_defOkSet.has(no))_defOkSet.delete(no);
   else _defOkSet.add(no);
@@ -390,6 +436,7 @@ function openDispSheet(id){
     _dispOrigDisp={};_dispOrigPn={};
     inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';});
     if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
+    _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv};render();
   }catch(e){console.warn('openDispSheet failed:',e);}
 }
@@ -1931,7 +1978,7 @@ function defAreaHtml(it){
     </div>`:``;
   const dispHtml=it.disp?`<div class="disp-row">
     <span class="disp-lbl">DISP</span>
-    <span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>
+    <span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':it.disp==='receiving'?' rec':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':it.disp==='receiving'?'Receiving':'—'}</span>
   </div>`:'';
   if(isOpen){
     return defPickerHtml(it)+`
@@ -2889,7 +2936,7 @@ function render(){
           const innerContent=`
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
               <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
-              <span style="font-size:13px;font-weight:500">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
+              <span style="font-size:13px;font-weight:500;color:${it.disp==='receiving'?'var(--blue)':'inherit'}">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
             </div>
             ${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2911,7 +2958,17 @@ function render(){
               </div>
             </div>`;
           }
-          return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">${innerContent}</div>`;
+          const isRec=it.disp==='receiving';
+          return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
+            <div style="position:absolute;right:0;top:0;bottom:0;width:${_DSW}px;display:flex;align-items:center;justify-content:center;background:${isRec?'var(--g200)':'var(--blue)'}">
+              <button onclick="toggleReceiving('${it.no}')" style="color:${isRec?'var(--g600)':'#fff'};font-size:9px;letter-spacing:0.5px;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">${isRec?'UNDO':'Receiving'}</button>
+            </div>
+            <div data-dispno="${it.no}"
+              ontouchstart="dispSwStart(event,'${it.no}')" ontouchmove="dispSwMove(event)" ontouchend="dispSwEnd(event)"
+              style="background:var(--w);transform:translateX(${_dispSw.openNo===it.no?-_DSW:0}px);transition:transform 0.2s;padding:12px 0;border-bottom:1px solid var(--g100)">
+              ${innerContent}
+            </div>
+          </div>`;
         }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>

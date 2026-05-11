@@ -2574,9 +2574,12 @@ function render(){
         <button class="btn blk" onclick="goToStamp()">→ スタンプ番号・IDを入力</button>
       </div>`:''}
       ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}
-      <div style="display:flex;gap:8px;margin:0 20px 0">
-        <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">全て OK</button>
-        <button onclick="resetAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">ステータスリセット</button>
+      <div style="margin:0 20px;border:1px solid var(--g200);border-radius:4px;padding:14px 16px">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:600;margin-bottom:10px">一括操作</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">全て OK</button>
+          <button onclick="resetAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">ステータスリセット</button>
+        </div>
       </div>
       <div style="margin:24px 20px 8px;border:1px solid var(--redM);border-radius:4px;padding:14px 16px">
         <div style="font-size:9px;letter-spacing:2px;color:var(--red);font-weight:600;margin-bottom:10px">DANGER ZONE</div>

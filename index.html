@@ -3233,6 +3233,14 @@ window.addEventListener('beforeunload',e=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'&&_dirty&&gPat()&&gId())gistPush().catch(()=>{});
 });
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='s'){
+    e.preventDefault();
+    if(S.pushing)return;
+    if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}
+    if(confirm('Push しますか？')){gistPush();}
+  }
+});
 </script>
 </body>
 </html>

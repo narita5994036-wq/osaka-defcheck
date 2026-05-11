@@ -759,12 +759,19 @@ function swEnd(e){
 }
 function _swMouseMove(e){swMove(e);}
 function _swMouseUp(e){swEnd(e);document.removeEventListener('mousemove',_swMouseMove);document.removeEventListener('mouseup',_swMouseUp);}
+let _invTapLast={id:null,t:0};
 function invCardTap(id){
   if(_sw.moved)return;
   if(_sw.openId===id){
     const el=document.querySelector(`.inv-swipe-wrap[data-id="${id}"] .inv-card`);
     if(el){el.style.transition='transform .2s ease';el.style.transform='translateX(0)';}
     _sw.openId=null;_sw.openDir=null;return;
+  }
+  if(navigator.maxTouchPoints===0){
+    const now=Date.now();
+    if(_invTapLast.id===id&&now-_invTapLast.t<400){_invTapLast={id:null,t:0};openInvoice(id);}
+    else{_invTapLast={id,t:now};}
+    return;
   }
   openInvoice(id);
 }

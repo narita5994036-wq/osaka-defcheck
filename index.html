@@ -1117,6 +1117,8 @@ function idbGet(key){return _openIdb().then(db=>new Promise((res,rej)=>{const tx
 async function resolvePhotoAsync(key){if(!key)return null;if(key.startsWith('data:'))return key;if(_pc[key])return _pc[key];const v=await idbGet(key).catch(()=>null);if(v)_pc[key]=v;return v||null;}
 let _photoRenderPending=false;
 function _schedulePhotoRender(){if(_photoRenderPending)return;_photoRenderPending=true;setTimeout(()=>{_photoRenderPending=false;render();},200);}
+let _itemSearchTimer=null;
+function _onItemSearch(val){S.itemSearch=val;clearTimeout(_itemSearchTimer);_itemSearchTimer=setTimeout(render,16);}
 function photoSrc(v){
   if(!v)return '';
   if(v.startsWith('data:'))return v;
@@ -2497,7 +2499,7 @@ function render(){
       <div style="padding:8px 20px 0">
         <input id="item-search-input" type="search" value="${esc(S.itemSearch)}" placeholder="アイテム名を検索..."
           style="width:100%;box-sizing:border-box;padding:7px 12px;border:1px solid var(--g200);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--w);color:var(--k)"
-          oninput="S.itemSearch=this.value;render()" onclick="event.stopPropagation()">
+          oninput="_onItemSearch(this.value)" onclick="event.stopPropagation()">
       </div>
       <div style="display:flex;align-items:center;gap:6px;padding:8px 20px 14px">
         ${[['rx','RX'],['sun','SUN'],['parts','PARTS']].map(([k,l])=>{const on=S.tagFilter.includes(k);return `<button onclick="(()=>{const f=S.tagFilter.includes('${k}')?S.tagFilter.filter(x=>x!=='${k}'):[...S.tagFilter,'${k}'];S.tagFilter=f;render()})()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:3px;border:1px solid ${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g200)'};background:${on?(k==='parts'?'var(--tealL)':k==='sun'?'var(--amberL)':'var(--blueL)'):'transparent'};color:${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:600">${l}</button>`;}).join('')}

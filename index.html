@@ -334,7 +334,8 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
-let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={};
+let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={};
+let _recDatePicker=null;
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80;
@@ -410,15 +411,27 @@ function dispSwEnd(e){
   }
   _dispSw.no=null;
 }
+function _parseInvDate(d){const m1=d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);if(m1)return new Date(+m1[3],+m1[2]-1,+m1[1]).getTime();const m2=d.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);if(m2)return new Date(+m2[1],+m2[2]-1,+m2[3]).getTime();return 0;}
 function toggleReceiving(no){
   if(!_dispSheet)return;
-  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>{
-    if(it.no!==no)return it;
-    return{...it,receiving:!it.receiving};
-  });
-  _dispSw.openNo=null;
-  render();
+  const it=_dispSheet.inv.items.find(i=>i.no===no);
+  if(it&&it.receiving){
+    _dispSheet.inv.items=_dispSheet.inv.items.map(i=>i.no!==no?i:{...i,receiving:false,receivingDate:null});
+    _dispSw.openNo=null;render();
+  }else{
+    const dates=[...new Set(loadList().filter(e=>!e.archived&&e.date).map(e=>e.date))].sort((a,b)=>_parseInvDate(b)-_parseInvDate(a));
+    _recDatePicker={no,dates,selected:dates[0]||''};
+    render();
+  }
 }
+function confirmRecDate(){
+  if(!_recDatePicker||!_dispSheet)return;
+  const {no,selected}=_recDatePicker;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,receiving:true,receivingDate:selected||null});
+  _recDatePicker=null;_dispSw.openNo=null;render();
+}
+function cancelRecDate(){_recDatePicker=null;_dispSw.openNo=null;render();}
+function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function defToggleOk(no){
   if(_defOkSet.has(no))_defOkSet.delete(no);
   else _defOkSet.add(no);
@@ -432,8 +445,8 @@ function openDispSheet(id){
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
     // snapshot original disposition values for dirty detection
-    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;});
+    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;});
     if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
     _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv};render();
@@ -444,8 +457,8 @@ function openDefSheet(id){
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
     const inv=JSON.parse(d);
-    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;});
+    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;});
     _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
@@ -463,7 +476,7 @@ function _dispIsDirty(){
   if(!_dispSheet)return false;
   if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||''));
   const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
-  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false));
+  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false)||(it.receivingDate||null)!==(_dispOrigRecDate[it.no]||null));
 }
 function saveDispSheet(){
   if(!_dispSheet)return;
@@ -482,7 +495,7 @@ function saveDispSheet(){
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}
   _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
-  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};render();
+  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_recDatePicker=null;render();
 }
 function setPnInSheet(no,val){
   if(!_dispSheet)return;
@@ -681,10 +694,10 @@ function tryCloseDispSheet(){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
       saveDispSheet();
     }else{
-      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};render();
+      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_recDatePicker=null;render();
     }
   }else{
-    _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};render();
+    _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_recDatePicker=null;render();
   }
 }
 function _swGetXY(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
@@ -1990,7 +2003,7 @@ function defAreaHtml(it){
     </div>`:``;
   const dispHtml=(it.disp||it.receiving)?`<div class="disp-row" style="flex-wrap:wrap;gap:4px">
     ${it.disp?`<span class="disp-lbl">DISP</span><span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>`:''}
-    ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">Receiving</span>`:''}
+    ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">Receiving${it.receivingDate?' · '+it.receivingDate:''}</span>`:''}
   </div>`:'';
   if(isOpen){
     return defPickerHtml(it)+`
@@ -2934,6 +2947,7 @@ function render(){
               <span style="font-size:13px;font-weight:500;color:${it.receiving?'var(--blue)':'inherit'};${it.receiving?'border:1px solid var(--blue);border-radius:4px;padding:1px 5px;':''}">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>
             </div>
             ${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}
+            ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">入庫日: ${esc(it.receivingDate)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
@@ -2969,6 +2983,20 @@ function render(){
         <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>
         <button id="disp-done-btn" class="btn blk" style="margin-top:0;flex:2;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
       </div>
+    </div>
+  </div>`;
+})()}${(()=>{
+  if(!_recDatePicker)return '';
+  const dp=_recDatePicker;
+  return `<div class="overlay" onclick="if(event.target===this)cancelRecDate()" style="z-index:300">
+    <div class="sheet" style="max-height:70vh;overflow-y:auto">
+      <div class="sheet-tit">入庫日を選択<button class="close-btn" onclick="cancelRecDate()">×</button></div>
+      ${dp.dates.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスの日付がありません</div>`
+        :dp.dates.map(d=>`<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);cursor:pointer">
+          <input type="radio" name="rec-date" ${dp.selected===d?'checked':''} onchange="setRecDate('${d}')">
+          <span style="font-size:14px;${dp.selected===d?'color:var(--blue);font-weight:600':''}">${d}</span>
+        </label>`).join('')}
+      <button class="btn blk" style="margin-top:14px" onclick="confirmRecDate()">CONFIRM</button>
     </div>
   </div>`;
 })()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`

@@ -496,6 +496,7 @@ function saveDispSheet(){
       saveList(list);
     }
   }catch(e){console.warn('saveDispSheet failed:',e);}
+  if(S.invoiceId===_dispSheet.id)S.invoice=_dispSheet.inv;
   _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
   _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_recDatePicker=null;render();
 }

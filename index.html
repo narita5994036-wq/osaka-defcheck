@@ -860,20 +860,27 @@ async function _gistDoPull(){
       saveList(newList);
       _skipped=_skipped.filter(s=>s!=='list');
     }
+    // Repo設定を他デバイスへ自動反映
+    if(data.files['settings.json']){
+      const c=await getC(data.files['settings.json']);
+      if(c){try{const st=JSON.parse(c);if(st.repo&&!gRepo())localStorage.setItem(GK_REPO,st.repo);}catch(e){}}
+    }
     // 写真同期: photo_index.json + Releases（設定済み）、なければ legacy photos.json
-    if(data.files['photo_index.json']&&gRepo()){
+    if(data.files['photo_index.json']){
       const c=await getC(data.files['photo_index.json']);
       if(c){
         const idx=JSON.parse(c);_photoIdx=idx;
-        const repo=gRepo();
-        const needed=new Set();
-        for(const fn of Object.keys(_invLoaded)){
-          try{const inv=JSON.parse(_invLoaded[fn]);inv.items.forEach(it=>{(it.photos||[]).concat(it.origPhotos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))needed.add(k);});});}catch(e){}
-        }
-        for(const key of needed){
-          if(!_pc[key]&&idx[key]){
-            try{const url=await _ghDownloadAsset(repo,idx[key]);idbPut(key,url);}
-            catch(e){console.warn('Photo download failed:',key,e.message);}
+        if(gRepo()){
+          const repo=gRepo();
+          const needed=new Set();
+          for(const fn of Object.keys(_invLoaded)){
+            try{const inv=JSON.parse(_invLoaded[fn]);inv.items.forEach(it=>{(it.photos||[]).concat(it.origPhotos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))needed.add(k);});});}catch(e){}
+          }
+          for(const key of needed){
+            if(!_pc[key]&&idx[key]){
+              try{const url=await _ghDownloadAsset(repo,idx[key]);idbPut(key,url);}
+              catch(e){console.warn('Photo download failed:',key,e.message);}
+            }
           }
         }
       }else _skipped.push('photos');
@@ -912,6 +919,7 @@ async function gistPush(){
     // 写真: Releases（repo設定済み）または Legacy photos.json
     if(gRepo()){
       await _pushPhotosToRelease(gRepo(),cur,files);
+      files['settings.json']={content:JSON.stringify({repo:gRepo()})};
     }else{
       const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
       files['photos.json']={content:JSON.stringify(photos)};
@@ -1038,8 +1046,8 @@ function _deletePhoto(key){
   }
 }
 async function _pushPhotosToRelease(repo,cur,files){
-  let existingIdx={};
-  if(cur&&cur.files['photo_index.json']&&!cur.files['photo_index.json'].truncated){
+  let existingIdx=_photoIdx||{};
+  if(!_photoIdx&&cur&&cur.files['photo_index.json']&&!cur.files['photo_index.json'].truncated){
     try{existingIdx=JSON.parse(cur.files['photo_index.json'].content||'{}');}catch(e){}
   }
   const relId=await _ghGetOrCreateRelease(repo);

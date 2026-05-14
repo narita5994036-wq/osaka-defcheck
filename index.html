@@ -908,50 +908,53 @@ async function gistPush(){
   S.pushing=true;_syncSt='push';_syncMsg='';render();
   try{
     const list=loadList();
-    const files={};
-    list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d){try{const inv=JSON.parse(d);const clean={...inv,items:inv.items.map(it=>({...it,photos:(it.photos||[]).filter(p=>p&&!p.startsWith('data:'))}))};files['inv_'+e.id+'.json']={content:JSON.stringify(clean)};}catch(x){files['inv_'+e.id+'.json']={content:d};}}});
     const gistId=gId();
-    let cur=null;
-    // Gistの現在の内容を取得してリストをマージ（他デバイスのインボイスを消さないため）
+    // Step1: インボイスファイルを構築（写真データを除外）
+    const invFiles={};
+    list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d){try{const inv=JSON.parse(d);const clean={...inv,items:inv.items.map(it=>({...it,photos:(it.photos||[]).filter(p=>p&&!p.startsWith('data:'))}))};invFiles['inv_'+e.id+'.json']={content:JSON.stringify(clean)};}catch(x){invFiles['inv_'+e.id+'.json']={content:d};}}});
+    // Step2: リマートのlist.jsonと合算（他デバイスのインボイスを消さない）—失敗しても続行
     let mergedList=[...list];
+    let _cur=null;
     if(gistId){
-      cur=await _gFetch('https://api.github.com/gists/'+gistId+'?_t='+Date.now());
       try{
-        const lf=cur.files['list.json'];
+        _cur=await _gFetch('https://api.github.com/gists/'+gistId+'?_t='+Date.now());
+        const lf=_cur.files['list.json'];
         if(lf){
           const rc=lf.truncated?await fetch(lf.raw_url,{headers:{'Authorization':'token '+gPat()}}).then(r=>r.text()):lf.content;
-          if(rc){
-            const remoteList=JSON.parse(rc);
-            const localIds=new Set(list.map(e=>e.id));
-            for(const e of remoteList){if(!localIds.has(e.id))mergedList.push(e);}
-          }
+          if(rc){const remoteList=JSON.parse(rc);const localIds=new Set(list.map(e=>e.id));for(const e of remoteList){if(!localIds.has(e.id))mergedList.push(e);}}
         }
-      }catch(mergeErr){console.warn('List merge failed (local only):',mergeErr.message);}
+      }catch(fetchErr){console.warn('Gist fetch for merge skipped:',fetchErr.message);}
     }
-    files['list.json']={content:JSON.stringify(mergedList)};
-    // 写真: 失敗してもインボイスPushをブロックしない
-    try{
-      if(gRepo()){
-        await _pushPhotosToRelease(gRepo(),cur,files);
-        files['settings.json']={content:JSON.stringify({repo:gRepo()})};
-      }else{
-        const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
-        files['photos.json']={content:JSON.stringify(photos)};
-      }
-    }catch(photoErr){console.warn('Photo push failed (non-fatal):',photoErr.message);}
+    invFiles['list.json']={content:JSON.stringify(mergedList)};
+    // Step3: インボイスデータのみGist PATCH（写真は一切含まない）
     let data;
     if(gistId){
-      data=await _gFetch('https://api.github.com/gists/'+gistId,{method:'PATCH',body:JSON.stringify({files})});
+      data=await _gFetch('https://api.github.com/gists/'+gistId,{method:'PATCH',body:JSON.stringify({files:invFiles})});
     }else{
-      data=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files})});
+      data=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files:invFiles})});
       localStorage.setItem(GK_ID,data.id);
     }
     localStorage.setItem(GK_AT,new Date().toISOString());
     _markClean();_syncSt='ok';
     const finalId=gistId||data.id;
     _syncMsg='Push完了 (Gist: '+(finalId?finalId.slice(0,8)+'…':'new')+' / '+list.length+'件)';
+    // Step4: 写真同期は完全に分離して非同期実行（インボイス同期とは独立）
+    _pushPhotosSilent(finalId,_cur).catch(e=>console.warn('Photo sync (bg) failed:',e.message));
   }catch(e){_syncSt='err';_syncMsg='Push失敗: '+e.message;alert('Push失敗: '+e.message);}
   S.pushing=false;render();setTimeout(()=>{if(_syncSt==='ok'){_syncSt=null;render();}},3000);
+}
+async function _pushPhotosSilent(gistId,cur){
+  const photoFiles={};
+  if(gRepo()){
+    await _pushPhotosToRelease(gRepo(),cur,photoFiles);
+    photoFiles['settings.json']={content:JSON.stringify({repo:gRepo()})};
+  }else{
+    const photos={};Object.keys(_pc).forEach(k=>{photos[k]=_pc[k];});
+    if(!Object.keys(photos).length)return;
+    photoFiles['photos.json']={content:JSON.stringify(photos)};
+  }
+  if(Object.keys(photoFiles).length)
+    await _gFetch('https://api.github.com/gists/'+gistId,{method:'PATCH',body:JSON.stringify({files:photoFiles})});
 }
 async function gistPull(){
   if(!gPat()||!gId()){alert('TokenとGist IDを設定してください');return;}

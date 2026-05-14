@@ -1407,18 +1407,22 @@ function parseMykita(text){
 
   // Item lines: anchor on Delivery# (8-digit, e.g. 81299521) then HS-Code (8-digit), DE, prices, JPY
   // Columns: Position Qty Unit Item# [Description Color CustomerRef OrderNo] Delivery# [SUN/RX] [Material] HS-Code DE UnitPrice TotalPrice JPY
-  const re=/^[ \t]*(\d{1,2})[ \t]+(\d+)[ \t]+(PC|PA)[ \t]+(\d{8})[ \t]+(.+?)[ \t]+(\d{8})[ \t]+(?:SUN[ \t]+|RX[ \t]+)?(?:metal[ \t]+|acetate[ \t]+|MYLON[ \t]+|plastic[ \t]+)?(\d{8})[ \t]+DE[ \t]+(\d+)[ \t]+\d+[ \t]+JPY/gm;
+  const re=/^[ \t]*(\d{1,2})[ \t]+(\d+)[ \t]+(PC|PA)[ \t]+(\d{8})[ \t]+(.+?)[ \t]+(\d{8})[ \t]+(SUN[ \t]+|RX[ \t]+)?(?:metal[ \t]+|acetate[ \t]+|MYLON[ \t]+|plastic[ \t]+)?(\d{8})[ \t]+DE[ \t]+(\d+)[ \t]+\d+[ \t]+JPY/gm;
   const items=[];
   let m;
   while((m=re.exec(text))!==null){
     const pos=m[1],qty=m[2],unit=m[3],itemNo=m[4];
     const descRaw=m[5].trim();
-    // m[6]=delivery#, m[7]=HS-Code, m[8]=unitPrice
-    const hsCode=m[7],unitPrice=m[8];
-    // Category from HS code
-    let cat='rx';
+    // m[6]=delivery#, m[7]=SUN/RX column (undefined if blank), m[8]=HS-Code, m[9]=unitPrice
+    const sunRxCol=(m[7]||'').trim().toUpperCase();
+    const hsCode=m[8],unitPrice=m[9];
+    // Category: HS code takes priority, then RX/SUN column; blank column → PARTS
+    let cat;
     if(hsCode==='90039000')cat='parts';
     else if(hsCode==='90041091')cat='sun';
+    else if(sunRxCol.startsWith('SUN'))cat='sun';
+    else if(sunRxCol.startsWith('RX'))cat='rx';
+    else cat='parts';  // RX/SUN列が空欄 → PARTS
     // Extract color code for non-parts items
     let name=descRaw,colorCode='';
     if(cat!=='parts'){

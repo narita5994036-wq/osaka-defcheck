@@ -876,12 +876,15 @@ async function _gistDoPull(){
           for(const fn of Object.keys(_invLoaded)){
             try{const inv=JSON.parse(_invLoaded[fn]);inv.items.forEach(it=>{(it.photos||[]).concat(it.origPhotos||[]).forEach(k=>{if(k&&!k.startsWith('data:'))needed.add(k);});});}catch(e){}
           }
-          for(const key of needed){
-            if(!_pc[key]&&idx[key]){
-              try{const url=await _ghDownloadAsset(repo,idx[key]);idbPut(key,url);}
-              catch(e){console.warn('Photo download failed:',key,e.message);}
+          // バックグラウンドでダウンロード — Pull完了・インボイス表示をブロックしない
+          (async()=>{
+            for(const key of needed){
+              if(!_pc[key]&&idx[key]){
+                try{const url=await _ghDownloadAsset(repo,idx[key]);idbPut(key,url);_schedulePhotoRender();}
+                catch(e){console.warn('Photo download failed:',key,e.message);}
+              }
             }
-          }
+          })();
         }
       }else _skipped.push('photos');
     }else if(data.files['photos.json']){

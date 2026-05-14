@@ -1180,6 +1180,7 @@ function registerInvoice(inv){
   const pend=inv.items.filter(i=>i.status==='pending').length;
   list.unshift({id,number:inv.number,date:inv.date||'',createdAt:new Date().toISOString(),archived:false,tot,pend});
   saveList(list);
+  _invsDirty=true;_dirty=true;
   try{localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));}catch(e){console.warn('registerInvoice save failed:',e);}
 }
 function openInvoice(id){
@@ -3261,12 +3262,20 @@ function cancelMarkup(){
   render();
 }
 
-/* ── 閉じる前にPush確認 / バックグラウンド時に自動Push ── */
+/* ── 閉じる前にPush確認 / バックグラウンド時に自動Push / フォアグラウンド時に自動Pull ── */
 window.addEventListener('beforeunload',e=>{
   if(_dirty&&gPat()&&gId()){e.preventDefault();e.returnValue='';}
 });
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'&&_dirty&&gPat()&&gId())gistPush().catch(()=>{});
+  if(document.visibilityState==='hidden'){
+    if(_dirty&&gPat()&&gId())gistPush().catch(()=>{});
+  }else if(document.visibilityState==='visible'){
+    if(S.screen==='home'&&gPat()&&gId()&&!_gistPulling&&!S.pushing){
+      const lastAt=gAt();
+      const diffMin=lastAt?(Date.now()-new Date(lastAt).getTime())/60000:Infinity;
+      if(diffMin>1)gistAutoSync();
+    }
+  }
 });
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='s'){

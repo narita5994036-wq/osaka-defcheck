@@ -3128,7 +3128,7 @@ function render(){
   const ds=_dispSheet;
   const defs=ds.inv.items.filter(i=>i.status==='defective');
   const dispDirty=_dispIsDirty();
-  const _dsOrderMap=ds.pnOnly?buildOrderNoMap():{};
+  const _dsOrderMap=buildOrderNoMap();
   return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
       <div class="sheet-tit">${ds.pnOnly?'DEFECTIVE LIST':'DISPOSITION'}<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
@@ -3137,20 +3137,20 @@ function render(){
         :defs.map(it=>{
           const pos=it.subOf||it.no;
           const isOk=_defOkSet.has(it.no);
-          const _dnpSc=ds.pnOnly&&it.pn?getDnpSc(it.pn,_dsOrderMap):null;
+          const _dnpSc=it.pn?getDnpSc(it.pn,_dsOrderMap):null;
           const _dnpBadge=_dnpSc?`<span onclick="event.stopPropagation();toggleDefDetail('${it.no}')" style="font-size:8px;letter-spacing:1px;font-weight:700;color:${_dnpSc==='DNP'?'var(--red)':'var(--amber)'};border:1px solid ${_dnpSc==='DNP'?'var(--red)':'var(--amber)'};border-radius:3px;padding:1px 5px;margin-left:4px;cursor:pointer">${_dnpSc}</span>`:'';
-          const _showDetail=ds.pnOnly&&_defDetailNo===it.no;
-          const _detailMatches=ds.pnOnly&&it.pn?(_dsOrderMap[it.pn]||[]):[];
+          const _showDetail=_defDetailNo===it.no;
+          const _detailMatches=it.pn?(_dsOrderMap[it.pn]||[]):[];
           const innerContent=`
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
               <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
               <span onclick="event.stopPropagation();toggleDefDetail('${it.no}')" style="font-size:13px;font-weight:500;color:${it.receiving?'var(--blue)':'inherit'};${it.receiving?'border:1px solid var(--blue);border-radius:4px;padding:1px 5px;':''}cursor:pointer">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>${_dnpBadge}
             </div>
             ${_showDetail?`<div style="margin-bottom:8px;padding:6px 10px;background:var(--g50);border-radius:4px;font-size:10px;line-height:1.7">
-              <div><span style="color:var(--g400)">DISP</span> <span style="color:var(--k);font-weight:600">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span></div>
+              ${ds.pnOnly?`<div><span style="color:var(--g400)">DISP</span> <span style="color:var(--k);font-weight:600">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span></div>`:''}
               ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">${esc(it.orderNo)}</span></div>`:''}
               ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> <span style="color:var(--g800)">${esc(it.custRef)}</span></div>`:''}
-              ${_detailMatches.length>0?`<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--g200)"><span style="font-size:9px;letter-spacing:1px;color:var(--g400)">PN MATCH</span>${_detailMatches.map(m=>`<div><span style="color:var(--g600)">${esc(m.invNumber)}</span>${m.custRef?` <span style="color:${m.custRef.includes('def')?'var(--red)':'var(--g600)'}">${esc(m.custRef)}</span>`:''}</div>`).join('')}</div>`:_dnpSc?'':(it.pn?`<div style="color:var(--g400);font-size:9px">オーダー照合なし</div>`:'')}
+              ${_detailMatches.length>0?`<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--g200)"><span style="font-size:9px;letter-spacing:1px;color:var(--g400)">PN MATCH</span>${_detailMatches.map(m=>`<div><span style="color:var(--g600)">${esc(m.invNumber)}</span>${m.custRef?` <span style="color:${m.custRef.includes('def')?'var(--red)':'var(--g600)'}">${esc(m.custRef)}</span>`:''}</div>`).join('')}</div>`:_dnpSc?'':(it.pn?`<div style="color:var(--g400);font-size:9px">オーダー照合なし</div>`:(!it.orderNo&&!it.custRef?`<div style="color:var(--g400);font-size:9px">詳細情報なし</div>`:''))}
             </div>`:''}
             ${_dispRemarkEditNo===it.no
               ?`<div style="margin-bottom:8px" onclick="event.stopPropagation()">

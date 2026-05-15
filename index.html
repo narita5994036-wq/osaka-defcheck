@@ -3161,7 +3161,7 @@ function render(){
                   </div>
                 </div>`
               :`${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}`}
-            ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">参照INV: ${esc(it.receivingDate)}</div>`:''}
+            ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">対応INV: ${esc(it.receivingDate)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}

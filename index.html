@@ -291,6 +291,8 @@
   .isw-btn.isw-del{background:var(--red)}
   @keyframes disp-hop{0%{transform:translateY(0)}20%{transform:translateY(-9px)}40%{transform:translateY(-2px)}60%{transform:translateY(-6px)}80%{transform:translateY(-1px)}100%{transform:translateY(0)}}
   .disp-hop{animation:disp-hop 0.7s ease;}
+  @keyframes pn-blink{0%,100%{opacity:1}50%{opacity:0.25}}
+  .pn-badge{animation:pn-blink 1.2s ease-in-out infinite;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 5px}
   .inv-card{border:1px solid var(--g200);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--w);position:relative;z-index:1}
   .inv-card:active{background:var(--g50)}
   .inv-card.arc .inv-card-body,.inv-card.arc .inv-card-arr{opacity:.45}
@@ -2755,7 +2757,7 @@ function render(){
                 ?` &nbsp;<span style="color:${grpAllOk?'var(--green)':grpDefCnt?'var(--red)':'var(--g400)'}">${grpAllOk?'ALL OK':grpDefCnt?`OK ${grpOkCnt} · D ${grpDefCnt} / ${grpAll.length}点`:`${grpAll.length}点 未検品`}</span>`
                 :'';
               const _grpClDet=_clDetailNo===it.subOf;
-              const _grpPnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span style="font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:1px 5px">✔︎PN</span>`:'';
+              const _grpPnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span class="pn-badge">Matches PN</span>`:'';
               html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
@@ -2794,7 +2796,7 @@ function render(){
               const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
                 ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫リストから除外':'入庫'}</button>`:'';
               const _clDet=_clDetailNo===it.no;
-              const _pnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span style="font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:1px 5px">✔︎PN</span>`:'';
+              const _pnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span class="pn-badge">Matches PN</span>`:'';
               html+=`<div class="item" data-search-name="${esc(it.name)}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>

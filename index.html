@@ -532,17 +532,23 @@ function savePnListChanges(){
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
-function buildPnSet(){
-  const set=new Set();
+function buildPnMap(){
+  const map=new Map();
   const list=loadList();
   for(const e of list){
     try{
       const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)continue;
       const inv=JSON.parse(d);
-      for(const it of inv.items){if(it.status==='defective'&&it.pn)set.add(it.pn.trim());}
+      for(const it of inv.items){
+        if(it.status==='defective'&&it.pn){
+          const pn=it.pn.trim();
+          if(!map.has(pn))map.set(pn,[]);
+          map.get(pn).push({invNumber:inv.number||e.id,no:it.no});
+        }
+      }
     }catch(x){}
   }
-  return set;
+  return map;
 }
 function buildOrderNoMap(){
   const map={};
@@ -2741,7 +2747,7 @@ function render(){
       </div>
       <div class="cl">
         ${(()=>{
-          const _pnSet=buildPnSet();
+          const _pnMap=buildPnMap();
           let html='';
           vis.forEach(it=>{
             const sc=SCLS[it.status]||'';
@@ -2757,7 +2763,9 @@ function render(){
                 ?` &nbsp;<span style="color:${grpAllOk?'var(--green)':grpDefCnt?'var(--red)':'var(--g400)'}">${grpAllOk?'ALL OK':grpDefCnt?`OK ${grpOkCnt} · D ${grpDefCnt} / ${grpAll.length}点`:`${grpAll.length}点 未検品`}</span>`
                 :'';
               const _grpClDet=_clDetailNo===it.subOf;
-              const _grpPnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span class="pn-badge">Matches PN</span>`:'';
+              const _grpPnMatches=it.orderNo?(_pnMap.get(it.orderNo.trim())||[]):[];
+              const _grpPnTooltip=_grpPnMatches.map(m=>`/INV${m.invNumber}-${m.no}`).join(', ');
+              const _grpPnBadge=_grpPnMatches.length?`<span class="pn-badge" title="${esc(_grpPnTooltip)}">Matches PN</span>`:'';
               html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
@@ -2766,7 +2774,7 @@ function render(){
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点${statusSummary}</div>
                   <div style="font-size:10px;color:var(--g300);margin-top:2px">${collapsed?'▶':'▼'}</div>
                   ${_grpClDet?`<div style="margin-top:6px;padding:6px 10px;background:var(--g50);border-radius:4px;font-size:10px;line-height:1.8">
-                    ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">&nbsp;${esc(it.orderNo)}</span></div>`:''}
+                    ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">&nbsp;${esc(it.orderNo)}</span>${_grpPnMatches.map(m=>`<span style="color:var(--blue);font-size:9px;margin-left:6px">/INV${esc(m.invNumber)}-${esc(m.no)}</span>`).join('')}</div>`:''}
                     ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> <span style="color:var(--g800)">&nbsp;${esc(it.custRef)}</span></div>`:''}
                     ${!it.orderNo&&!it.custRef?`<div style="color:var(--g400);font-size:9px">詳細情報なし</div>`:''}
                   </div>`:''}
@@ -2796,7 +2804,9 @@ function render(){
               const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
                 ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫リストから除外':'入庫'}</button>`:'';
               const _clDet=_clDetailNo===it.no;
-              const _pnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span class="pn-badge">Matches PN</span>`:'';
+              const _pnMatches=it.orderNo?(_pnMap.get(it.orderNo.trim())||[]):[];
+              const _pnTooltip=_pnMatches.map(m=>`/INV${m.invNumber}-${m.no}`).join(', ');
+              const _pnBadge=_pnMatches.length?`<span class="pn-badge" title="${esc(_pnTooltip)}">Matches PN</span>`:'';
               html+=`<div class="item" data-search-name="${esc(it.name)}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
@@ -2809,7 +2819,7 @@ function render(){
                   <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
                 </div>
                 ${_clDet?`<div style="margin:0 0 8px 32px;padding:6px 10px;background:var(--g50);border-radius:4px;font-size:10px;line-height:1.8">
-                  ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">&nbsp;${esc(it.orderNo)}</span></div>`:''}
+                  ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">&nbsp;${esc(it.orderNo)}</span>${_pnMatches.map(m=>`<span style="color:var(--blue);font-size:9px;margin-left:6px">/INV${esc(m.invNumber)}-${esc(m.no)}</span>`).join('')}</div>`:''}
                   ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> <span style="color:var(--g800)">&nbsp;${esc(it.custRef)}</span></div>`:''}
                   ${!it.orderNo&&!it.custRef?`<div style="color:var(--g400);font-size:9px">詳細情報なし</div>`:''}
                 </div>`:''}

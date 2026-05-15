@@ -2553,7 +2553,7 @@ function render(){
       <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
-      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">PN SEARCH</button>
+      <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">PN SEARCH / Receiving process</button>
       <div style="margin:12px 20px 0;position:relative">
         <input id="home-search" type="text" inputmode="numeric" value="${esc(S.homeSearch)}" placeholder="インボイス番号を検索…"
           oninput="S.homeSearch=this.value;render()"

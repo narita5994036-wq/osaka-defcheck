@@ -424,8 +424,9 @@ function toggleReceiving(no){
     _dispSw.openNo=null;render();
   }else{
     const _rdEntries=loadList().filter(e=>!e.archived&&e.number).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    const dates=[...new Set(_rdEntries.map(e=>e.number).filter(Boolean))];
-    _recDatePicker={no,dates,selected:dates[0]||''};
+    const _seen=new Set();
+    const entries=_rdEntries.filter(e=>!_seen.has(e.number)&&_seen.add(e.number)).map(e=>({value:e.number,label:e.number+(e.createdAt?' ('+new Date(e.createdAt).toLocaleDateString('ja-JP')+')':'')}));
+    _recDatePicker={no,entries,selected:entries[0]?.value||''};
     render();
   }
 }
@@ -3174,10 +3175,11 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)cancelRecDate()" style="z-index:300">
     <div class="sheet" style="max-height:70vh;overflow-y:auto">
       <div class="sheet-tit">参照インボイスを選択<button class="close-btn" onclick="cancelRecDate()">×</button></div>
-      ${dp.dates.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスがありません</div>`
-        :dp.dates.map(d=>`<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);cursor:pointer">
-          <input type="radio" name="rec-date" ${dp.selected===d?'checked':''} onchange="setRecDate('${d}')">
-          <span style="font-size:14px;${dp.selected===d?'color:var(--blue);font-weight:600':''}">${d}</span>
+      <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:14px;padding:8px 10px;background:var(--g50);border-radius:4px">def new prodとして入荷した際のインボイス番号を参照してください</div>
+      ${dp.entries.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスがありません</div>`
+        :dp.entries.map(e=>`<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);cursor:pointer">
+          <input type="radio" name="rec-date" ${dp.selected===e.value?'checked':''} onchange="setRecDate('${e.value}')">
+          <span style="font-size:13px;${dp.selected===e.value?'color:var(--blue);font-weight:600':''}">${esc(e.label)}</span>
         </label>`).join('')}
       <button class="btn blk" style="margin-top:14px" onclick="confirmRecDate()">CONFIRM</button>
     </div>

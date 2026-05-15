@@ -312,7 +312,6 @@
   .disp-btn:active{opacity:.7}
   .disp-btn.ret{background:var(--redL);color:var(--red);border-color:var(--red)}
   .disp-btn.smp{background:var(--tealL);color:var(--teal);border-color:var(--teal)}
-  .disp-btn.snt{background:var(--amberL);color:var(--amber);border-color:var(--amber)}
   .disp-btn.rec{background:var(--blueL);color:var(--blue);border-color:var(--blue)}
   @media (min-width:768px){body{zoom:1.15}}
 </style>
@@ -3121,17 +3120,12 @@ function render(){
             ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">入庫日: ${esc(it.receivingDate)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
-              <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>
-              <button class="disp-btn${it.disp==='sent'?' snt':''}" onclick="setDispInSheet('${it.no}','sent')">Sent</button>`}
+              <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
               ${isOk
                 ?`<button onclick="defToggleOk('${it.no}')" style="font-size:10px;letter-spacing:1px;color:var(--green);font-weight:600;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">→ OK &nbsp;UNDO</button>`
-                :it.disp==='sent'
-                  ?`<input type="tel" id="pn-inp-${it.no}" value="${esc(it.pn||'')}" placeholder="PN"
-                    style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                    oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`
-                  :it.pn
-                    ?`<span style="font-size:11px;font-family:monospace;color:var(--g400);padding:4px 2px">${esc(it.pn)}</span>`
-                    :''}
+                :`<input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
+                  style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                  oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`}
             </div>`;
           if(ds.pnOnly){
             return `<div style="position:relative;overflow:hidden;margin-bottom:1px">

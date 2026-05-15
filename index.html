@@ -431,10 +431,23 @@ function toggleReceiving(no){
   }
 }
 function confirmRecDate(){
-  if(!_recDatePicker||!_dispSheet)return;
-  const {no,selected}=_recDatePicker;
-  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,receiving:true,receivingDate:selected||null});
-  _recDatePicker=null;_dispSw.openNo=null;render();
+  if(!_recDatePicker)return;
+  const {no,selected,context,invId}=_recDatePicker;
+  if(context==='pnList'){
+    try{
+      const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)return;
+      const inv=JSON.parse(d);
+      inv.items=inv.items.map(it=>it.no!==no?it:{...it,receiving:true,receivingDate:selected||null});
+      localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
+      const list=loadList();const idx=list.findIndex(e=>e.id===invId);
+      if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
+    }catch(e){console.warn('confirmRecDate pnList:',e);}
+    _recDatePicker=null;render();
+  }else{
+    if(!_dispSheet)return;
+    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,receiving:true,receivingDate:selected||null});
+    _recDatePicker=null;_dispSw.openNo=null;render();
+  }
 }
 function cancelRecDate(){_recDatePicker=null;_dispSw.openNo=null;render();}
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
@@ -476,11 +489,22 @@ function togglePnReceiving(invId,no){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)return;
     const inv=JSON.parse(d);
-    inv.items=inv.items.map(it=>it.no!==no?it:{...it,receiving:!it.receiving});
-    localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
-    const list=loadList();const idx=list.findIndex(e=>e.id===invId);
-    if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
-    render();
+    const it=inv.items.find(i=>i.no===no);
+    if(it&&it.receiving){
+      // UNDO
+      inv.items=inv.items.map(i=>i.no!==no?i:{...i,receiving:false,receivingDate:null});
+      localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
+      const list=loadList();const idx=list.findIndex(e=>e.id===invId);
+      if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
+      render();
+    }else{
+      // Open invoice picker
+      const _rdEntries=loadList().filter(e=>!e.archived&&e.number).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+      const _seen=new Set();
+      const entries=_rdEntries.filter(e=>!_seen.has(e.number)&&_seen.add(e.number)).map(e=>({value:e.number,label:e.number+(e.createdAt?' ('+new Date(e.createdAt).toLocaleDateString('ja-JP')+')':'')}));
+      _recDatePicker={no,invId,entries,selected:entries[0]?.value||'',context:'pnList'};
+      render();
+    }
   }catch(e){console.warn('togglePnReceiving:',e);}
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
@@ -3219,8 +3243,8 @@ function render(){
         <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px" onclick="event.stopPropagation()">
           <div style="font-size:9px;letter-spacing:1px;color:${it.disp==='return'?'var(--red)':it.disp==='sample'?'var(--teal)':it.disp==='sent'?'var(--amber)':'var(--g400)'}">${dispStr}</div>
           <button onclick="togglePnReceiving('${invId}','${it.no}')"
-            style="font-size:9px;letter-spacing:0.5px;padding:2px 8px;border-radius:3px;border:1px solid ${it.receiving?'var(--blue)':'var(--g200)'};background:${it.receiving?'var(--blue)':'transparent'};color:${it.receiving?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:${it.receiving?'600':'400'}">
-            ${it.receiving?'入庫除外':'RECE'}
+            style="font-size:9px;letter-spacing:0.5px;padding:2px 8px;border-radius:3px;border:1px solid ${it.receiving?'var(--blue)':'var(--g200)'};background:${it.receiving?'var(--blue)':'transparent'};color:${it.receiving?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:${it.receiving?'600':'400'};max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${it.receiving&&it.receivingDate?esc(it.receivingDate)+'で入庫':it.receiving?'入庫除外':'RECE'}
           </button>
         </div>
         <span style="font-size:11px;color:var(--g400);cursor:pointer">${isOpen?'▲':'▼'}</span>

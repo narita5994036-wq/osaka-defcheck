@@ -3196,11 +3196,11 @@ function render(){
     }catch(x){}
   }
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
-  const _q=_pnSearch.trim().toLowerCase();
+  const _q=_pnSearch.trim();
   const _filtered=_q?_defItems.filter(({it,inv})=>
-    (it.pn||'').toLowerCase().includes(_q)||
-    (it.name||'').toLowerCase().includes(_q)||
-    (inv.number||'').toLowerCase().includes(_q)
+    (it.pn||'').startsWith(_q)||
+    (it.name||'').toLowerCase().includes(_q.toLowerCase())||
+    (inv.number||'').includes(_q)
   ):_defItems;
   const _badge=pn=>{const tag=getDnpSc(pn,_om);if(!tag)return '';const col=tag==='DNP'?'var(--red)':'var(--amber)';return `<span style="font-size:8px;letter-spacing:1px;font-weight:700;color:${col};border:1px solid ${col};border-radius:3px;padding:1px 5px;margin-left:4px">${tag}</span>`;};
   const rows=_filtered.map(({it,inv,invId})=>{
@@ -3237,9 +3237,9 @@ function render(){
     <div class="sheet">
       <div class="sheet-tit">PN SEARCH<button class="close-btn" onclick="closePnList()">×</button></div>
       <div style="position:relative;margin-bottom:12px">
-        <input id="pn-search-inp" type="text" inputmode="search" value="${esc(_pnSearch)}" placeholder="PNで検索…"
-          oninput="_pnSearch=this.value;render()"
-          style="width:100%;padding:8px 30px 8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
+        <input id="pn-search-inp" type="tel" inputmode="numeric" pattern="[0-9]*" value="${esc(_pnSearch)}" placeholder="123456"
+          oninput="_pnSearch=this.value.replace(/[^0-9]/g,'');render()"
+          style="width:100%;padding:10px 36px 10px 12px;border:1px solid var(--g200);border-radius:4px;font-size:16px;font-family:monospace;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box;letter-spacing:2px">
         ${_pnSearch?`<button onclick="_pnSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
       </div>
       <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:10px">${_filtered.length}件${_q?' / '+_defItems.length+'件中':''}</div>

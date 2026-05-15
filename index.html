@@ -477,6 +477,17 @@ function openDefSheet(id){
 }
 function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};render();}
 function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};render();}
+function tryClosePnList(){
+  if(Object.keys(_pnListChanges).length>0){
+    if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
+      savePnListChanges();
+    }else{
+      closePnList();
+    }
+  }else{
+    closePnList();
+  }
+}
 function togglePnDetail(key){_pnItemDetail=(_pnItemDetail===key)?null:key;render();}
 function togglePnReceiving(invId,no){
   try{
@@ -3267,9 +3278,9 @@ function render(){
       </div>`:''}
     </div>`;
   });
-  return `<div class="overlay" onclick="if(event.target===this)closePnList()" style="z-index:250">
+  return `<div class="overlay" onclick="if(event.target===this)tryClosePnList()" style="z-index:250">
     <div class="sheet">
-      <div class="sheet-tit">PN SEARCH<button class="close-btn" onclick="closePnList()">×</button></div>
+      <div class="sheet-tit">PN SEARCH<button class="close-btn" onclick="tryClosePnList()">×</button></div>
       <div style="position:relative;margin-bottom:12px">
         <input id="pn-search-inp" type="tel" inputmode="numeric" pattern="[0-9]*" value="${esc(_pnSearch)}" placeholder="123456"
           oninput="_pnSearch=this.value.replace(/[^0-9]/g,'');render()"

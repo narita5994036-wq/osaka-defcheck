@@ -530,6 +530,18 @@ function savePnListChanges(){
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
+function buildPnSet(){
+  const set=new Set();
+  const list=loadList();
+  for(const e of list){
+    try{
+      const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)continue;
+      const inv=JSON.parse(d);
+      for(const it of inv.items){if(it.status==='defective'&&it.pn)set.add(it.pn.trim());}
+    }catch(x){}
+  }
+  return set;
+}
 function buildOrderNoMap(){
   const map={};
   const list=loadList();
@@ -2727,6 +2739,7 @@ function render(){
       </div>
       <div class="cl">
         ${(()=>{
+          const _pnSet=buildPnSet();
           let html='';
           vis.forEach(it=>{
             const sc=SCLS[it.status]||'';
@@ -2742,12 +2755,14 @@ function render(){
                 ?` &nbsp;<span style="color:${grpAllOk?'var(--green)':grpDefCnt?'var(--red)':'var(--g400)'}">${grpAllOk?'ALL OK':grpDefCnt?`OK ${grpOkCnt} · D ${grpDefCnt} / ${grpAll.length}点`:`${grpAll.length}点 未検品`}</span>`
                 :'';
               const _grpClDet=_clDetailNo===it.subOf;
+              const _grpPnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span style="display:inline-block;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:1px 5px;margin-top:3px">✔︎PN</span>`:'';
               html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
                   <div class="item-tags">${catTag}</div>
                   <div class="grp-hdr-name" onclick="event.stopPropagation();toggleClDetail('${it.subOf}')" style="cursor:pointer">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点${statusSummary}</div>
+                  ${_grpPnBadge}
                   <div style="font-size:10px;color:var(--g300);margin-top:2px">${collapsed?'▶':'▼'}</div>
                   ${_grpClDet?`<div style="margin-top:6px;padding:6px 10px;background:var(--g50);border-radius:4px;font-size:10px;line-height:1.8">
                     ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace;color:var(--k)">&nbsp;${esc(it.orderNo)}</span></div>`:''}
@@ -2780,6 +2795,7 @@ function render(){
               const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
                 ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--teal)':'var(--g200)'};background:${it.smDone?'var(--teal)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫除外':'入庫'}</button>`:'';
               const _clDet=_clDetailNo===it.no;
+              const _pnBadge=it.orderNo&&_pnSet.has(it.orderNo.trim())?`<span style="display:inline-block;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:1px 5px;margin-top:3px">✔︎PN</span>`:'';
               html+=`<div class="item" data-search-name="${esc(it.name)}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
@@ -2787,6 +2803,7 @@ function render(){
                     <div class="item-tags">${catTag}</div>
                     <div class="item-name" onclick="event.stopPropagation();toggleClDetail('${it.no}')" style="cursor:pointer">${esc(it.name)}</div>
                     <div class="item-code">${esc(it.itemNo)}${it.colorCode?' · #'+it.colorCode:''}</div>
+                    ${_pnBadge}
                     ${smChip}
                   </div>
                   <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>

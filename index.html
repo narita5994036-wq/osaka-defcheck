@@ -340,7 +340,7 @@ let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,mov
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='';
-let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='';
+let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={};
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
 function defSwStart(e,no){
   const isTouch=!!e.touches;
@@ -434,14 +434,7 @@ function confirmRecDate(){
   if(!_recDatePicker)return;
   const {no,selected,context,invId}=_recDatePicker;
   if(context==='pnList'){
-    try{
-      const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)return;
-      const inv=JSON.parse(d);
-      inv.items=inv.items.map(it=>it.no!==no?it:{...it,receiving:true,receivingDate:selected||null});
-      localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
-      const list=loadList();const idx=list.findIndex(e=>e.id===invId);
-      if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
-    }catch(e){console.warn('confirmRecDate pnList:',e);}
+    _pnListChanges[invId+'|'+no]={receiving:true,receivingDate:selected||null};
     _recDatePicker=null;render();
   }else{
     if(!_dispSheet)return;
@@ -482,30 +475,46 @@ function openDefSheet(id){
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
 }
-function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';render();}
-function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';render();}
+function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};render();}
+function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};render();}
 function togglePnDetail(key){_pnItemDetail=(_pnItemDetail===key)?null:key;render();}
 function togglePnReceiving(invId,no){
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)return;
     const inv=JSON.parse(d);
     const it=inv.items.find(i=>i.no===no);
-    if(it&&it.receiving){
-      // UNDO
-      inv.items=inv.items.map(i=>i.no!==no?i:{...i,receiving:false,receivingDate:null});
-      localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
-      const list=loadList();const idx=list.findIndex(e=>e.id===invId);
-      if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
-      render();
+    if(!it)return;
+    const key=invId+'|'+no;
+    const pending=_pnListChanges[key];
+    const eff=pending!==undefined?{...it,...pending}:it;
+    if(eff.receiving){
+      _pnListChanges[key]={receiving:false,receivingDate:null};render();
     }else{
-      // Open invoice picker
       const _rdEntries=loadList().filter(e=>!e.archived&&e.number).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
       const _seen=new Set();
       const entries=_rdEntries.filter(e=>!_seen.has(e.number)&&_seen.add(e.number)).map(e=>({value:e.number,label:e.number+(e.createdAt?' ('+new Date(e.createdAt).toLocaleDateString('ja-JP')+')':'')}));
-      _recDatePicker={no,invId,entries,selected:entries[0]?.value||'',context:'pnList'};
-      render();
+      _recDatePicker={no,invId,entries,selected:entries[0]?.value||'',context:'pnList'};render();
     }
   }catch(e){console.warn('togglePnReceiving:',e);}
+}
+function savePnListChanges(){
+  const byInv={};
+  for(const key of Object.keys(_pnListChanges)){
+    const sep=key.indexOf('|');const invId=key.slice(0,sep);const no=key.slice(sep+1);
+    if(!byInv[invId])byInv[invId]={};byInv[invId][no]=_pnListChanges[key];
+  }
+  const list=loadList();
+  for(const invId of Object.keys(byInv)){
+    try{
+      const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)continue;
+      const inv=JSON.parse(d);const changes=byInv[invId];
+      inv.items=inv.items.map(it=>changes[it.no]!==undefined?{...it,...changes[it.no]}:it);
+      localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
+      const idx=list.findIndex(e=>e.id===invId);
+      if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;}
+    }catch(e){console.warn('savePnListChanges:',e);}
+  }
+  saveList(list);_pnListChanges={};closePnList();
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function buildOrderNoMap(){
@@ -3217,7 +3226,7 @@ function render(){
     try{
       const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)continue;
       const inv=JSON.parse(d);
-      inv.items.filter(i=>i.status==='defective'&&i.pn).forEach(it=>_defItems.push({it,inv,invId:e.id}));
+      inv.items.filter(i=>i.status==='defective'&&i.pn).forEach(it=>{const _k=e.id+'|'+it.no;const _p=_pnListChanges[_k];_defItems.push({it:_p!==undefined?{...it,..._p}:it,inv,invId:e.id});});
     }catch(x){}
   }
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
@@ -3273,6 +3282,7 @@ function render(){
         :_filtered.length===0
           ?'<div style="text-align:center;padding:20px;font-size:11px;color:var(--g400)">該当なし</div>'
           :rows.join('')}
+      ${_defItems.length>0?`<div style="margin-top:12px"><button class="btn blk" style="margin-top:0;opacity:${Object.keys(_pnListChanges).length>0?1:0.35}" onclick="savePnListChanges()">DONE</button></div>`:''}
     </div>
   </div>`;
 })()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`

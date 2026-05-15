@@ -319,7 +319,7 @@
 <body>
 <div id="app"></div>
 <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="onGalleryChange(this)">
-<input type="file" id="reparse-input" accept=".pdf" style="display:none" onchange="handleReparseFile(this.files[0]);this.value=''">
+<input type="file" id="reparse-input" accept=".pdf" style="display:none" onchange="handleReparseByNumber(this.files[0]);this.value=''">
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -530,36 +530,6 @@ function savePnListChanges(){
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
-function reindexOrderNos(){
-  const list=loadList();
-  let updatedItems=0,updatedInvs=0;
-  for(const e of list){
-    try{
-      const d=localStorage.getItem('mykita_dc_inv_'+e.id);
-      if(!d)continue;
-      const inv=JSON.parse(d);
-      let changed=false;
-      for(const it of inv.items){
-        if(it.orderNo)continue;
-        const src=it.name||'';
-        const onm=src.match(/\b(\d{6,7})\b/);
-        if(!onm)continue;
-        it.orderNo=onm[1];
-        const afterIdx=src.indexOf(onm[0])+onm[0].length;
-        it.custRef=src.slice(afterIdx).replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s{2,}/g,' ').trim().toLowerCase();
-        changed=true;
-        updatedItems++;
-      }
-      if(changed){
-        try{localStorage.setItem('mykita_dc_inv_'+e.id,JSON.stringify(inv));}catch(x){}
-        updatedInvs++;
-        _invsDirty=true;
-      }
-    }catch(x){}
-  }
-  if(_invsDirty){const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}
-  alert('再インデックス完了\n'+updatedInvs+'件のインボイス・'+updatedItems+'件のアイテムを更新しました\n\n変更を保存するにはPushしてください');
-}
 function buildOrderNoMap(){
   const map={};
   const list=loadList();
@@ -1405,7 +1375,6 @@ function invCardHtml(e,isArchived){
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
       <button class="isw-btn isw-csv" onclick="openCsvPicker('${e.id}')">CSV</button>
-      <button class="isw-btn" style="background:var(--amber);color:#fff;font-size:8px;letter-spacing:.5px" onclick="event.stopPropagation();startReparse('${e.id}')">RE<br>PARSE</button>
     </div>
     <div class="inv-swipe-right">
       <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0;margin-right:4px"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>SENT`:'UNSENT'}</button>
@@ -1507,14 +1476,8 @@ function initApp(){
 }
 
 /* PDF EXTRACTION */
-let _reparseTgt=null;
-function startReparse(invId){_reparseTgt=invId;document.getElementById('reparse-input').click();}
-async function handleReparseFile(f){
-  if(!f||!_reparseTgt)return;
-  const invId=_reparseTgt;_reparseTgt=null;
-  const d=localStorage.getItem('mykita_dc_inv_'+invId);
-  if(!d){alert('インボイスデータが見つかりません');return;}
-  const existing=JSON.parse(d);
+async function handleReparseByNumber(f){
+  if(!f)return;
   try{
     const buf=await f.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;
@@ -1527,42 +1490,36 @@ async function handleReparseFile(f){
       Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>{const line=rows[y].sort((a,b)=>a.x-b.x).map(i=>i.t).join(' ').trim();if(line)text+=line+'\n';});
     }
     const newInv=parseMykita(text);
-    if(!newInv||!newInv.items.length){alert('PDFを解析できませんでした。正しいMYKITA ProformaインボイスPDFか確認してください。');return;}
-    // Merge: update parsed fields, preserve existing data
-    const KEEP=['status','remark','defects','stampNo','photos','origPhotos','pn','disp','receiving','receivingDate','smDone'];
-    const existingByNo={};
-    existing.items.forEach(it=>existingByNo[it.no]=it);
-    const newByNo={};
-    newInv.items.forEach(it=>newByNo[it.no]=it);
-    // Start from new parse items, overlay preserved fields from existing
-    const merged=newInv.items.map(nit=>{
-      const ex=existingByNo[nit.no];
-      if(!ex)return nit;
-      const out={...nit};
-      KEEP.forEach(k=>{if(k in ex)out[k]=ex[k];});
-      return out;
-    });
-    // Append existing items not in new parse (rare, preserves defective data)
-    existing.items.forEach(ex=>{
-      if(!newByNo[ex.no])merged.push(ex);
-    });
-    const mergedInv={...newInv,items:merged};
-    localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(mergedInv));
-    // Update list entry stats
+    if(!newInv||!newInv.items.length){alert('PDFを解析できませんでした。\n正しいMYKITA Proforma Invoice PDFか確認してください。');return;}
+    // Find matching invoice by number
     const list=loadList();
-    const idx=list.findIndex(e=>e.id===invId);
+    const match=list.find(e=>e.number===newInv.number);
+    if(!match){alert('インボイス番号 "'+newInv.number+'" に一致するインボイスが見つかりません。');return;}
+    const d=localStorage.getItem('mykita_dc_inv_'+match.id);
+    if(!d){alert('インボイスデータが見つかりません');return;}
+    const existing=JSON.parse(d);
+    // Merge: update parsed fields, preserve user-entered data
+    const KEEP=['status','remark','defects','stampNo','photos','origPhotos','pn','disp','receiving','receivingDate','smDone'];
+    const existingByNo={};existing.items.forEach(it=>existingByNo[it.no]=it);
+    const newByNo={};newInv.items.forEach(it=>newByNo[it.no]=it);
+    const merged=newInv.items.map(nit=>{
+      const ex=existingByNo[nit.no];if(!ex)return nit;
+      const out={...nit};KEEP.forEach(k=>{if(k in ex)out[k]=ex[k];});return out;
+    });
+    existing.items.forEach(ex=>{if(!newByNo[ex.no])merged.push(ex);});
+    const mergedInv={...newInv,items:merged};
+    localStorage.setItem('mykita_dc_inv_'+match.id,JSON.stringify(mergedInv));
+    const idx=list.findIndex(e=>e.id===match.id);
     if(idx>=0){
       const defs=merged.filter(i=>i.status==='defective');
-      list[idx].tot=merged.length;
-      list[idx].pend=merged.filter(i=>i.status==='pending').length;
+      list[idx].tot=merged.length;list[idx].pend=merged.filter(i=>i.status==='pending').length;
       list[idx].number=mergedInv.number||list[idx].number;
-      list[idx].dispTotal=defs.length;
-      list[idx].dispSet=defs.filter(i=>i.disp).length;
+      list[idx].dispTotal=defs.length;list[idx].dispSet=defs.filter(i=>i.disp).length;
       list[idx].receCount=defs.filter(i=>i.receiving).length;
       saveList(list);
     }
     _invsDirty=true;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}
-    alert('再解析完了\n'+merged.length+'件のアイテムを更新しました\n\n変更を保存するにはPushしてください');
+    alert('再解析完了: '+newInv.number+'\n'+merged.length+'件のアイテムを更新しました\n\n変更を保存するにはPushしてください');
     render();
   }catch(e){alert('PDF読込エラー: '+e.message);}
 }
@@ -2011,7 +1968,7 @@ function buildEmail(){
 /* MICROSOFT GRAPH API */
 const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
-let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false;
+let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false,_settingsShowReparse=false;
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
@@ -3126,14 +3083,13 @@ function render(){
             </div>
           </div>`;
         })():''}
-        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
-          <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
+        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowReparse=!_settingsShowReparse;render()">
+          <span>PDF REPARSE</span><span style="font-size:12px">${_settingsShowReparse?'−':'+'}</span>
         </button>
-        <div style="border-top:1px solid var(--g100);margin-top:16px;padding-top:14px">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:600;margin-bottom:8px">DATA TOOLS</div>
-          <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:10px">既存インボイスのアイテムにOrder#・CustRefを遡及的に追加します。ディフェクティブ内容・スタンプ番号など全ての入力データは保持されます。</div>
-          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px" onclick="reindexOrderNos()">Order# / CustRef を再インデックス</button>
-        </div>
+        ${_settingsShowReparse?`<div style="padding-top:10px">
+          <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:10px">PDFをアップロードするとインボイス番号を照合し、一致するインボイスを再解析します。ディフェクティブ内容・スタンプ番号など全ての入力データは保持されます。</div>
+          <button class="btn out" style="margin-top:0" onclick="document.getElementById('reparse-input').click()">PDFを選択して再解析</button>
+        </div>`:''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
           <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
         </button>

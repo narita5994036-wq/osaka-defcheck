@@ -2765,7 +2765,7 @@ function render(){
               const _grpClDet=_clDetailNo===it.subOf;
               const _grpPnMatches=it.orderNo?(_pnMap.get(it.orderNo.trim())||[]):[];
               const _grpPnTooltip=_grpPnMatches.map(m=>`/PN MATCH：INV${m.invNumber}-${m.no}.`).join(', ');
-              const _grpPnBadge=_grpPnMatches.length?`<span class="pn-badge" title="${esc(_grpPnTooltip)}">Matches PN</span>`:'';
+              const _grpPnBadge=_grpPnMatches.length?`<span class="pn-badge" title="${esc(_grpPnTooltip)}">Matched PN</span>`:'';
               html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
@@ -2806,7 +2806,7 @@ function render(){
               const _clDet=_clDetailNo===it.no;
               const _pnMatches=it.orderNo?(_pnMap.get(it.orderNo.trim())||[]):[];
               const _pnTooltip=_pnMatches.map(m=>`/PN MATCH：INV${m.invNumber}-${m.no}.`).join(', ');
-              const _pnBadge=_pnMatches.length?`<span class="pn-badge" title="${esc(_pnTooltip)}">Matches PN</span>`:'';
+              const _pnBadge=_pnMatches.length?`<span class="pn-badge" title="${esc(_pnTooltip)}">Matched PN</span>`:'';
               html+=`<div class="item" data-search-name="${esc(it.name)}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>

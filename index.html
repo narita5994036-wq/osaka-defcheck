@@ -319,6 +319,7 @@
 <body>
 <div id="app"></div>
 <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="onGalleryChange(this)">
+<input type="file" id="reparse-input" accept=".pdf" style="display:none" onchange="handleReparseFile(this.files[0]);this.value=''">
 <button id="scroll-fab" class="fab" style="display:none" onclick="fabTap()">↓</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1404,6 +1405,7 @@ function invCardHtml(e,isArchived){
     <div class="inv-swipe-left">
       <button class="isw-btn isw-mail" onclick="quickMail('${e.id}')">MAIL</button>
       <button class="isw-btn isw-csv" onclick="openCsvPicker('${e.id}')">CSV</button>
+      <button class="isw-btn" style="background:var(--amber);color:#fff;font-size:8px;letter-spacing:.5px" onclick="event.stopPropagation();startReparse('${e.id}')">RE<br>PARSE</button>
     </div>
     <div class="inv-swipe-right">
       <button class="isw-btn isw-sent${e.sent?' on':''}" onclick="toggleSent('${e.id}')">${e.sent?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:block;flex-shrink:0;margin-right:4px"><path d="M22 2L11 13" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>SENT`:'UNSENT'}</button>
@@ -1505,6 +1507,65 @@ function initApp(){
 }
 
 /* PDF EXTRACTION */
+let _reparseTgt=null;
+function startReparse(invId){_reparseTgt=invId;document.getElementById('reparse-input').click();}
+async function handleReparseFile(f){
+  if(!f||!_reparseTgt)return;
+  const invId=_reparseTgt;_reparseTgt=null;
+  const d=localStorage.getItem('mykita_dc_inv_'+invId);
+  if(!d){alert('インボイスデータが見つかりません');return;}
+  const existing=JSON.parse(d);
+  try{
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const ct=await pg.getTextContent();
+      const rows={};
+      ct.items.forEach(item=>{const y=Math.round(item.transform[5]);if(!rows[y])rows[y]=[];rows[y].push({x:item.transform[4],t:item.str});});
+      Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>{const line=rows[y].sort((a,b)=>a.x-b.x).map(i=>i.t).join(' ').trim();if(line)text+=line+'\n';});
+    }
+    const newInv=parseMykita(text);
+    if(!newInv||!newInv.items.length){alert('PDFを解析できませんでした。正しいMYKITA ProformaインボイスPDFか確認してください。');return;}
+    // Merge: update parsed fields, preserve existing data
+    const KEEP=['status','remark','defects','stampNo','photos','origPhotos','pn','disp','receiving','receivingDate','smDone'];
+    const existingByNo={};
+    existing.items.forEach(it=>existingByNo[it.no]=it);
+    const newByNo={};
+    newInv.items.forEach(it=>newByNo[it.no]=it);
+    // Start from new parse items, overlay preserved fields from existing
+    const merged=newInv.items.map(nit=>{
+      const ex=existingByNo[nit.no];
+      if(!ex)return nit;
+      const out={...nit};
+      KEEP.forEach(k=>{if(k in ex)out[k]=ex[k];});
+      return out;
+    });
+    // Append existing items not in new parse (rare, preserves defective data)
+    existing.items.forEach(ex=>{
+      if(!newByNo[ex.no])merged.push(ex);
+    });
+    const mergedInv={...newInv,items:merged};
+    localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(mergedInv));
+    // Update list entry stats
+    const list=loadList();
+    const idx=list.findIndex(e=>e.id===invId);
+    if(idx>=0){
+      const defs=merged.filter(i=>i.status==='defective');
+      list[idx].tot=merged.length;
+      list[idx].pend=merged.filter(i=>i.status==='pending').length;
+      list[idx].number=mergedInv.number||list[idx].number;
+      list[idx].dispTotal=defs.length;
+      list[idx].dispSet=defs.filter(i=>i.disp).length;
+      list[idx].receCount=defs.filter(i=>i.receiving).length;
+      saveList(list);
+    }
+    _invsDirty=true;{const _ld=_listSnap!==null&&_listForSnap(loadList())!==_listSnap;_dirty=_ld||_invsDirty||!!_dispDirtyIds.size;}
+    alert('再解析完了\n'+merged.length+'件のアイテムを更新しました\n\n変更を保存するにはPushしてください');
+    render();
+  }catch(e){alert('PDF読込エラー: '+e.message);}
+}
 async function handleFile(f){
   if(!f)return;
   S.loading=true;S.rawText='';S.parseErr='';render();

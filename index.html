@@ -340,7 +340,7 @@ let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,mov
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='';
-let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null;
+let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='';
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
 function defSwStart(e,no){
   const isTouch=!!e.touches;
@@ -469,9 +469,20 @@ function openDefSheet(id){
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
 }
-function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;render();}
-function closePnList(){_pnListOpen=false;_pnItemDetail=null;render();}
+function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';render();}
+function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';render();}
 function togglePnDetail(key){_pnItemDetail=(_pnItemDetail===key)?null:key;render();}
+function togglePnReceiving(invId,no){
+  try{
+    const d=localStorage.getItem('mykita_dc_inv_'+invId);if(!d)return;
+    const inv=JSON.parse(d);
+    inv.items=inv.items.map(it=>it.no!==no?it:{...it,receiving:!it.receiving});
+    localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
+    const list=loadList();const idx=list.findIndex(e=>e.id===invId);
+    if(idx>=0){const defs=inv.items.filter(i=>i.status==='defective');list[idx].receCount=defs.filter(i=>i.receiving).length;saveList(list);}
+    render();
+  }catch(e){console.warn('togglePnReceiving:',e);}
+}
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function buildOrderNoMap(){
   const map={};
@@ -3183,12 +3194,17 @@ function render(){
     }catch(x){}
   }
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
+  const _q=_pnSearch.trim().toLowerCase();
+  const _filtered=_q?_defItems.filter(({it,inv})=>
+    (it.pn||'').toLowerCase().includes(_q)||
+    (it.name||'').toLowerCase().includes(_q)||
+    (inv.number||'').toLowerCase().includes(_q)
+  ):_defItems;
   const _badge=pn=>{const tag=getDnpSc(pn,_om);if(!tag)return '';const col=tag==='DNP'?'var(--red)':'var(--amber)';return `<span style="font-size:8px;letter-spacing:1px;font-weight:700;color:${col};border:1px solid ${col};border-radius:3px;padding:1px 5px;margin-left:4px">${tag}</span>`;};
-  const rows=_defItems.map(({it,inv,invId})=>{
+  const rows=_filtered.map(({it,inv,invId})=>{
     const key=invId+'|'+it.no;
     const isOpen=_pnItemDetail===key;
     const dispStr=it.disp?it.disp.charAt(0).toUpperCase()+it.disp.slice(1):'—';
-    const recStr=it.receiving?'入庫除外':'—';
     const matches=_om[it.pn]||[];
     return `<div style="border-bottom:1px solid var(--g100)">
       <div style="padding:10px 0;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="togglePnDetail('${key}')">
@@ -3197,11 +3213,14 @@ function render(){
           <div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name||'—')}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div>
           <div style="font-size:9px;color:var(--g400);margin-top:1px">${esc(inv.number||invId)}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0;padding-right:4px">
+        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px" onclick="event.stopPropagation()">
           <div style="font-size:9px;letter-spacing:1px;color:${it.disp==='return'?'var(--red)':it.disp==='sample'?'var(--amber)':'var(--g400)'}">${dispStr}</div>
-          <div style="font-size:9px;color:${it.receiving?'var(--blue)':'var(--g400)'}">${recStr}</div>
+          <button onclick="togglePnReceiving('${invId}','${it.no}')"
+            style="font-size:9px;letter-spacing:0.5px;padding:2px 8px;border-radius:3px;border:1px solid ${it.receiving?'var(--blue)':'var(--g200)'};background:${it.receiving?'var(--blue)':'transparent'};color:${it.receiving?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:${it.receiving?'600':'400'}">
+            ${it.receiving?'入庫除外':'RECE'}
+          </button>
         </div>
-        <span style="font-size:11px;color:var(--g400)">${isOpen?'▲':'▼'}</span>
+        <span style="font-size:11px;color:var(--g400);cursor:pointer">${isOpen?'▲':'▼'}</span>
       </div>
       ${isOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
         ${it.remark?`<div style="color:var(--red);margin-bottom:4px">▸ ${esc(it.remark)}</div>`:''}
@@ -3215,10 +3234,18 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)closePnList()" style="z-index:250">
     <div class="sheet">
       <div class="sheet-tit">PN SEARCH<button class="close-btn" onclick="closePnList()">×</button></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);margin-bottom:12px">PNが入力された全DEFアイテム (${_defItems.length}件)</div>
+      <div style="position:relative;margin-bottom:12px">
+        <input id="pn-search-inp" type="text" inputmode="search" value="${esc(_pnSearch)}" placeholder="PNで検索…"
+          oninput="_pnSearch=this.value;render()"
+          style="width:100%;padding:8px 30px 8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
+        ${_pnSearch?`<button onclick="_pnSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
+      </div>
+      <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:10px">${_filtered.length}件${_q?' / '+_defItems.length+'件中':''}</div>
       ${_defItems.length===0
         ?'<div style="text-align:center;padding:30px;font-size:11px;color:var(--g400)">PNが入力されたDEFアイテムがありません</div>'
-        :rows.join('')}
+        :_filtered.length===0
+          ?'<div style="text-align:center;padding:20px;font-size:11px;color:var(--g400)">該当なし</div>'
+          :rows.join('')}
     </div>
   </div>`;
 })()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`

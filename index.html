@@ -423,9 +423,8 @@ function toggleReceiving(no){
     _dispSheet.inv.items=_dispSheet.inv.items.map(i=>i.no!==no?i:{...i,receiving:false,receivingDate:null});
     _dispSw.openNo=null;render();
   }else{
-    const _rdEntries=loadList().filter(e=>!e.archived&&e.createdAt).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    const _rdSeen=new Set();
-    const dates=_rdEntries.map(e=>new Date(e.createdAt).toLocaleDateString('ja-JP')).filter(d=>_rdSeen.has(d)?false:(_rdSeen.add(d),true));
+    const _rdEntries=loadList().filter(e=>!e.archived&&e.number).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    const dates=[...new Set(_rdEntries.map(e=>e.number).filter(Boolean))];
     _recDatePicker={no,dates,selected:dates[0]||''};
     render();
   }
@@ -2143,7 +2142,7 @@ function defAreaHtml(it){
     </div>`:``;
   const dispHtml=(it.disp||it.receiving)?`<div class="disp-row" style="flex-wrap:wrap;gap:4px">
     ${it.disp?`<span class="disp-lbl">DISP</span><span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>`:''}
-    ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">Receiving${it.receivingDate?' · '+it.receivingDate:''}</span>`:''}
+    ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">RECE${it.receivingDate?' · '+it.receivingDate:''}</span>`:''}
   </div>`:'';
   if(isOpen){
     return defPickerHtml(it)+`
@@ -3117,7 +3116,7 @@ function render(){
                   </div>
                 </div>`
               :`${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}`}
-            ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">入庫日: ${esc(it.receivingDate)}</div>`:''}
+            ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">参照INV: ${esc(it.receivingDate)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
@@ -3174,8 +3173,8 @@ function render(){
   const dp=_recDatePicker;
   return `<div class="overlay" onclick="if(event.target===this)cancelRecDate()" style="z-index:300">
     <div class="sheet" style="max-height:70vh;overflow-y:auto">
-      <div class="sheet-tit">入庫日を選択<button class="close-btn" onclick="cancelRecDate()">×</button></div>
-      ${dp.dates.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスの日付がありません</div>`
+      <div class="sheet-tit">参照インボイスを選択<button class="close-btn" onclick="cancelRecDate()">×</button></div>
+      ${dp.dates.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスがありません</div>`
         :dp.dates.map(d=>`<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);cursor:pointer">
           <input type="radio" name="rec-date" ${dp.selected===d?'checked':''} onchange="setRecDate('${d}')">
           <span style="font-size:14px;${dp.selected===d?'color:var(--blue);font-weight:600':''}">${d}</span>

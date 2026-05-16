@@ -1914,6 +1914,17 @@ function goToStamp(){
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
   }
+  // Check for OK RX/SUN items with custRef containing 'def' not yet excluded
+  const defRefItems=S.invoice?S.invoice.items.filter(i=>
+    (i.cat==='rx'||i.cat==='sun')&&i.status==='ok'&&!i.smDone&&
+    (i.custRef||'').toLowerCase().includes('def')
+  ):[];
+  if(defRefItems.length){
+    const names=defRefItems.map(i=>'・'+i.name+(i.custRef?' ('+i.custRef+')':'')).join('\n');
+    if(confirm('以下のアイテムのCustRefに「def」が含まれています。\n入庫リストから除外しますか？\n\n'+names+'\n\nOK = 除外する\nキャンセル = そのまま続行')){
+      S.invoice.items=S.invoice.items.map(i=>defRefItems.some(d=>d.no===i.no)?{...i,smDone:true}:i);
+    }
+  }
   S.screen='stamp';_forceScrollTop=true;render();
 }
 function _checkStampIdAndBuild(){

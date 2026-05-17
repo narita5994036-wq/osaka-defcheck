@@ -1914,14 +1914,14 @@ function goToStamp(){
   if(pend){
     if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
   }
-  // Check for OK RX/SUN items with custRef containing 'def' not yet excluded
+  // Check for OK RX/SUN items with custRef matching known stock-claim keywords
   const defRefItems=S.invoice?S.invoice.items.filter(i=>
     (i.cat==='rx'||i.cat==='sun')&&i.status==='ok'&&!i.smDone&&
-    (['def stock','stock claim'].some(kw=>(i.custRef||'').toLowerCase().includes(kw)))
+    (['def stock','stock claim','shop breakage'].some(kw=>(i.custRef||'').toLowerCase().includes(kw)))
   ):[];
   if(defRefItems.length){
     const names=defRefItems.map(i=>'・'+i.name+(i.custRef?' ('+i.custRef+')':'')).join('\n');
-    if(confirm('以下のアイテムのCustRefに「def stock」または「stock claim」が含まれています。\n入庫CSVから除外しますか？\n\n'+names+'\n\nOK = 除外する\nキャンセル = そのまま続行')){
+    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。(過去に入庫後デイフェクティブ報告を行ったアイテム)\n・def stock\n・stock claim\n・shop breakage\n\n'+names+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\n\nOK = 除外する\nキャンセル = そのまま続行')){
       S.invoice.items=S.invoice.items.map(i=>defRefItems.some(d=>d.no===i.no)?{...i,smDone:true}:i);
     }
   }

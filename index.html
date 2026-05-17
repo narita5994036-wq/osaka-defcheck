@@ -3270,6 +3270,7 @@ function render(){
   const defs=ds.inv.items.filter(i=>i.status==='defective');
   const dispDirty=_dispIsDirty();
   const _dsOrderMap=buildOrderNoMap();
+  const _dsSent=!!(loadList().find(e=>e.id===ds.id)||{}).sent;
   return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
       <div class="sheet-tit">${ds.pnOnly?'DEFECTIVE LIST':'DISPOSITION'}<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
@@ -3309,9 +3310,9 @@ function render(){
               <button class="disp-btn${it.disp==='sample'?' smp':''}" onclick="setDispInSheet('${it.no}','sample')">Sample</button>`}
               ${isOk
                 ?`<button onclick="defToggleOk('${it.no}')" style="font-size:10px;letter-spacing:1px;color:var(--green);font-weight:600;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">→ OK &nbsp;UNDO</button>`
-                :`<input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
+                :(_dsSent?`<input type="tel" value="${esc(it.pn||'')}" placeholder="PN"
                   style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                  oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`}
+                  oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`:it.pn?`<span style="font-family:monospace;font-size:11px;color:var(--g600);padding:4px 6px">${esc(it.pn)}</span>`:'')`}
             </div>`;
           if(ds.pnOnly){
             return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
@@ -3351,7 +3352,7 @@ function render(){
         }).join('')}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="exportDispCSV()">CSV 出力</button>
-        ${ds.pnOnly?`<button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="document.getElementById('msg-input').click()">MSG</button>`:''}
+        ${ds.pnOnly&&_dsSent?`<button class="btn out" style="margin-top:0;flex:1;font-size:9px;letter-spacing:1.5px" onclick="document.getElementById('msg-input').click()">MSG</button>`:''}
         <button id="disp-done-btn" class="btn blk" style="margin-top:0;flex:2;opacity:${dispDirty?1:0.35}" onclick="saveDispSheet()">DONE</button>
       </div>
     </div>

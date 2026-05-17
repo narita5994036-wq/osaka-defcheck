@@ -809,6 +809,32 @@ function toggleAllCsvInv(ids){
   const allSel=ids.every(id=>S.csvSelIds.has(id));
   ids.forEach(id=>allSel?S.csvSelIds.delete(id):S.csvSelIds.add(id));render();
 }
+function collectReceItems(targetInvNumber){
+  const list=loadList();
+  const items=[];
+  for(const e of list){
+    try{
+      const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)continue;
+      const inv=JSON.parse(d);if(!inv.number)continue;
+      inv.items.forEach(it=>{
+        if(it.status==='defective'&&it.receiving&&it.receivingDate===targetInvNumber&&(it.cat==='rx'||it.cat==='sun')){
+          items.push({it,invNumber:inv.number,invId:e.id});
+        }
+      });
+    }catch(x){}
+  }
+  return items;
+}
+function _appendReceToRows(rows,receItems){
+  const g=new Map();
+  receItems.forEach(({it})=>{
+    if(!g.has(it.itemNo))g.set(it.itemNo,{count:0,name:it.name,posNo:it.subOf||it.no,colorCode:it.colorCode||''});
+    g.get(it.itemNo).count++;
+  });
+  for(const [itemNo,{count,name,posNo,colorCode}] of g){
+    rows.push([itemNo,count,'',posNo,name,colorCode]);
+  }
+}
 function exportSumarejiCSV(){
   if(!S.csvSelIds||!S.csvSelIds.size){alert('Select at least one invoice.');return;}
   const grouped=new Map();
@@ -827,13 +853,21 @@ function exportSumarejiCSV(){
       });
     }catch(e){}
   });
-  if(!grouped.size){alert('No SUN/RX OK items found.');return;}
   const rows=[];
   for(const [itemNo,{count,name,unitPrice,posNo,colorCode}] of grouped){
     if(count>=getSmQtyAlert()){
       if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
     }
     rows.push([itemNo,count,unitPrice,posNo,name,colorCode]);
+  }
+  // RECE items: defective items from any invoice received into these invoices
+  const receAll=[];
+  invNums.forEach(num=>receAll.push(...collectReceItems(num)));
+  if(receAll.length){
+    const lines=receAll.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.no})`).join('\n');
+    if(confirm('以下のRECEアイテムを入庫CSVに追加しますか？\n\n'+lines+'\n\nOK = 追加\nキャンセル = スキップ')){
+      _appendReceToRows(rows,receAll);
+    }
   }
   if(!rows.length){alert('No data to export.');return;}
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
@@ -862,13 +896,20 @@ function exportSumarejiCSVById(id){
         grouped.get(it.itemNo).count++;
       }
     });
-    if(!grouped.size){alert('No SUN/RX OK items found.');return;}
     const rows=[];
     for(const [itemNo,{count,name,posNo,colorCode}] of grouped){
       if(count>=getSmQtyAlert()){
         if(!confirm('Item No: '+itemNo+'\nName: '+name+'\nQty: '+count+'\n\nQuantity is 10 or more. Include in CSV?\nOK = Include\nCancel = Skip'))continue;
       }
       rows.push([itemNo,count,'',posNo,name,colorCode]);
+    }
+    // RECE items: defective items from any invoice received into this invoice
+    const receItems=collectReceItems(inv.number);
+    if(receItems.length){
+      const lines=receItems.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.no})`).join('\n');
+      if(confirm('以下のRECEアイテムを入庫CSVに追加しますか？\n\n'+lines+'\n\nOK = 追加\nキャンセル = スキップ')){
+        _appendReceToRows(rows,receItems);
+      }
     }
     if(!rows.length){alert('No data to export.');return;}
     if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}

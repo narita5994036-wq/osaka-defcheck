@@ -795,9 +795,9 @@ function openCsvSel(){
   list.forEach(entry=>{
     const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
     if(!d)return;
-    try{const inv=JSON.parse(d);if(inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone))ids.add(entry.id);}catch(e){}
+    try{const inv=JSON.parse(d);const _hasOk=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone);const _hasRece=inv.number&&collectReceItems(inv.number).length>0;if(_hasOk||_hasRece)ids.add(entry.id);}catch(e){}
   });
-  if(!ids.size){alert('SUN/RXのOKアイテムがあるアクティブなインボイスがありません');return;}
+  if(!ids.size){alert('SUN/RXのOKまたはRECEアイテムがあるアクティブなインボイスがありません');return;}
   S.csvSelIds=ids;S.showCsvSel=true;render();
 }
 function toggleCsvInv(id){
@@ -823,6 +823,7 @@ function collectReceItems(targetInvNumber){
       });
     }catch(x){}
   }
+  console.log('[collectReceItems] target='+targetInvNumber+' found='+items.length,(items.map(r=>r.invNumber+'-'+r.it.no+' cat='+r.it.cat+' rd='+r.it.receivingDate)));
   return items;
 }
 function _appendReceToRows(rows,receItems){
@@ -3104,7 +3105,7 @@ function render(){
     const id=S.csvPickerId;
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     let hasDefective=false,hasSumareji=false;
-    if(d){try{const inv=JSON.parse(d);hasDefective=_dispRows(inv).length>0;hasSumareji=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone);}catch(e){}}
+    if(d){try{const inv=JSON.parse(d);hasDefective=_dispRows(inv).length>0;const _hasOk=inv.items.some(it=>(it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone);hasSumareji=_hasOk||(inv.number?collectReceItems(inv.number).length>0:false);}catch(e){}}
     return `<div class="overlay" onclick="if(event.target===this){S.showCsvPicker=false;S.csvPickerId=null;render()}">
       <div class="sheet">
         <div class="sheet-tit">CSV EXPORT<button class="close-btn" onclick="S.showCsvPicker=false;S.csvPickerId=null;render()">×</button></div>

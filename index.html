@@ -3564,7 +3564,7 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)cancelRecDate()" style="z-index:300">
     <div class="sheet" style="max-height:70vh;overflow-y:auto">
       <div class="sheet-tit">対応インボイスを選択<button class="close-btn" onclick="cancelRecDate()">×</button></div>
-      <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:14px;padding:8px 10px;background:var(--g50);border-radius:4px">def new prodとして入荷した際のインボイス番号を選択してください。</div>
+      <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:14px;padding:8px 10px;background:var(--g50);border-radius:4px">選択したインボイス番号の入庫CSV作成時にこのアイテムを追加させることができます。</div>
       ${dp.entries.length===0?`<div style="font-size:12px;color:var(--g400);padding:16px 0;text-align:center">インボイスがありません</div>`
         :dp.entries.map(e=>`<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);cursor:pointer">
           <input type="radio" name="rec-date" ${dp.selected===e.value?'checked':''} onchange="setRecDate('${e.value}')">

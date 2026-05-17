@@ -293,6 +293,10 @@
   .disp-hop{animation:disp-hop 0.7s ease;}
   @keyframes pn-blink{0%,100%{opacity:1}50%{opacity:0.25}}
   .pn-badge{animation:pn-blink 1.2s ease-in-out infinite;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 5px}
+  @keyframes proc-step-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes proc-line-in{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .proc-step{opacity:0;animation:proc-step-in .25s ease forwards}
+  .proc-conn{width:2px;height:28px;background:var(--g200);margin:2px 13px;transform-origin:top;transform:scaleY(0);animation:proc-line-in .2s ease forwards}
   .inv-card{border:1px solid var(--g200);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--w);position:relative;z-index:1}
   .inv-card:active{background:var(--g50)}
   .inv-card.arc .inv-card-body,.inv-card.arc .inv-card-arr{opacity:.45}
@@ -344,7 +348,7 @@ let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,mov
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='';
-let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null;
+let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
 function defSwStart(e,no){
   const isTouch=!!e.touches;
@@ -533,6 +537,37 @@ function savePnListChanges(){
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
+function buildProcessChain(rootInvId,rootItemNo){
+  const allInvs={};
+  loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)allInvs[e.id]=JSON.parse(d);}catch(x){}});
+  const steps=[];
+  function traverse(invId,item,depth){
+    const inv=allInvs[invId];if(!inv)return;
+    steps.push({type:depth===0?'order':'delivery',invNumber:inv.number||invId,cat:item.cat,name:item.name,no:item.subOf||item.no});
+    if(item.status==='defective'){
+      steps.push({type:'defective'});
+      if(item.pn)steps.push({type:'pn',pn:item.pn});
+      if(item.receiving)steps.push({type:'rece',receivingDate:item.receivingDate||''});
+      if(item.pn){
+        for(const[cId,cInv]of Object.entries(allInvs)){
+          if(cId===invId)continue;
+          const child=cInv.items.find(it=>it.orderNo&&it.orderNo.trim()===item.pn.trim());
+          if(child){traverse(cId,child,depth+1);break;}
+        }
+      }
+    }else if(item.status==='ok'){
+      steps.push({type:'ok'});
+      if(item.receiving)steps.push({type:'rece',receivingDate:item.receivingDate||''});
+    }else{
+      steps.push({type:'pending'});
+    }
+  }
+  const rootInv=allInvs[rootInvId];if(!rootInv)return null;
+  const rootItem=rootInv.items.find(i=>i.no===rootItemNo);if(!rootItem)return null;
+  traverse(rootInvId,rootItem,0);
+  return{steps,title:rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'')};
+}
+function openProcessModal(invId,no){_processModal=buildProcessChain(invId,no);render();}
 function parseMsgForPns(raw){
   const blocks=raw.split(/Position\s+Number\/Item\s*:/i);
   const results=[];
@@ -3526,7 +3561,10 @@ function render(){
         ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace">${esc(it.orderNo)}</span></div>`:''}
         ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> ${esc(it.custRef)}</div>`:''}
         ${matches.length>0?`<div style="margin-top:6px;padding-top:4px;border-top:1px solid var(--g100)"><div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ORDER MATCH</div>${matches.map(m=>`<div><span style="color:var(--g800)">${esc(m.invNumber)}</span>${m.custRef?` — <span style="color:${m.custRef.includes('def')?'var(--red)':'inherit'}">${esc(m.custRef)}</span>`:''}</div>`).join('')}</div>`:''}
-        <button onclick="event.stopPropagation();closePnList();openDefSheet('${invId}')" style="margin-top:8px;padding:4px 14px;border:1px solid var(--k);border-radius:3px;font-size:9px;letter-spacing:1px;font-family:inherit;background:var(--w);color:var(--k);cursor:pointer">OPEN DISP</button>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button onclick="event.stopPropagation();closePnList();openDefSheet('${invId}')" style="padding:4px 14px;border:1px solid var(--k);border-radius:3px;font-size:9px;letter-spacing:1px;font-family:inherit;background:var(--w);color:var(--k);cursor:pointer">OPEN DISP</button>
+          <button onclick="event.stopPropagation();openProcessModal('${invId}','${it.no}')" style="padding:4px 14px;border:1px solid var(--blue);border-radius:3px;font-size:9px;letter-spacing:1px;font-family:inherit;background:var(--w);color:var(--blue);cursor:pointer">SHOW PROCESS</button>
+        </div>
       </div>`:''}
     </div>`;
   });
@@ -3570,9 +3608,49 @@ function render(){
       <button class="btn out" style="margin-top:0" onclick="stayOnChecklist()">このまま続ける</button>
     </div>
   </div>`:''}
-
+${(()=>{
+  if(!_processModal)return '';
+  const{steps,title}=_processModal;
+  const _defs={
+    order:  {icon:'📦',label:'ORDER',    color:'var(--g700)'},
+    delivery:{icon:'📦',label:'DELIVERY', color:'var(--g700)'},
+    defective:{icon:'🔴',label:'DEFECTIVE',color:'var(--red)'},
+    pn:     {icon:'🏷', label:'PN REGISTERED',color:'var(--blue)'},
+    rece:   {icon:'📥',label:'RECE',     color:'var(--teal)'},
+    ok:     {icon:'✅', label:'OK',       color:'var(--teal)'},
+    pending:{icon:'⏳', label:'PENDING',  color:'var(--amber)'},
+  };
+  const html=steps.map((s,i)=>{
+    const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
+    const isLast=i===steps.length-1;
+    let sub='';
+    if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
+    else if(s.type==='pn'){sub=s.pn;}
+    else if(s.type==='rece'){sub=s.receivingDate?`INV ${esc(s.receivingDate)}`:'入庫済';}
+    const delay=i*150;
+    return `<div class="proc-step" style="animation-delay:${delay}ms">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+          <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
+          ${!isLast?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
+        </div>
+        <div style="padding:5px 0">
+          <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${d.label}</div>
+          ${sub?`<div style="font-size:11px;color:var(--g500);margin-top:1px;font-family:${s.type==='pn'?'monospace':'inherit'}">${sub}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="overlay" onclick="if(event.target===this){_processModal=null;render()}" style="z-index:300">
+    <div class="sheet">
+      <div class="sheet-tit">PROCESS<button class="close-btn" onclick="_processModal=null;render()">×</button></div>
+      <div style="font-size:12px;font-weight:600;color:var(--k);margin-bottom:16px">${esc(title)}</div>
+      ${html}
+    </div>
+  </div>`;
+})()}
     `;
-  const _hasModal=!!_dispSheet||_pnListOpen||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt;
+  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt;
   document.body.style.overflow=_hasModal?'hidden':'';
   if(!S.markup) requestAnimationFrame(()=>{if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}else{window.scrollTo(0,_sy);}});
   if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}

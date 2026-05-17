@@ -539,7 +539,7 @@ function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
 function buildProcessChain(rootInvId,rootItemNo){
   const allInvs={};
-  loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)allInvs[e.id]=JSON.parse(d);}catch(x){}});
+  loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;const inv=JSON.parse(d);allInvs[e.id]={...inv,items:inv.items.map(it=>{const patch=_pnListChanges[e.id+'|'+it.no];return patch?{...it,...patch}:it;})};}catch(x){}});
   const steps=[];
   function traverse(invId,item,depth){
     const inv=allInvs[invId];if(!inv)return;
@@ -565,7 +565,7 @@ function buildProcessChain(rootInvId,rootItemNo){
   traverse(rootInvId,rootItem,0);
   return{steps,title:rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'')};
 }
-function openProcessModal(invId,no){_processModal=buildProcessChain(invId,no);render();}
+function openProcessModal(invId,no){_processModal={invId,no};render();}
 function parseMsgForPns(raw){
   const blocks=raw.split(/Position\s+Number\/Item\s*:/i);
   const results=[];
@@ -3608,7 +3608,9 @@ function render(){
   </div>`:''}
 ${(()=>{
   if(!_processModal)return '';
-  const{steps,title}=_processModal;
+  const _chain=buildProcessChain(_processModal.invId,_processModal.no);
+  if(!_chain)return '';
+  const{steps,title}=_chain;
   const _defs={
     order:        {icon:'📦',label:'ORDER',          color:'var(--g700)'},
     delivery:     {icon:'📦',label:'DELIVERY',       color:'var(--g700)'},

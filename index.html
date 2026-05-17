@@ -911,7 +911,7 @@ function exportSumarejiCSV(){
           if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,posNo:it.subOf||it.no,colorCode:it.colorCode||''});
           grouped.get(it.itemNo).count++;
           if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
-            _dsSbWarnItems.push({itemNo:it.itemNo,name:it.name,custRef:it.custRef||''});
+            _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,name:it.name,custRef:it.custRef||''});
         }
       });
       // PARTS OK with PN match
@@ -938,6 +938,11 @@ function exportSumarejiCSV(){
       const _excl=new Set(_dsSbWarnItems.map(w=>w.itemNo));
       const _kept=rows.filter(r=>!_excl.has(r[0]));
       rows.length=0;_kept.forEach(r=>rows.push(r));
+      const _exclByInv={};
+      _dsSbWarnItems.forEach(w=>{if(!_exclByInv[w.invId])_exclByInv[w.invId]=new Set();_exclByInv[w.invId].add(w.itemNo);});
+      for(const [exId,exNos] of Object.entries(_exclByInv)){
+        try{const _sd=JSON.parse(localStorage.getItem('mykita_dc_inv_'+exId)||'null');if(_sd){_sd.items=_sd.items.map(it=>exNos.has(it.itemNo)?{...it,smDone:true}:it);localStorage.setItem('mykita_dc_inv_'+exId,JSON.stringify(_sd));if(S.invoiceId===exId)S.invoice=_sd;}}catch(ex){}
+      }
     }
   }
   // RECE items: defective items from any invoice received into these invoices
@@ -1011,6 +1016,7 @@ function exportSumarejiCSVById(id){
         const _excl=new Set(_dsSbWarnItems.map(w=>w.itemNo));
         const _kept=rows.filter(r=>!_excl.has(r[0]));
         rows.length=0;_kept.forEach(r=>rows.push(r));
+        try{const _sd=JSON.parse(localStorage.getItem('mykita_dc_inv_'+id)||'null');if(_sd){_sd.items=_sd.items.map(it=>_excl.has(it.itemNo)?{...it,smDone:true}:it);localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(_sd));if(S.invoiceId===id)S.invoice=_sd;}}catch(ex){}
       }
     }
     // RECE items: defective items from any invoice received into this invoice

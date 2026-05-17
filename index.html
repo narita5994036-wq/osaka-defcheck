@@ -534,7 +534,6 @@ function savePnListChanges(){
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
 function parseMsgForPns(raw){
-  // Split by "Position Number/Item" blocks, find PN (<b>6-7 digits</b>) near "Replacement"
   const blocks=raw.split(/Position\s+Number\/Item\s*:/i);
   const results=[];
   for(let i=1;i<blocks.length;i++){
@@ -542,11 +541,28 @@ function parseMsgForPns(raw){
     const posMatch=block.match(/^\s*(\d+)\./);
     if(!posMatch)continue;
     const pos=posMatch[1];
-    // PN is a 6-7 digit number in <b> tag following "Replacement"
     const pnMatch=block.match(/[Rr]eplacement[\s\S]{0,400}?<b[^>]*>\s*(\d{6,7})\s*<\/b>/i);
-    if(pnMatch)results.push({pos,pn:pnMatch[1]});
+    const claimMatch=block.match(/postal\s+claim[:\s]+(?:<[^>]+>)*\s*(\d{5,12})/i);
+    const pn=pnMatch?pnMatch[1]:'';
+    const claimNo=claimMatch?claimMatch[1]:'';
+    if(pn||claimNo)results.push({pos,pn,claimNo});
   }
   return results;
+}
+function extractPdfNamesFromMsg(bytes){
+  // PDF attachment filenames are stored as UTF-16LE in .msg binary
+  const names=new Set();
+  for(let i=0;i+1<bytes.length;i+=2){
+    let s='';
+    for(let j=i;j+1<bytes.length;j+=2){
+      const c=bytes[j]|(bytes[j+1]<<8);
+      if(c>=32&&c<=126)s+=String.fromCharCode(c);
+      else break;
+    }
+    const m=s.match(/^([\w\-]{4,40}\.pdf)$/i);
+    if(m)names.add(m[1].replace(/\.pdf$/i,''));
+  }
+  return names;
 }
 async function handleMsgUpload(f){
   if(!f||!_dispSheet)return;
@@ -555,14 +571,20 @@ async function handleMsgUpload(f){
     const bytes=new Uint8Array(buf);
     let raw='';
     for(let i=0;i<bytes.length;i++){const b=bytes[i];raw+=(b>=32&&b<=126||b===9||b===10||b===13)?String.fromCharCode(b):' ';}
+    const pdfNames=extractPdfNamesFromMsg(bytes);
     const mappings=parseMsgForPns(raw);
     if(!mappings.length){alert('PNマッピングが見つかりませんでした。\nファイルを確認してください。');return;}
-    const lines=mappings.map(m=>`Pos ${m.pos} → PN: ${m.pn}`).join('\n');
-    if(!confirm('以下のPNを自動入力します:\n\n'+lines+'\n\nOK = 適用\nキャンセル = 中止'))return;
+    // claim番号が添付PDFファイル名と一致 → Return
+    mappings.forEach(m=>{if(m.claimNo&&pdfNames.has(m.claimNo))m.disp='return';});
+    const lines=mappings.map(m=>`Pos ${m.pos}${m.pn?' → PN: '+m.pn:''}${m.disp==='return'?' [Return]':''}`).join('\n');
+    if(!confirm('以下の内容を自動入力します:\n\n'+lines+'\n\nOK = 適用\nキャンセル = 中止'))return;
     _dispSheet.inv.items=_dispSheet.inv.items.map(it=>{
       const match=mappings.find(m=>it.no===m.pos||it.subOf===m.pos||it.no.startsWith(m.pos+'-'));
       if(!match)return it;
-      return{...it,pn:match.pn};
+      const update={...it};
+      if(match.pn)update.pn=match.pn;
+      if(match.disp)update.disp=match.disp;
+      return update;
     });
     render();
   }catch(e){alert('.msg/.emlファイルの読み込みエラー: '+e.message);}

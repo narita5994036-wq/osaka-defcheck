@@ -829,10 +829,16 @@ function toggleXlsxInv(id){
   if(!S.xlsxSelIds)return;
   S.xlsxSelIds.has(id)?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id);render();
 }
-function toggleAllXlsxInv(ids){
+function toggleAllXlsxInv(){
   if(!S.xlsxSelIds)return;
-  const allSel=ids.every(id=>S.xlsxSelIds.has(id));
-  ids.forEach(id=>allSel?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id));render();
+  const list=loadList().filter(e=>!e.archived);
+  const allIds=[];
+  list.forEach(entry=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);if(!d)return;
+    try{const inv=JSON.parse(d);if(_dispRows(inv).length)allIds.push(entry.id);}catch(e){}
+  });
+  const allSel=allIds.every(id=>S.xlsxSelIds.has(id));
+  allIds.forEach(id=>allSel?S.xlsxSelIds.delete(id):S.xlsxSelIds.add(id));render();
 }
 function exportActiveListCSV(){
   if(!S.xlsxSelIds||!S.xlsxSelIds.size){alert('Select at least one invoice.');return;}
@@ -3182,7 +3188,7 @@ function render(){
         <div class="sheet-tit">EXPORT ACTIVE LIST — Select Invoices<button class="close-btn" onclick="S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} selected</span>
-          <button onclick="toggleAllXlsxInv(${JSON.stringify(allIds)})" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
+          <button onclick="toggleAllXlsxInv()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:16px">
           ${candidates.map(({entry,rows})=>{

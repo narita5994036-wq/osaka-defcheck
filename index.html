@@ -873,7 +873,7 @@ function exportSumarejiCSV(){
   }
   if(!rows.length){alert('No data to export.');return;}
   if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-  const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号,RECE',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
+  const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号,その他',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
   const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
@@ -916,7 +916,7 @@ function exportSumarejiCSVById(id){
     }
     if(!rows.length){alert('No data to export.');return;}
     if(typeof Encoding==='undefined'){alert('Encoding library not loaded. Please reload the page.');return;}
-    const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号,RECE',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
+    const csvText=['商品コード,検品数,原価（税抜）,行番号,商品名,カラー番号,その他',..._applySmMask(rows).map(r=>r.join(','))].join('\r\n');
     const arr=Encoding.convert(Encoding.stringToCode(csvText),'SJIS','UNICODE');
     const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
     const url=URL.createObjectURL(blob);
@@ -3200,7 +3200,7 @@ function render(){
         </button>
         ${_settingsShowCsvFields?(()=>{
           const defLabels=['A: INVOICE NO.','B: POSITION NO.','C: ITEM','D: PN','E: COLOR/ID','F: DEFECTIVE PARTS/CONDITIONS','G: DISPOSITION'];
-          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜） (default OFF)','D: 行番号 (default OFF)','E: 商品名 (default OFF)','F: カラー番号 (default OFF)','G: RECE (自動)'];
+          const smLabels=['A: 商品コード','B: 検品数','C: 原価（税抜） (default OFF)','D: 行番号 (default OFF)','E: 商品名 (default OFF)','F: カラー番号 (default OFF)','G: その他 (自動)'];
           const fs=getCsvFieldSettings();const ss=getSmFieldSettings();
           const toggle=(lbl,on,fn)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g100)">
               <span style="font-size:11px;color:${on?'var(--g800)':'var(--g400)'}">${lbl}</span>

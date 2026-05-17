@@ -3655,7 +3655,7 @@ function render(){
       </div>
       <div style="position:relative;margin-bottom:8px">
         <input id="pn-name-search-inp" type="text" value="${esc(_pnNameSearch)}" placeholder="アイテム名"
-          oninput="_pnNameSearch=this.value;render()"
+          oninput="_pnNameSearch=this.value;requestAnimationFrame(render)"
           style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--g200);border-radius:4px;font-size:13px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
         ${_pnNameSearch?`<button onclick="_pnNameSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
       </div>

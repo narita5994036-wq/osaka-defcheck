@@ -555,7 +555,7 @@ function buildProcessChain(rootInvId,rootItemNo){
         }
       }
     }else if(item.status==='ok'){
-      steps.push({type:item.cat==='parts'?'receiving_end':'ok_receiving',invNumber:inv.number||invId});
+      steps.push({type:'ok_receiving',invNumber:inv.number||invId});
     }else{
       steps.push({type:'pending'});
     }
@@ -3616,7 +3616,6 @@ ${(()=>{
     delivery:     {icon:'📦',label:'DELIVERY',       color:'var(--g700)'},
     defective:    {icon:'🔴',label:'DEFECTIVE',      color:'var(--red)'},
     pn:           {icon:'🏷', label:'PN REGISTERED', color:'var(--blue)'},
-    receiving_end:{icon:'📥',label:'RECEIVING',      color:'var(--teal)'},
     ok_receiving: {icon:'✅', label:'OK (RECEIVING)', color:'var(--teal)'},
     ok:           {icon:'✅', label:'OK',             color:'var(--teal)'},
     pending:      {icon:'⏳', label:'PENDING',        color:'var(--amber)'},
@@ -3627,8 +3626,7 @@ ${(()=>{
     let sub='';
     if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
     else if(s.type==='pn'){sub=s.pn;}
-    else if(s.type==='receiving_end'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
-    const delay=i*150;
+    else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}    const delay=i*150;
     return `<div class="proc-step" style="animation-delay:${delay}ms">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">

@@ -2142,9 +2142,10 @@ function goToStamp(){
     (['def stock','stock claim','shop breakage'].some(kw=>(i.custRef||'').toLowerCase().includes(kw)))
   ):[];
   if(defRefItems.length){
-    const names=defRefItems.map(i=>'・'+i.name+(i.custRef?' ('+i.custRef+')':'')).join('\n');
-    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。(過去に入庫後デイフェクティブ報告を行ったアイテム)\n・def stock\n・stock claim\n・shop breakage\n\n'+names+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\n\nOK = 除外する\nキャンセル = そのまま続行')){
+    const names=defRefItems.map(i=>`・${i.subOf||i.no}. ${i.name}${i.custRef?' ('+i.custRef+')':''}`).join('\n');
+    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。（過去に入庫後デイフェクティブ報告を行ったアイテム）\n・def stock\n・stock claim\n・shop breakage\n\n'+names+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\nOK = 除外する\nキャンセル = そのまま続行')){
       S.invoice.items=S.invoice.items.map(i=>defRefItems.some(d=>d.no===i.no)?{...i,smDone:true}:i);
+      save();
     }
   }
   S.screen='stamp';_forceScrollTop=true;render();

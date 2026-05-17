@@ -862,12 +862,13 @@ function exportSumarejiCSV(){
     rows.push([itemNo,count,unitPrice,posNo,name,colorCode]);
   }
   // RECE items: defective items from any invoice received into these invoices
+  let _receAdded=false;
   const receAll=[];
   invNums.forEach(num=>receAll.push(...collectReceItems(num)));
   if(receAll.length){
     const lines=receAll.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.no})`).join('\n');
     if(confirm('以下のRECEアイテムを入庫CSVに追加しますか？\n\n'+lines+'\n\nOK = 追加\nキャンセル = 追加しない')){
-      _appendReceToRows(rows,receAll);
+      _appendReceToRows(rows,receAll);_receAdded=true;
     }
   }
   if(!rows.length){alert('No data to export.');return;}
@@ -877,7 +878,7 @@ function exportSumarejiCSV(){
   const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='smaregi_receiving_'+(invNums.join('_')||'export')+'.csv';
+  a.href=url;a.download='smaregi_receiving_'+(invNums.join('_')||'export')+(_receAdded?'_IR':'')+'.csv';
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
   S.showCsvSel=false;S.csvSelIds=null;render();
@@ -905,11 +906,12 @@ function exportSumarejiCSVById(id){
       rows.push([itemNo,count,'',posNo,name,colorCode]);
     }
     // RECE items: defective items from any invoice received into this invoice
+    let _receAdded=false;
     const receItems=collectReceItems(inv.number);
     if(receItems.length){
       const lines=receItems.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.no})`).join('\n');
       if(confirm('以下のRECEアイテムを入庫CSVに追加しますか？\n\n'+lines+'\n\nOK = 追加\nキャンセル = 追加しない')){
-        _appendReceToRows(rows,receItems);
+        _appendReceToRows(rows,receItems);_receAdded=true;
       }
     }
     if(!rows.length){alert('No data to export.');return;}
@@ -919,7 +921,7 @@ function exportSumarejiCSVById(id){
     const blob=new Blob([new Uint8Array(arr)],{type:'text/csv;charset=shift_jis'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    a.href=url;a.download='smaregi_receiving_'+(inv.number||id)+'.csv';
+    a.href=url;a.download='smaregi_receiving_'+(inv.number||id)+(_receAdded?'_IR':'')+'.csv';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
     S.showCsvPicker=false;S.csvPickerId=null;render();

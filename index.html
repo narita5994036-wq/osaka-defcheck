@@ -520,6 +520,16 @@ function togglePnReceiving(invId,no){
     if(eff.receiving){
       _pnListChanges[key]={receiving:false,receivingDate:null};render();
     }else{
+      if(it.pn){
+        const om=buildOrderNoMap();
+        const tag=getDnpSc(it.pn,om);
+        if(tag==='DS'||tag==='SB'){
+          const match=(om[it.pn]||[]).find(m=>{const cr=(m.custRef||'').toLowerCase();return tag==='SB'?cr.includes('shop breakage'):(cr.includes('def stock')||cr.includes('stock claim'));});
+          const invNum=match?.invNumber||'';
+          alert(invNum?`${invNum}で処理済`:'処理済');
+          return;
+        }
+      }
       const _rdEntries=loadList().filter(e=>!e.archived&&e.number).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
       const _seen=new Set();
       const entries=_rdEntries.filter(e=>!_seen.has(e.number)&&_seen.add(e.number)).map(e=>({value:e.number,label:e.number+(e.createdAt?' ('+new Date(e.createdAt).toLocaleDateString('ja-JP')+')':'')}));

@@ -349,6 +349,7 @@ let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='';
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
+let _pnNameSearch='',_pnInvFilter='',_pnMatchFilter='all';
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
 function defSwStart(e,no){
   const isTouch=!!e.touches;
@@ -494,8 +495,8 @@ function openDefSheet(id){
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
 }
-function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};render();}
-function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};render();}
+function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilter='';_pnMatchFilter='all';render();}
+function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilter='';_pnMatchFilter='all';render();}
 function tryClosePnList(){
   if(Object.keys(_pnListChanges).length>0){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
@@ -3586,15 +3587,26 @@ function render(){
   }
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
   const _q=_pnSearch.trim();
+  const _nq=_pnNameSearch.trim().toLowerCase();
   // Chain detection: items whose orderNo matches another defective item's pn are "children"
   const _allDefPns=new Set(_defItems.map(({it})=>it.pn?.trim()).filter(Boolean));
   const _isChild=({it})=>!!it.orderNo&&_allDefPns.has(it.orderNo.trim());
   // child pn → parent pn chain indicator
   const _chainNext={}; // parent pn → [child pn, ...]
   _defItems.forEach(({it})=>{if(it.orderNo&&_allDefPns.has(it.orderNo.trim()))(_chainNext[it.orderNo.trim()]||=_chainNext[it.orderNo.trim()]||[]).push(it.pn||'?');});
-  const _filtered=_q
-    ?_defItems.filter(({it,inv})=>(it.pn||'').startsWith(_q)||(it.name||'').toLowerCase().includes(_q.toLowerCase())||(inv.number||'').includes(_q))
+  const _hasFilter=_q||_nq||_pnInvFilter||_pnMatchFilter!=='all';
+  const _filtered=_hasFilter
+    ?_defItems.filter(({it,inv})=>{
+        if(_q&&!(it.pn||'').startsWith(_q))return false;
+        if(_nq&&!(it.name||'').toLowerCase().includes(_nq))return false;
+        if(_pnInvFilter&&(inv.number||'')!==_pnInvFilter)return false;
+        if(_pnMatchFilter==='matched'&&!(_om[it.pn]||[]).length)return false;
+        if(_pnMatchFilter==='unmatched'&&(_om[it.pn]||[]).length)return false;
+        return true;
+      })
     :_defItems.filter(x=>!_isChild(x));
+  // Unique invoice numbers for filter dropdown
+  const _invNums=[...new Set(_defItems.map(({inv})=>inv.number||'').filter(Boolean))].sort();
   const _badge=pn=>{const tag=getDnpSc(pn,_om);if(!tag)return '';return `<span class="pn-badge" style="margin-left:4px">Matched</span>`;};
   const rows=_filtered.map(({it,inv,invId})=>{
     const key=invId+'|'+it.no;
@@ -3635,13 +3647,28 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)tryClosePnList()" style="z-index:250">
     <div class="sheet">
       <div class="sheet-tit">PN SEARCH<button class="close-btn" onclick="tryClosePnList()">×</button></div>
-      <div style="position:relative;margin-bottom:12px">
-        <input id="pn-search-inp" type="tel" inputmode="numeric" pattern="[0-9]*" value="${esc(_pnSearch)}" placeholder="123456"
+      <div style="position:relative;margin-bottom:8px">
+        <input id="pn-search-inp" type="tel" inputmode="numeric" pattern="[0-9]*" value="${esc(_pnSearch)}" placeholder="PN番号"
           oninput="_pnSearch=this.value.replace(/[^0-9]/g,'');render()"
-          style="width:100%;padding:10px 36px 10px 12px;border:1px solid var(--g200);border-radius:4px;font-size:16px;font-family:monospace;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box;letter-spacing:2px">
+          style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--g200);border-radius:4px;font-size:14px;font-family:monospace;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box;letter-spacing:2px">
         ${_pnSearch?`<button onclick="_pnSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
       </div>
-      <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:10px">${_filtered.length}件${_q?' / '+_defItems.length+'件中':''}</div>
+      <div style="position:relative;margin-bottom:8px">
+        <input type="text" value="${esc(_pnNameSearch)}" placeholder="アイテム名"
+          oninput="_pnNameSearch=this.value;render()"
+          style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--g200);border-radius:4px;font-size:13px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
+        ${_pnNameSearch?`<button onclick="_pnNameSearch='';render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <select onchange="_pnInvFilter=this.value;render()" style="flex:1;min-width:0;padding:6px 8px;border:1px solid var(--g200);border-radius:4px;font-size:11px;font-family:inherit;background:var(--w);color:var(--g800);outline:none">
+          <option value="">すべてのINV</option>
+          ${_invNums.map(n=>`<option value="${esc(n)}"${_pnInvFilter===n?' selected':''}>${esc(n)}</option>`).join('')}
+        </select>
+        <div style="display:flex;gap:3px;flex-shrink:0">
+          ${['all','matched','unmatched'].map(v=>{const lbl=v==='all'?'ALL':v==='matched'?'Matched':'Non';const active=_pnMatchFilter===v;return `<button onclick="_pnMatchFilter='${v}';render()" style="padding:5px 9px;border-radius:4px;border:1px solid ${active?'var(--blue)':'var(--g200)'};background:${active?'var(--blue)':'transparent'};color:${active?'#fff':'var(--g600)'};font-size:9px;letter-spacing:.5px;font-family:inherit;cursor:pointer;font-weight:${active?'700':'400'}">${lbl}</button>`;}).join('')}
+        </div>
+      </div>
+      <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:10px">${_filtered.length}件${_hasFilter?' / '+_defItems.length+'件中':''}</div>
       ${_defItems.length===0
         ?'<div style="text-align:center;padding:30px;font-size:11px;color:var(--g400)">PNが入力されたDEFアイテムがありません</div>'
         :_filtered.length===0

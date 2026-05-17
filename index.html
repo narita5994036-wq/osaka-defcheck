@@ -2250,6 +2250,7 @@ function buildEmail(){
 const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
 let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false,_settingsShowReparse=false;
+let _guideOpen=false,_guideStep=0;
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
@@ -3378,41 +3379,97 @@ function render(){
           <div style="font-size:10px;color:var(--g600);line-height:1.6;margin-bottom:10px">PDFをアップロードするとインボイス番号を照合し、一致するインボイスを再解析します。ディフェクティブ内容・スタンプ番号など全ての入力データは保持されます。</div>
           <button class="btn out" style="margin-top:0" onclick="document.getElementById('reparse-input').click()">PDFを選択して再解析</button>
         </div>`:''}
-        <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowHelp=!_settingsShowHelp;render()">
-          <span>アプリの使い方</span><span style="font-size:12px">${_settingsShowHelp?'−':'+'}</span>
-        </button>
-        ${_settingsShowHelp?`<div style="padding-top:10px">
-          <div style="background:var(--g50);border-radius:6px;padding:14px 16px;font-size:11px;color:var(--g800);line-height:2">
-            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-bottom:10px">基本フロー</div>
-            <div><b>① インボイスアップロード</b></div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ホーム画面の「+ NEW INVOICE」からPDFをアップロード</div>
-            <div><b>② チェックリスト入力</b></div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:4px">インボイスをタップして開く</div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:4px">各アイテムのステータスをタップで切り替え：<br>— (未確認) → OK → D (不良) → —</div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:4px">Dのアイテムは詳細ピッカー（部位・状態・写真）が展開される</div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ピッカーを閉じるには詳細エリアまたは「EDIT」ボタンを再タップ（外タップでは閉じない）</div>
-            <div><b>③ スタンプ番号入力</b></div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">チェックリスト下部「→ スタンプ番号・IDを入力」から記録</div>
-            <div><b>④ メール作成</b></div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">スタンプ画面下部「MAIL メール下書きを作成」から不良品リストをメール本文に転記。Microsoftアカウント連携で下書きを自動保存</div>
-            <div><b>⑤ Disposition設定</b></div>
-            <div style="color:var(--g600);padding-left:14px;margin-bottom:8px">ドイツ担当者からのメール返信で指示を受けた後、ホームの「DISP」ボタンから Return / Sample を選択</div>
-            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">同期</div>
-            <div style="color:var(--g600);margin-bottom:4px">SET → Push でGistに保存。別デバイスはPullで取得</div>
-            <div style="color:var(--g600);margin-bottom:4px">初回Push後、「Gist IDをコピー（別デバイス用）」ボタンでIDを取得し、他のデバイスに入力</div>
-            <div style="color:var(--amber);margin-bottom:8px">⚠ PATはGitHub classic tokenの gist スコープが必要。fine-grained tokenは非対応</div>
-            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:4px;margin-bottom:10px">フィルター</div>
-            <div style="color:var(--g600);margin-bottom:4px">ステータス：全て / 未確認 / OK / D</div>
-            <div style="color:var(--g600)">カテゴリ：RX / SUN / PARTS（複数選択可）</div>
-            <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:500;margin-top:12px;margin-bottom:10px">リスト管理</div>
-            <div style="color:var(--g600);margin-bottom:4px">アーカイブ：スワイプ → Archiveで非表示化</div>
-            <div style="color:var(--g600)">EXPORT ACTIVE LIST (.csv): Export active invoice defective items as CSV</div>
-          </div>
-        </div>`:''}
+        <div style="border-top:1px solid var(--g100);padding:14px 0 4px;margin-top:8px">
+          <button class="btn out" style="margin-top:0;width:100%;font-size:10px;letter-spacing:1.5px" onclick="_guideOpen=true;_guideStep=0;render()">使い方ガイドを開く</button>
+        </div>
       </div>
     </div>`:'';
 
   const pickerBackdrop='';
+
+  const guideModal=(()=>{
+    if(!_guideOpen)return '';
+    const steps=[
+      {
+        num:'01',
+        title:'インボイス登録',
+        icon:'📄',
+        body:`ホーム画面の <b>+ NEW INVOICE</b> ボタンをタップ。<br>PDFファイルを選択するとインボイス番号・アイテム情報が自動で読み込まれます。<br><br>登録済みインボイスはリストに表示され、タップで開けます。`,
+        tip:'PDFが読み込めない場合はSETから再解析できます'
+      },
+      {
+        num:'02',
+        title:'ディフェクティブチェック',
+        icon:'🔍',
+        body:`インボイスを開くとチェックリストが表示されます。<br>各アイテムをタップしてステータスを切り替えます：<br><br><b>— → OK → D → —</b><br><br><b>D（不良）</b> のアイテムはピッカーが展開され、部位・状態・写真を記録できます。<br>ピッカーは再タップで閉じます。`,
+        tip:'フィルターでRX / SUN / PARTSやステータスを絞り込めます'
+      },
+      {
+        num:'03',
+        title:'スタンプ番号入力',
+        icon:'🔖',
+        body:`チェックリスト下部の <b>→ スタンプ番号・IDを入力</b> をタップ。<br><br>スタンプ番号とアイテムIDを記録します。<br>入力後、メール下書き作成へ進むことができます。`,
+        tip:'スタンプ番号はCSVにも反映されます'
+      },
+      {
+        num:'04',
+        title:'MSG/EML入力',
+        icon:'📧',
+        body:`ドイツからの返信メール（.emlファイル）をアップロードします。<br><br>スタンプ画面または DISP 画面の <b>MSG/EML入力</b> ボタンからファイルを選択。<br>PN番号・クレーム番号が自動判定されます。`,
+        tip:'MicrosoftアカウントをSETから連携するとOutlookに下書きを自動保存できます'
+      },
+      {
+        num:'05',
+        title:'Disposition 設定',
+        icon:'📋',
+        body:`ホーム画面の <b>DISP</b> ボタンからDisposition画面を開きます。<br><br>各アイテムの処理方法（<b>Return / Sample</b>）を選択し、PN番号を入力します。<br>入力完了後 <b>DONE</b> を押して保存します。`,
+        tip:'CSV出力ボタンでDispositionレポートをダウンロードできます'
+      },
+      {
+        num:'06',
+        title:'RECE 入庫登録',
+        icon:'📦',
+        body:`ホーム画面の <b>PN SEARCH</b> から対応インボイスとの紐付けを確認します。<br><br>Matched バッジが表示されたアイテムの <b>RECE</b> ボタンを押すと入庫予定インボイスを選択できます。<br><br>DS / SB アイテムは過去入庫済みのため、インボイス番号の確認アラートが表示されます。`,
+        tip:'インボイス・Matched/Non-Matched・アイテム名でフィルタリングできます'
+      },
+      {
+        num:'07',
+        title:'入庫CSV出力',
+        icon:'📊',
+        body:`ホーム画面の <b>SMAREGI RECEIVING CSV</b> ボタンをタップ。<br><br>出力するインボイスを選択して <b>CSV をダウンロード</b> します。<br><br>DS / SB アイテムが含まれる場合、除外確認ダイアログが表示されます。<b>OK</b> で除外、<b>キャンセル</b> でそのまま続行します。`,
+        tip:'SELECT ALL / DESELECT ALL で一括選択切り替えができます'
+      }
+    ];
+    const s=Math.max(0,Math.min(_guideStep,steps.length-1));
+    const cur=steps[s];
+    const dots=steps.map((_,i)=>`<span onclick="_guideStep=${i};render()" style="width:7px;height:7px;border-radius:50%;background:${i===s?'var(--blue)':'var(--g200)'};cursor:pointer;display:inline-block;transition:background .2s"></span>`).join('');
+    return `<div class="overlay" id="guide-overlay" style="z-index:700" onclick="if(event.target.id==='guide-overlay'){_guideOpen=false;render()}">
+  <div class="sheet" style="max-width:400px;padding:0;overflow:hidden;border-radius:14px" id="guide-sheet"
+    data-step="${s}"
+    ontouchstart="(function(el,e){el._tx=e.touches[0].clientX})(document.getElementById('guide-sheet'),event)"
+    ontouchend="(function(el,e){if(!el._tx)return;const dx=e.changedTouches[0].clientX-el._tx;el._tx=null;if(Math.abs(dx)<40)return;_guideStep=Math.max(0,Math.min(${steps.length-1},_guideStep+(dx<0?1:-1)));render()})(document.getElementById('guide-sheet'),event)">
+    <div style="background:var(--blue);padding:20px 20px 16px;color:#fff;position:relative">
+      <button onclick="_guideOpen=false;render()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;line-height:1;font-family:inherit">×</button>
+      <div style="font-size:9px;letter-spacing:2.5px;opacity:.8;margin-bottom:4px">STEP ${cur.num} / ${String(steps.length).padStart(2,'0')}</div>
+      <div style="font-size:22px;margin-bottom:6px">${cur.icon}</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:.5px">${cur.title}</div>
+    </div>
+    <div style="padding:20px 20px 8px;min-height:160px">
+      <div style="font-size:12px;color:var(--g800);line-height:1.9">${cur.body}</div>
+      ${cur.tip?`<div style="margin-top:14px;background:var(--g50);border-radius:6px;padding:8px 12px;font-size:10px;color:var(--g500);line-height:1.6">💡 ${cur.tip}</div>`:''}
+    </div>
+    <div style="padding:16px 20px 20px;display:flex;align-items:center;justify-content:space-between">
+      <button onclick="_guideStep=Math.max(0,_guideStep-1);render()" style="background:none;border:1px solid var(--g200);border-radius:8px;padding:8px 16px;font-size:11px;color:var(--g600);cursor:pointer;font-family:inherit;opacity:${s===0?0.3:1};pointer-events:${s===0?'none':'auto'}">← 前へ</button>
+      <div style="display:flex;gap:6px;align-items:center">${dots}</div>
+      ${s===steps.length-1
+        ?`<button onclick="_guideOpen=false;render()" style="background:var(--blue);border:none;border-radius:8px;padding:8px 16px;font-size:11px;color:#fff;cursor:pointer;font-family:inherit">閉じる</button>`
+        :`<button onclick="_guideStep=Math.min(${steps.length-1},_guideStep+1);render()" style="background:var(--blue);border:none;border-radius:8px;padding:8px 16px;font-size:11px;color:#fff;cursor:pointer;font-family:inherit">次へ →</button>`
+      }
+    </div>
+  </div>
+</div>`;
+  })();
+
   const photoViewer=S.viewPhoto
     ?`<div class="photo-viewer">
         <button class="photo-viewer-close" onclick="S.viewPhoto=null;render()">×</button>
@@ -3693,7 +3750,7 @@ function render(){
       ${_defItems.length>0?`<div style="margin-top:12px"><button class="btn blk" style="margin-top:0;opacity:${Object.keys(_pnListChanges).length>0?1:0.35}" onclick="savePnListChanges()">DONE</button></div>`:''}
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${photoViewer}${markupEditor}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${photoViewer}${markupEditor}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

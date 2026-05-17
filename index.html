@@ -911,7 +911,7 @@ function exportSumarejiCSV(){
           if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,posNo:it.subOf||it.no,colorCode:it.colorCode||''});
           grouped.get(it.itemNo).count++;
           if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
-            _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,name:it.name,custRef:it.custRef||''});
+            _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
         }
       });
       // PARTS OK with PN match
@@ -933,8 +933,8 @@ function exportSumarejiCSV(){
     rows.push([itemNo,count,unitPrice,posNo,name,colorCode,'']);
   }
   if(_dsSbWarnItems.length){
-    const _wl=_dsSbWarnItems.map(w=>`・${w.name} (${w.custRef})`).join('\n');
-    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。（過去に入庫後デイフェクティブ報告を行ったアイテム）\n・def stock\n・stock claim\n・shop breakage\n\n'+_wl+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\nOK = 除外する\nキャンセル = そのまま続行')){
+    const _wl=_dsSbWarnItems.map(w=>`・${w.posNo}. ${w.name} (${w.custRef})`).join('\n');
+    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。※過去に入庫したアイテムのデイフェクティブ報告\n[def stock/stock claim/shop breakage]\n\n'+_wl+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\n\nOK = 除外する\nキャンセル = そのまま続行')){
       const _excl=new Set(_dsSbWarnItems.map(w=>w.itemNo));
       const _kept=rows.filter(r=>!_excl.has(r[0]));
       rows.length=0;_kept.forEach(r=>rows.push(r));
@@ -997,7 +997,7 @@ function exportSumarejiCSVById(id){
         if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no,colorCode:it.colorCode||''});
         grouped.get(it.itemNo).count++;
         if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
-          _dsSbWarnItems.push({itemNo:it.itemNo,name:it.name,custRef:it.custRef||''});
+          _dsSbWarnItems.push({itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
       }
       if(it.cat==='parts'&&it.status==='ok'&&!it.smDone&&it.orderNo&&_pnMap.has(it.orderNo.trim())){
         _partsWarn.push(it);
@@ -1011,8 +1011,8 @@ function exportSumarejiCSVById(id){
       rows.push([itemNo,count,'',posNo,name,colorCode,'']);
     }
     if(_dsSbWarnItems.length){
-      const _wl=_dsSbWarnItems.map(w=>`・${w.name} (${w.custRef})`).join('\n');
-      if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。（過去に入庫後デイフェクティブ報告を行ったアイテム）\n・def stock\n・stock claim\n・shop breakage\n\n'+_wl+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\nOK = 除外する\nキャンセル = そのまま続行')){
+      const _wl=_dsSbWarnItems.map(w=>`・${w.posNo}. ${w.name} (${w.custRef})`).join('\n');
+      if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。※過去に入庫したアイテムのデイフェクティブ報告\n[def stock/stock claim/shop breakage]\n\n'+_wl+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\n\nOK = 除外する\nキャンセル = そのまま続行')){
         const _excl=new Set(_dsSbWarnItems.map(w=>w.itemNo));
         const _kept=rows.filter(r=>!_excl.has(r[0]));
         rows.length=0;_kept.forEach(r=>rows.push(r));
@@ -2149,7 +2149,7 @@ function goToStamp(){
   ):[];
   if(defRefItems.length){
     const names=defRefItems.map(i=>`・${i.subOf||i.no}. ${i.name}${i.custRef?' ('+i.custRef+')':''}`).join('\n');
-    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。（過去に入庫後デイフェクティブ報告を行ったアイテム）\n・def stock\n・stock claim\n・shop breakage\n\n'+names+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\nOK = 除外する\nキャンセル = そのまま続行')){
+    if(confirm('CustRefに以下のいずれかが含まれているアイテムが存在します。※過去に入庫したアイテムのデイフェクティブ報告\n[def stock/stock claim/shop breakage]\n\n'+names+'\n\n今回入庫させないよう、入庫CSVから除外しますか？\n\nOK = 除外する\nキャンセル = そのまま続行')){
       S.invoice.items=S.invoice.items.map(i=>defRefItems.some(d=>d.no===i.no)?{...i,smDone:true}:i);
       save();
     }

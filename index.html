@@ -890,7 +890,7 @@ function exportSumarejiCSV(){
       _pg.get(it.itemNo).count++;
     });
     for(const [itemNo,{count,name,posNo,colorCode}] of _pg){
-      rows.push([itemNo,count,'',posNo,name,colorCode,'複数回D - 要手入力修正']);
+      rows.push([itemNo,count,'',posNo,name,colorCode,'PARTS複数回D - 要手入力修正']);
     }
     const _wl=_partsWarnAll.map(it=>`・${it.name||it.itemNo} (pos ${it.subOf||it.no})`).join('\n');
     alert('⚠️ 以下のアイテムは複数回のPARTSディフェクティブにより\n元となるアイテムとの照合ができませんでした。\nダウンロード後に手入力で修正してください。\n\n'+_wl);
@@ -951,7 +951,7 @@ function exportSumarejiCSVById(id){
         _pg.get(it.itemNo).count++;
       });
       for(const [itemNo,{count,name,posNo,colorCode}] of _pg){
-        rows.push(['','','',posNo,name,colorCode,'複数回D - 要手入力修正']);
+        rows.push(['','','',posNo,name,colorCode,'PARTS複数回D - 要手入力修正']);
       }
       const _wl=_partsWarn.map(it=>`・${it.name||it.itemNo} (pos ${it.subOf||it.no})`).join('\n');
       alert('⚠️ 以下のアイテムは複数回のPARTSディフェクティブにより\n元となるアイテムとの照合ができませんでした。\nダウンロード後に手入力で修正してください。\n\n'+_wl);

@@ -295,9 +295,9 @@
   .pn-badge{animation:pn-blink 1.2s ease-in-out infinite;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 5px}
   @keyframes proc-step-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   @keyframes proc-line-in{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-  @keyframes guide-swipe{0%,12%{transform:translateX(0);opacity:1}40%,68%{transform:translateX(-156px);opacity:1}72%,100%{transform:translateX(0);opacity:0}}
-  @keyframes guide-sent-show{0%,14%{opacity:0}32%,68%{opacity:1}74%,100%{opacity:0}}
-  @keyframes guide-card-after{0%,70%{opacity:0}76%,90%{opacity:1}98%,100%{opacity:0}}
+  @keyframes guide-swipe{0%,12%{transform:translateX(0);opacity:1;animation-timing-function:ease-in}40%,65%{transform:translateX(-156px);opacity:1}66%,100%{transform:translateX(0);opacity:0}}
+  @keyframes guide-sent-show{0%,14%{opacity:0}32%,64%{opacity:1}66%,100%{opacity:0}}
+  @keyframes guide-card-after{0%,64%{transform:translateX(-156px);opacity:0}66%{transform:translateX(-156px);opacity:1;animation-timing-function:ease-out}79%,92%{transform:translateX(0);opacity:1}98%,100%{transform:translateX(0);opacity:0}}
   @keyframes guide-finger{0%,12%{opacity:0;transform:translate(140px,0)}24%{opacity:1;transform:translate(140px,0)}50%{opacity:1;transform:translate(0,0)}62%,67%{opacity:1;transform:translate(0,5px) scale(0.84)}72%{opacity:0;transform:translate(0,5px)}100%{opacity:0;transform:translate(140px,0)}}
   .proc-step{opacity:0;animation:proc-step-in .25s ease forwards}
   .proc-conn{width:2px;height:28px;background:var(--g200);margin:2px 13px;transform-origin:top;transform:scaleY(0);animation:proc-line-in .2s ease forwards}

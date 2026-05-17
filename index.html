@@ -547,7 +547,7 @@ function buildProcessChain(rootInvId,rootItemNo){
     if(item.status==='defective'){
       steps.push({type:'defective'});
       if(item.pn)steps.push({type:'pn',pn:item.pn});
-      if(item.receiving)steps.push({type:'rece',receivingDate:item.receivingDate||''});
+      if(item.receiving)steps.push({type:'receiving',receivingDate:item.receivingDate||''});
       if(item.pn){
         for(const[cId,cInv]of Object.entries(allInvs)){
           if(cId===invId)continue;
@@ -556,8 +556,8 @@ function buildProcessChain(rootInvId,rootItemNo){
         }
       }
     }else if(item.status==='ok'){
-      steps.push({type:'ok'});
-      if(item.receiving)steps.push({type:'rece',receivingDate:item.receivingDate||''});
+      steps.push({type:item.cat==='parts'?'receiving_end':'ok'});
+      if(item.receiving)steps.push({type:'receiving',receivingDate:item.receivingDate||''});
     }else{
       steps.push({type:'pending'});
     }
@@ -3612,13 +3612,14 @@ ${(()=>{
   if(!_processModal)return '';
   const{steps,title}=_processModal;
   const _defs={
-    order:  {icon:'📦',label:'ORDER',    color:'var(--g700)'},
-    delivery:{icon:'📦',label:'DELIVERY', color:'var(--g700)'},
-    defective:{icon:'🔴',label:'DEFECTIVE',color:'var(--red)'},
-    pn:     {icon:'🏷', label:'PN REGISTERED',color:'var(--blue)'},
-    rece:   {icon:'📥',label:'RECE',     color:'var(--teal)'},
-    ok:     {icon:'✅', label:'OK',       color:'var(--teal)'},
-    pending:{icon:'⏳', label:'PENDING',  color:'var(--amber)'},
+    order:        {icon:'📦',label:'ORDER',      color:'var(--g700)'},
+    delivery:     {icon:'📦',label:'DELIVERY',   color:'var(--g700)'},
+    defective:    {icon:'🔴',label:'DEFECTIVE',  color:'var(--red)'},
+    pn:           {icon:'🏷', label:'PN REGISTERED',color:'var(--blue)'},
+    receiving:    {icon:'📥',label:'RECEIVING',  color:'var(--teal)'},
+    receiving_end:{icon:'📥',label:'RECEIVING',  color:'var(--teal)'},
+    ok:           {icon:'✅', label:'OK',         color:'var(--teal)'},
+    pending:      {icon:'⏳', label:'PENDING',    color:'var(--amber)'},
   };
   const html=steps.map((s,i)=>{
     const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
@@ -3626,7 +3627,8 @@ ${(()=>{
     let sub='';
     if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
     else if(s.type==='pn'){sub=s.pn;}
-    else if(s.type==='rece'){sub=s.receivingDate?`INV ${esc(s.receivingDate)}`:'入庫済';}
+    else if(s.type==='receiving'){sub=s.receivingDate?`INV ${esc(s.receivingDate)}`:'入庫済';}
+    else if(s.type==='receiving_end'){sub='';}
     const delay=i*150;
     return `<div class="proc-step" style="animation-delay:${delay}ms">
       <div style="display:flex;align-items:flex-start;gap:10px">

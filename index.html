@@ -481,14 +481,12 @@ function cancelRecDate(){_recDatePicker=null;_dispSw.openNo=null;render();}
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function openEditDate(id){_editDateId=id;render();}
 function saveEditDate(id,val){
-  // val is YYYY-MM-DD from <input type="date">; store as DD.MM.YYYY
-  const m=val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const newDate=m?`${m[3]}.${m[2]}.${m[1]}`:'';
+  if(!val)return;
+  const newCreatedAt=new Date(val).toISOString();
   const list=loadList();
   const idx=list.findIndex(e=>e.id===id);
-  if(idx>=0){list[idx].date=newDate;saveList(list);}
-  // Also update the stored invoice object
-  try{const raw=localStorage.getItem('mykita_dc_inv_'+id);if(raw){const inv=JSON.parse(raw);inv.date=newDate;localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));if(S.invoiceId===id&&S.invoice)S.invoice.date=newDate;}}catch(e){}
+  if(idx>=0){list[idx].createdAt=newCreatedAt;saveList(list);}
+  try{const raw=localStorage.getItem('mykita_dc_inv_'+id);if(raw){const inv=JSON.parse(raw);inv.createdAt=newCreatedAt;localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));if(S.invoiceId===id&&S.invoice)S.invoice.createdAt=newCreatedAt;}}catch(e){}
   _editDateId=null;render();
 }
 function defToggleOk(no){
@@ -3874,8 +3872,23 @@ ${(()=>{
     </div>
   </div>`;
 })()}
+${(()=>{
+  if(!_editDateId)return '';
+  const _edEntry=loadList().find(e=>e.id===_editDateId);
+  const _edInputVal=_edEntry?.createdAt?new Date(_edEntry.createdAt).toISOString().slice(0,10):'';
+  return `<div class="overlay" onclick="if(event.target===this){_editDateId=null;render()}" style="z-index:800">
+    <div class="sheet" style="max-width:320px;padding:20px">
+      <div class="sheet-tit" style="margin-bottom:16px">アップロード日を変更<button class="close-btn" onclick="_editDateId=null;render()">×</button></div>
+      <div style="font-size:11px;color:var(--g500);margin-bottom:10px">${esc(_edEntry?.number||'')}</div>
+      <input type="date" id="edit-date-inp" value="${_edInputVal}" style="width:100%;padding:10px 12px;border:1px solid var(--g200);border-radius:6px;font-size:15px;font-family:inherit;box-sizing:border-box;background:var(--g50);color:var(--g800);outline:none">
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn out" style="flex:1;margin-top:0" onclick="_editDateId=null;render()">キャンセル</button>
+        <button class="btn" style="flex:1;margin-top:0" onclick="saveEditDate('${_editDateId}',document.getElementById('edit-date-inp').value)">保存</button>
+      </div>
+    </div>
+  </div>`;
+})()}
     `;
-  if(_editDateId){const _edEntry=loadList().find(e=>e.id===_editDateId);const _edDate=_edEntry?.date||'';const _edInputVal=(()=>{const dm=_edDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);return dm?`${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`:''})();document.body.insertAdjacentHTML('beforeend',`<div class="overlay" id="edit-date-ov" style="z-index:800" onclick="if(event.target.id==='edit-date-ov'){_editDateId=null;render()}"><div class="sheet" style="max-width:320px;padding:20px"><div class="sheet-tit" style="margin-bottom:16px">作成日を変更<button class="close-btn" onclick="_editDateId=null;render()">×</button></div><div style="font-size:11px;color:var(--g500);margin-bottom:8px">${esc(_edEntry?.number||'')}</div><input type="date" id="edit-date-inp" value="${_edInputVal}" style="width:100%;padding:10px 12px;border:1px solid var(--g200);border-radius:6px;font-size:15px;font-family:inherit;box-sizing:border-box;background:var(--g50);color:var(--g800);outline:none"><div style="display:flex;gap:8px;margin-top:14px"><button class="btn out" style="flex:1;margin-top:0" onclick="_editDateId=null;render()">キャンセル</button><button class="btn" style="flex:1;margin-top:0" onclick="saveEditDate('${_editDateId}',document.getElementById('edit-date-inp').value)">保存</button></div></div></div>`);}
   const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_editDateId;
   document.body.style.overflow=_hasModal?'hidden':'';
   if(!S.markup) requestAnimationFrame(()=>{if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}else{window.scrollTo(0,_sy);}});

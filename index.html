@@ -983,7 +983,7 @@ function exportSumarejiCSV(){
     }
   }
   // PARTS OK with PN match: add rows + warn
-  if(_partsWarnAll.length){
+  if(_partsWarnAll.length&&(_receAdded||!receAll.length)){
     const _pg=new Map();
     _partsWarnAll.forEach(it=>{
       if(!_pg.has(it.itemNo))_pg.set(it.itemNo,{count:0,name:it.name,posNo:it.subOf||it.no,colorCode:it.colorCode||''});
@@ -1056,7 +1056,7 @@ function exportSumarejiCSVById(id){
       }
     }
     // PARTS OK with PN match: add rows + warn
-    if(_partsWarn.length){
+    if(_partsWarn.length&&(_receAdded||!receItems.length)){
       const _pg=new Map();
       _partsWarn.forEach(it=>{
         if(!_pg.has(it.itemNo))_pg.set(it.itemNo,{count:0,name:it.name,posNo:it.subOf||it.no,colorCode:it.colorCode||''});

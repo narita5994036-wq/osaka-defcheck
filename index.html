@@ -1851,11 +1851,19 @@ function parseMykita(text){
   // Item lines: anchor on Delivery# (8-digit, e.g. 81299521) then HS-Code (8-digit), DE, prices, JPY
   // Columns: Position Qty Unit Item# [Description Color CustomerRef OrderNo] Delivery# [SUN/RX] [Material] HS-Code DE UnitPrice TotalPrice JPY
   const re=/^[ \t]*(\d{1,2})[ \t]+(\d+)[ \t]+(PC|PA)[ \t]+(\d{8})[ \t]+(.+?)[ \t]+(\d{8})[ \t]+(SUN[ \t]+|RX[ \t]+)?(?:metal[ \t]+|acetate[ \t]+|MYLON[ \t]+|plastic[ \t]+)?(\d{8})[ \t]+DE[ \t]+(\d+)[ \t]+\d+[ \t]+JPY/gm;
+  // Pre-extract orphan model names: lines that contain only a MYKITA model name (separated from row data by pdfjs)
+  const _orphans=[];
+  {const _or=/^[ \t]*([A-Z]{2,}(?:\s+[A-Z0-9]+)?(?:[\-\/][A-Z0-9\/\-_]+)+_(?:RX|SUN)(?:\*)?)\s*$/gm;let _om;while((_om=_or.exec(text))!==null)_orphans.push({index:_om.index,name:_om[1].trim()});}
   const items=[];
   let m;
   while((m=re.exec(text))!==null){
     const pos=m[1],qty=m[2],unit=m[3],itemNo=m[4];
-    const descRaw=m[5].trim();
+    let descRaw=m[5].trim();
+    // If descRaw starts with a digit, model name may be an orphan line nearby in the text
+    if(/^\d/.test(descRaw)&&_orphans.length){
+      const nearest=_orphans.reduce((b,o)=>{const d=Math.abs(o.index-m.index);return d<b.dist?{name:o.name,dist:d}:b;},{name:null,dist:Infinity});
+      if(nearest.name&&nearest.dist<500)descRaw=nearest.name+' '+descRaw;
+    }
     // m[6]=delivery#, m[7]=SUN/RX column (undefined if blank), m[8]=HS-Code, m[9]=unitPrice (not stored)
     const sunRxCol=(m[7]||'').trim().toUpperCase();
     const hsCode=m[8],unitPrice='';

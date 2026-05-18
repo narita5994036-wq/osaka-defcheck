@@ -303,6 +303,8 @@
   @keyframes guide-mail-finger{0%,12%{opacity:0;transform:translate(-140px,0)}24%{opacity:1;transform:translate(-140px,0)}50%{opacity:1;transform:translate(0,0)}60%,65%{opacity:1;transform:translate(0,5px) scale(0.84)}68%{opacity:0;transform:translate(0,5px)}100%{opacity:0;transform:translate(-140px,0)}}
   @keyframes guide-mail-show-draft{0%,64%{opacity:0}70%,88%{opacity:1}95%,100%{opacity:0}}
   @keyframes guide-finger{0%,12%{opacity:0;transform:translate(140px,0)}24%{opacity:1;transform:translate(140px,0)}50%{opacity:1;transform:translate(0,0)}62%,67%{opacity:1;transform:translate(0,5px) scale(0.84)}72%{opacity:0;transform:translate(0,5px)}100%{opacity:0;transform:translate(140px,0)}}
+  @keyframes guide-push-dot{0%,8%{left:0;opacity:0}15%{left:0;opacity:1}72%{left:calc(100% - 8px);opacity:1}82%,100%{left:calc(100% - 8px);opacity:0}}
+  @keyframes guide-pull-dot{0%,8%{left:calc(100% - 8px);opacity:0}15%{left:calc(100% - 8px);opacity:1}72%{left:0;opacity:1}82%,100%{left:0;opacity:0}}
   .proc-step{opacity:0;animation:proc-step-in .25s ease forwards}
   .proc-conn{width:2px;height:28px;background:var(--g200);margin:2px 13px;transform-origin:top;transform:scaleY(0);animation:proc-line-in .2s ease forwards}
   .inv-card{border:1px solid var(--g200);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--w);position:relative;z-index:1}
@@ -3400,55 +3402,62 @@ function render(){
     const steps=[
       {
         num:'01',
+        title:'基本操作 / データ同期',
+        icon:'☁',
+        body:`複数の端末でデータを共有するには <b>SET</b> からGitHub GistとのPUSH/PULL同期を設定します。<br><br><div style="display:flex;gap:10px;margin:4px 0 12px"><div style="flex:1;background:var(--g50);border-radius:8px;padding:10px 10px 8px"><div style="font-size:9px;font-weight:700;letter-spacing:1px;color:#2563eb;margin-bottom:8px">PUSH</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="2.5"/></svg><div style="flex:1;position:relative;height:8px"><div style="position:absolute;inset:0;display:flex;align-items:center"><div style="width:100%;height:2px;background:#dbeafe;border-radius:2px"></div></div><div style="position:absolute;top:0;width:8px;height:8px;background:#2563eb;border-radius:50%;animation:guide-push-dot 3s ease-in-out infinite"></div></div><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div><div style="font-size:9px;color:var(--g400);line-height:1.5">このデバイスの<br>データを保存</div></div><div style="flex:1;background:var(--g50);border-radius:8px;padding:10px 10px 8px"><div style="font-size:9px;font-weight:700;letter-spacing:1px;color:#0d9488;margin-bottom:8px">PULL</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg><div style="flex:1;position:relative;height:8px"><div style="position:absolute;inset:0;display:flex;align-items:center"><div style="width:100%;height:2px;background:#ccfbf1;border-radius:2px"></div></div><div style="position:absolute;top:0;width:8px;height:8px;background:#0d9488;border-radius:50%;animation:guide-pull-dot 3s ease-in-out infinite"></div></div><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="2.5"/></svg></div><div style="font-size:9px;color:var(--g400);line-height:1.5">クラウドから<br>データを取得</div></div></div>① <b>SET</b> でGitHub PersonalAccessToken と Gist ID を入力<br>② <b>PUSH</b> して現在のデータを保存<br>③ 別の端末は Gist ID を入力して <b>PULL</b>`,
+        tip:'初回PUSHの後「Gist IDをコピー」で他の端末にIDを共有できます'
+      },
+      {
+        num:'02',
         title:'インボイス登録',
         icon:'📄',
         body:`ホーム画面の <b>+ NEW INVOICE</b> ボタンをタップ。<br>PDFファイルを選択するとインボイス番号・アイテム情報が自動で読み込まれます。<br><br>登録済みインボイスはリストに表示され、タップで開けます。`,
         tip:'PDFが読み込めない場合はSETから再解析できます'
       },
       {
-        num:'02',
+        num:'03',
         title:'ディフェクティブチェック',
         icon:'🔍',
         body:`インボイスを開くとチェックリストが表示されます。<br>各アイテムをタップしてステータスを切り替えます：<br><br><b>— → OK → D → —</b><br><br><b>D（不良）</b> のアイテムはピッカーが展開され、部位・状態・写真を記録できます。<br>ピッカーは再タップで閉じます。`,
         tip:'フィルターでRX / SUN / PARTSやステータスを絞り込めます'
       },
       {
-        num:'03',
+        num:'04',
         title:'スタンプ番号入力',
         icon:'🔖',
         body:`チェックリスト下部の <b>→ スタンプ番号・IDを入力</b> をタップ。<br><br>スタンプ番号とアイテムIDを記録します。<br>入力後、メール下書き作成へ進むことができます。`,
         tip:'スタンプ番号はCSVにも反映されます'
       },
       {
-        num:'04',
+        num:'05',
         title:'レポートメール作成',
         icon:'📧',
         body:`スタンプ・ID入力画面下部の <b>MAIL メール下書きを作成</b> をタップ。<br><br>ディフェクティブリストを含む送信用メール本文が自動生成されます。<br><b>本文をコピー</b> をタップしてメールに貼り付けて下書きを作成し、ディフェクティブ箇所を撮影した画像を添付して送信してください。<br><br>メール作成画面はインボイスリストを右にスライドして <b>MAIL</b> をタップすることでも表示できます。<div style="margin-top:14px;border-radius:8px;overflow:hidden;background:var(--g50);padding:10px 12px"><div style="position:relative;overflow:hidden;border-radius:6px;height:82px"><div style="position:absolute;left:0;top:0;bottom:0;display:flex;z-index:1;animation:guide-mail-btn 3.5s ease-in-out infinite"><div style="width:90px;background:#2563eb;display:flex;align-items:center;justify-content:center;border-radius:6px 0 0 6px"><span style="color:#fff;font-size:11px;font-weight:700;letter-spacing:1px">MAIL</span></div><div style="width:66px;background:#0f766e;display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:11px;font-weight:700;letter-spacing:1px">CSV</span></div></div><div style="position:absolute;inset:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;z-index:2;will-change:transform;animation:guide-mail-swipe 3.5s ease-in-out infinite"><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:13px;font-weight:700;letter-spacing:-.3px;color:#111">5000003801</span></div><div style="font-size:9px;color:#9ca3af;margin-bottom:6px">04.05.2026 · 2026/5/8</div><div style="height:2px;background:#16a34a;border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;color:#16a34a;font-weight:500">61 / 61 checked</div></div><div style="position:absolute;bottom:28px;left:42px;pointer-events:none;z-index:10;animation:guide-mail-finger 3.5s ease-in-out infinite"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" fill="none"><path d="M2 1L2 14L5.5 11L7.8 16.5L9.8 15.7L7.5 10.5H13.5L2 1Z" fill="#1a1a1a" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg></div><div style="position:absolute;inset:0;background:#fff;border-radius:6px;z-index:20;overflow:hidden;animation:guide-mail-show-draft 3.5s ease-in-out infinite"><div style="background:#f8f8f8;border-bottom:1px solid #e5e7eb;padding:6px 10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:7.5px;font-weight:700;letter-spacing:2px;color:#111">MAIL EMAIL DRAFT</span><span style="color:#bbb;font-size:12px;line-height:1">×</span></div><div style="padding:6px 10px"><div style="background:#fff5f5;border-radius:4px;padding:5px 8px;margin-bottom:5px"><span style="font-size:7px;font-weight:700;color:#c00;letter-spacing:1px;display:block;margin-bottom:2px">DEFECTIVE — 8 ITEMS</span><span style="font-size:7.5px;color:#333;display:block;margin-bottom:1px">4. <b>CO MR001 AL4_BK+P</b> · L lens / Scratches</span><span style="font-size:7.5px;color:#555;display:block">5. <b>CO MR001 AL5_RBR/X</b> · R lens / Scratches ···</span></div><div style="display:flex;align-items:center;gap:5px"><span style="font-size:7px;color:#aaa;letter-spacing:.5px">TO</span><span style="font-size:7.5px;color:#555;background:#f9f9f9;border:1px solid #e5e7eb;border-radius:3px;padding:2px 6px">d.duong@mykita.com</span></div></div></div></div></div>`,
         tip:'SETからMicrosoftアカウントを連携するとOutlookに下書きを自動保存できます'
       },
       {
-        num:'05',
+        num:'06',
         title:'SENT状態に変更',
         icon:'✈',
         body:`メール送信後はインボイスリストを左にスライドして <b>UNSENT</b> をタップし、<b>SENT</b> 状態に変更してください。<br><br>SENT状態になるとカードのボタンが <b>DEF LIST</b> から <b>DISP</b> に変わります。<div style="margin-top:14px;border-radius:8px;overflow:hidden;background:var(--g50);padding:10px 12px"><div style="position:relative;overflow:hidden;border-radius:6px;height:118px"><div style="position:absolute;right:0;top:0;bottom:0;display:flex;z-index:1;animation:guide-sent-show 4.8s ease-in-out infinite"><div style="width:88px;background:#6b7280;display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:10px;font-weight:700;letter-spacing:.5px">UNSENT</span></div><div style="width:68px;background:#374151;display:flex;align-items:center;justify-content:center;border-radius:0 6px 6px 0"><span style="color:#fff;font-size:10px;letter-spacing:.3px">Archive</span></div></div><div style="position:absolute;inset:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;z-index:2;will-change:transform;animation:guide-swipe 4.8s ease-in-out infinite"><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:13px;font-weight:700;letter-spacing:-.3px;color:#111">5000003801</span></div><div style="font-size:9px;color:#9ca3af;margin-bottom:6px">04.05.2026 · 2026/5/8</div><div style="height:2px;background:#16a34a;border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;color:#16a34a;font-weight:500;margin-bottom:8px">61 / 61 checked</div><button style="border:1px solid #dc2626;color:#dc2626;background:transparent;border-radius:4px;padding:4px 10px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:default;font-family:inherit">DEF LIST</button></div><div style="position:absolute;inset:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;z-index:3;animation:guide-card-after 4.8s ease-in-out infinite"><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:13px;font-weight:700;letter-spacing:-.3px;color:#111">5000003801</span><span style="background:#2563eb;color:#fff;font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>SENT</span></div><div style="font-size:9px;color:#9ca3af;margin-bottom:6px">04.05.2026 · 2026/5/8</div><div style="height:2px;background:#16a34a;border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;color:#16a34a;font-weight:500;margin-bottom:8px">61 / 61 checked</div><button style="border:1px solid #0d9488;color:#0d9488;background:transparent;border-radius:4px;padding:4px 10px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:default;font-family:inherit">DISP 0/8</button></div><div style="position:absolute;bottom:28px;right:100px;pointer-events:none;z-index:10;animation:guide-finger 4.8s ease-in-out infinite"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" fill="none"><path d="M2 1L2 14L5.5 11L7.8 16.5L9.8 15.7L7.5 10.5H13.5L2 1Z" fill="#1a1a1a" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg></div></div></div>`,
         tip:'SENTバッジが表示されればメール送信済みの状態です'
       },
       {
-        num:'06',
+        num:'07',
         title:'Disposition 設定',
         icon:'📋',
         body:`ホーム画面の <b>DISP</b> ボタンからDisposition画面を開きます。<br><br>各アイテムの処理方法（<b>Return / Sample</b>）を選択し、PN番号を入力します。<br>入力完了後 <b>DONE</b> を押して保存します。`,
         tip:'CSV出力ボタンでDispositionレポートをダウンロードできます'
       },
       {
-        num:'07',
+        num:'08',
         title:'RECE 入庫登録',
         icon:'📦',
         body:`ホーム画面の <b>PN SEARCH</b> から対応インボイスとの紐付けを確認します。<br><br>Matched バッジが表示されたアイテムの <b>RECE</b> ボタンを押すと入庫予定インボイスを選択できます。<br><br>DS / SB アイテムは過去入庫済みのため、インボイス番号の確認アラートが表示されます。`,
         tip:'インボイス・Matched/Non-Matched・アイテム名でフィルタリングできます'
       },
       {
-        num:'08',
+        num:'09',
         title:'入庫CSV出力',
         icon:'📊',
         body:`ホーム画面の <b>SMAREGI RECEIVING CSV</b> ボタンをタップ。<br><br>出力するインボイスを選択して <b>CSV をダウンロード</b> します。<br><br>DS / SB アイテムが含まれる場合、除外確認ダイアログが表示されます。<b>OK</b> で除外、<b>キャンセル</b> でそのまま続行します。`,

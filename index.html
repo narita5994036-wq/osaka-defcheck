@@ -3708,7 +3708,7 @@ function render(){
     :_defItems.filter(x=>!_isChild(x));
   // Unique invoice numbers for filter dropdown
   const _invNums=[...new Set(_defItems.map(({inv})=>inv.number||'').filter(Boolean))].sort();
-  const _badge=(pn,allDone=false)=>{const tag=getDnpSc(pn,_om);if(!tag)return '';if(allDone){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle"><span class="pn-badge" style="animation:badge-matched 3s ease-in-out infinite">Matched</span><span class="pn-badge" style="position:absolute;left:0;white-space:nowrap;color:var(--teal);border-color:var(--teal);animation:badge-all-done 3s ease-in-out infinite">ALL DONE</span></span>`;}return `<span class="pn-badge" style="margin-left:4px">Matched</span>`;};
+  const _badge=(pn,allDone=false)=>{const tag=getDnpSc(pn,_om);if(!tag)return '';if(allDone){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle"><span class="pn-badge" style="color:var(--teal);border-color:var(--teal);animation:badge-matched 3s ease-in-out infinite">Matched</span><span class="pn-badge" style="position:absolute;left:0;white-space:nowrap;color:var(--teal);border-color:var(--teal);animation:badge-all-done 3s ease-in-out infinite">ALL DONE</span></span>`;}return `<span class="pn-badge" style="margin-left:4px">Matched</span>`;};
   const rows=_filtered.map(({it,inv,invId})=>{
     const key=invId+'|'+it.no;
     const isOpen=_pnItemDetail===key;

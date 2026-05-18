@@ -1881,9 +1881,16 @@ function parseMykita(text){
           colorCode=cpm[1];
           name=descRaw.replace(cpm[0],'').replace(/\s{2,}/g,' ').trim();
         } else {
-          // Fallback: standalone 3-digit number at end of description
-          const cm=descRaw.match(/^(.*?)\s+(\d{3})(?:\s+.*)?$/);
-          if(cm&&!/^\d/.test(cm[1].trim())){name=cm[1].trim();colorCode=cm[2]}
+          // 3rd priority: leading 3-digit color code e.g. "556 Ms Giye 255644"
+          const cld=descRaw.match(/^(\d{3})\s+([A-Za-z].*)$/);
+          if(cld){
+            colorCode=cld[1];
+            name=cld[2].trim();
+          } else {
+            // Fallback: standalone 3-digit number at end of description
+            const cm=descRaw.match(/^(.*?)\s+(\d{3})(?:\s+.*)?$/);
+            if(cm&&!/^\d/.test(cm[1].trim())){name=cm[1].trim();colorCode=cm[2]}
+          }
         }
       }
     } else {
@@ -1900,6 +1907,8 @@ function parseMykita(text){
        custRef=rem.replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s{2,}/g,' ').trim().toLowerCase();
      }
     }
+    // Strip orderNo from name if it leaked in during color extraction
+    if(orderNo&&name.includes(orderNo)){name=name.replace(new RegExp('\\b'+orderNo+'\\b'),'').replace(/\s{2,}/g,' ').trim();}
     const qtyN=parseInt(qty)||1;
     if(qtyN<=1){
       items.push({no:pos,qty:'1',unit,itemNo,name,colorCode,cat,unitPrice,orderNo,custRef,status:'pending',remark:'',subOf:null,subIdx:0,subTotal:1,defects:[newDefect()],stampNo:'',photos:[]});

@@ -3328,7 +3328,6 @@ function render(){
           <button class="btn blk" style="margin-top:0;flex:1" onclick="gistPush()">↑ Push</button>
           <button class="btn out" style="margin-top:0;flex:1" onclick="gistPull()">↓ Pull</button>
         </div>
-        ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:0;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:16px" onclick="tryToggleCreds()">
           <span>認証情報を変更</span><span style="font-size:12px">${_settingsShowCreds?'−':'+'}
           </span>
@@ -3385,7 +3384,8 @@ function render(){
             <div>④ Token・Repo名を入力 → Push でアップロード</div>
             <div>⑤ 別デバイスでToken + Gist ID + Repo名を入力 → Pull</div>
           </div>
-          <button class="btn blk" style="margin-top:12px" onclick="saveCredsDraft()">DONE</button>
+          ${gId()?`<button id="g-cpid" class="btn out" style="margin-top:8px;font-size:9px" onclick="gistCopyId()">Gist IDをコピー（別デバイス用）</button>`:''}
+          <button class="btn blk" style="margin-top:8px" onclick="saveCredsDraft()">DONE</button>
         </div>`})():''}
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:8px" onclick="_settingsShowCsvFields=!_settingsShowCsvFields;render()">
           <span>CSV FIELDS</span><span style="font-size:12px">${_settingsShowCsvFields?'−':'+'}</span>

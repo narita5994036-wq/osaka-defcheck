@@ -351,7 +351,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 const SK='mykita_dc_v9'; // legacy migration only
 const SK_LIST='mykita_dc_list';
 const STATS=['pending','ok','defective','warranty'];
-const CYCLE_STATS=['pending','ok','defective'];
+const CYCLE_STATS=['pending','defective','ok'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',emailPhotoKeys:[],emailSelKeys:null,filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},viewPhoto:null,markup:null,showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',itemSearch:''};
@@ -3450,7 +3450,7 @@ function render(){
         num:'03',
         title:'ディフェクティブチェック',
         icon:'🔍',
-        body:`インボイスを開くとチェックリストが表示されます。<br>各アイテムをタップしてステータスを切り替えます：<br><br><b>— → OK → D → —</b><br><br><b>D（不良）</b> のアイテムはピッカーが展開され、部位・状態・写真を記録できます。<br>ピッカーは再タップで閉じます。`,
+        body:`インボイスを開くとチェックリストが表示されます。<br>各アイテムをタップしてステータスを切り替えます：<br><br><b>— → D → OK → —</b><br><br><b>D（不良）</b> のアイテムはピッカーが展開され、部位・状態・写真を記録できます。<br>ピッカーは再タップで閉じます。`,
         tip:'フィルターでRX / SUN / PARTSやステータスを絞り込めます'
       },
       {

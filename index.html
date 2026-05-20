@@ -3216,7 +3216,6 @@ function render(){
       <div class="sheet-tit">チェックリストを離れますか？</div>
       <div style="font-size:12px;color:var(--g600);margin-bottom:20px;line-height:1.7">未送信の変更があります。</div>
       ${gPat()&&gId()?`<button class="btn blk" style="margin-top:0;margin-bottom:10px" onclick="pushAndLeave()">↑ Push して戻る</button>`:''}
-      <button class="btn out" style="margin-top:0;margin-bottom:10px" onclick="leaveWithoutPush()">${gPat()&&gId()?'Push せず戻る':'このまま戻る'}</button>
       ${_invoiceSnap?`<button class="btn out" style="margin-top:0;margin-bottom:10px;color:var(--red);border-color:var(--redM)" onclick="discardAndLeave()">変更を破棄して戻る</button>`:''}
       <button class="btn out" style="margin-top:0" onclick="stayOnChecklist()">このまま続ける</button>
     </div>

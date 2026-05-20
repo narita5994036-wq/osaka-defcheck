@@ -2303,7 +2303,7 @@ function defAreaHtml(it){
     ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">${it.receivingDate?it.receivingDate+'で入庫':'入庫'}</span>`:''}
   </div>`:'';
   const photoRowOpen=`<div style="margin-top:10px;margin-left:32px;display:flex;align-items:center;gap:8px" onclick="event.stopPropagation()">
-    <button onclick="togglePhotoTaken('${no}')" style="font-size:10px;letter-spacing:.5px;font-weight:600;padding:5px 10px;border-radius:3px;border:1px solid ${it.photoTaken?'var(--blue)':'var(--g200)'};background:${it.photoTaken?'var(--blue)':'transparent'};color:${it.photoTaken?'#fff':'var(--g400)'};font-family:inherit;cursor:pointer">✔ 写真</button>
+    <button onclick="togglePhotoTaken('${no}')" style="font-size:10px;letter-spacing:.5px;font-weight:600;padding:5px 10px;border-radius:3px;border:1px solid ${it.photoTaken?'var(--green)':'var(--g200)'};background:${it.photoTaken?'var(--green)':'transparent'};color:${it.photoTaken?'#fff':'var(--g400)'};font-family:inherit;cursor:pointer">SHOT</button>
     <input type="text" value="${esc(it.itemId||'')}" placeholder="ID" inputmode="numeric"
       oninput="setItemId('${no}',this.value)" onclick="event.stopPropagation()"
       style="flex:1;padding:5px 10px;border:1px solid ${it.itemId?'var(--green)':'var(--g200)'};border-radius:3px;font-size:12px;background:${it.itemId?'var(--greenL)':'transparent'};color:${it.itemId?'var(--green)':'var(--g900)'};font-family:inherit;outline:none">
@@ -2313,7 +2313,7 @@ function defAreaHtml(it){
   }
   const txt=it.remark||'';
   const photoRowClosed=(it.photoTaken||it.itemId)?`<div style="display:flex;gap:6px;margin-left:32px;margin-top:4px;align-items:center">
-    ${it.photoTaken?`<span style="font-size:9px;letter-spacing:.5px;font-weight:600;color:#fff;background:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 7px">✔ 写真</span>`:''}
+    ${it.photoTaken?`<span style="font-size:9px;letter-spacing:.5px;font-weight:600;color:#fff;background:var(--green);border:1px solid var(--green);border-radius:3px;padding:1px 7px">SHOT</span>`:''}
     ${it.itemId?`<span style="font-size:10px;color:var(--g600)">ID: ${esc(it.itemId)}</span>`:''}
   </div>`:'';
   return `<div class="def-inline" onclick="togglePicker('${no}')">

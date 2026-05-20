@@ -2302,12 +2302,14 @@ function defAreaHtml(it){
     ${it.disp?`<span class="disp-lbl">DISP</span><span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>`:''}
     ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">${it.receivingDate?it.receivingDate+'で入庫':'入庫'}</span>`:''}
   </div>`:'';
-  const _camSvg=taken=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" style="display:block;flex-shrink:0">
+  const _camSvg=taken=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="24" height="24" style="display:block;flex-shrink:0">
     <rect x="1" y="7" width="22" height="14" rx="2.5" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8"/>
     <path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8" stroke-linejoin="round"/>
     <circle cx="12" cy="14" r="3.8" fill="${taken?'rgba(255,255,255,.25)':'none'}" stroke="${taken?'#fff':'#bbb'}" stroke-width="1.8"/>
     <circle cx="12" cy="14" r="1.4" fill="${taken?'rgba(255,255,255,.55)':'#bbb'}"/>
-    ${taken?'':'<line x1="3" y1="3" x2="21" y2="21" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>'}
+    ${taken
+      ?'<circle cx="21" cy="21" r="6" fill="#fff" stroke="var(--red)" stroke-width="1.5"/><path d="M18 21l2.2 2.2 3.5-3.5" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+      :'<line x1="3" y1="3" x2="21" y2="21" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>'}
   </svg>`;
   const photoRowOpen=`<div style="margin-top:10px;margin-left:32px;display:flex;align-items:center;gap:8px" onclick="event.stopPropagation()">
     <button onclick="togglePhotoTaken('${no}')" style="padding:4px 6px;border-radius:3px;border:1px solid ${it.photoTaken?'var(--red)':'var(--g200)'};background:${it.photoTaken?'var(--redL)':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_camSvg(it.photoTaken)}</button>
@@ -2320,7 +2322,7 @@ function defAreaHtml(it){
   }
   const txt=it.remark||'';
   const photoRowClosed=(it.photoTaken||it.itemId)?`<div style="display:flex;gap:6px;margin-left:32px;margin-top:4px;align-items:center">
-    ${it.photoTaken?`<span style="display:inline-flex;align-items:center;padding:1px 6px;background:var(--redL);border:1px solid var(--red);border-radius:3px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14"><rect x="1" y="7" width="22" height="14" rx="2.5" fill="var(--red)" stroke="var(--red)" stroke-width="1.8"/><path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="var(--red)" stroke="var(--red)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.8" fill="rgba(255,255,255,.25)" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="14" r="1.4" fill="rgba(255,255,255,.55)"/></svg></span>`:''}
+    ${it.photoTaken?`<span style="display:inline-flex;align-items:center;padding:1px 4px;background:var(--redL);border:1px solid var(--red);border-radius:3px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="16" height="16"><rect x="1" y="7" width="22" height="14" rx="2.5" fill="var(--red)" stroke="var(--red)" stroke-width="1.8"/><path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="var(--red)" stroke="var(--red)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.8" fill="rgba(255,255,255,.25)" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="14" r="1.4" fill="rgba(255,255,255,.55)"/><circle cx="21" cy="21" r="6" fill="#fff" stroke="var(--red)" stroke-width="1.5"/><path d="M18 21l2.2 2.2 3.5-3.5" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span>`:''}
     ${it.itemId?`<span style="font-size:10px;color:var(--red)">ID: ${esc(it.itemId)}</span>`:''}
   </div>`:'';
   return `<div class="def-inline" onclick="togglePicker('${no}')">

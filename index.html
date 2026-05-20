@@ -2311,7 +2311,7 @@ function defAreaHtml(it){
   const isOpen=!!S.pickerOpen[no];
   const dispHtml=(it.disp||it.receiving)?`<div class="disp-row" style="flex-wrap:wrap;gap:4px">
     ${it.disp?`<span class="disp-lbl">DISP</span><span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample'?' smp':''}" style="pointer-events:none">${it.disp==='return'?'Return':it.disp==='sample'?'Sample':'—'}</span>`:''}
-    ${it.receiving?`<span class="disp-btn rec" style="pointer-events:none">${it.receivingDate?it.receivingDate+'で入庫':'入庫'}</span>`:''}
+    ${it.receiving?`<span style="display:inline-flex;align-items:center;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid var(--blue);background:var(--blue);color:#fff;font-weight:600;pointer-events:none">${it.receivingDate?it.receivingDate+'で入庫':'入庫'}</span>`:''}
   </div>`:'';
   const _camSvg=taken=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="24" height="24" style="display:block;flex-shrink:0">
     <rect x="1" y="7" width="22" height="14" rx="2.5" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8"/>

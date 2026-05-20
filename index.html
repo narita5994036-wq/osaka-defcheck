@@ -530,36 +530,30 @@ function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
 function buildProcessChain(rootInvId,rootItemNo){
   const allInvs={};
   loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;const inv=JSON.parse(d);allInvs[e.id]={...inv,items:inv.items.map(it=>{const patch=_pnListChanges[e.id+'|'+it.no];return patch?{...it,...patch}:it;})};}catch(x){}});
-  function buildChains(invId,item,depth){
-    const inv=allInvs[invId];if(!inv)return [[]];
-    const base=[{type:depth===0?'order':'delivery',invNumber:inv.number||invId,cat:item.cat,name:item.name,no:item.subOf||item.no}];
+  const steps=[];
+  function traverse(invId,item,depth){
+    const inv=allInvs[invId];if(!inv)return;
+    steps.push({type:depth===0?'order':'delivery',invNumber:inv.number||invId,cat:item.cat,name:item.name,no:item.subOf||item.no});
     if(item.status==='defective'){
-      base.push({type:'defective'});
-      if(item.pn)base.push({type:'pn',pn:item.pn});
+      steps.push({type:'defective'});
+      if(item.pn)steps.push({type:'pn',pn:item.pn});
       if(item.pn){
-        const allMatches=[];
         for(const[cId,cInv]of Object.entries(allInvs)){
           if(cId===invId)continue;
           const child=cInv.items.find(it=>it.orderNo&&it.orderNo.trim()===item.pn.trim());
-          if(child)allMatches.push({cId,child});
+          if(child){traverse(cId,child,depth+1);break;}
         }
-        if(!allMatches.length)return [base];
-        const result=[];
-        allMatches.forEach(m=>{buildChains(m.cId,m.child,depth+1).forEach(c=>result.push([...base,...c]));});
-        return result;
       }
-      return [base];
     }else if(item.status==='ok'){
-      return [[...base,{type:'ok_receiving',invNumber:inv.number||invId}]];
+      steps.push({type:'ok_receiving',invNumber:inv.number||invId});
     }else{
-      return [[...base,{type:'pending'}]];
+      steps.push({type:'pending'});
     }
   }
   const rootInv=allInvs[rootInvId];if(!rootInv)return null;
   const rootItem=rootInv.items.find(i=>i.no===rootItemNo);if(!rootItem)return null;
-  const chains=buildChains(rootInvId,rootItem,0);
-  const title=rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'');
-  return{chains,steps:chains[0]||[],title,itemNo:rootItem.itemNo||'',posNo:rootItem.subOf||rootItem.no};
+  traverse(rootInvId,rootItem,0);
+  return{steps,title:rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'')};
 }
 function openProcessModal(invId,no){_processModal={invId,no};render();}
 function parseMsgForPns(raw){
@@ -3114,6 +3108,11 @@ function render(){
     }catch(x){}
   }
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
+  // Build rank map: when multiple items share the same pn, track X/N position
+  const _pnRank=new Map();
+  const _pnGroups={};
+  _defItems.forEach(({it,invId})=>{const p=it.pn||'';if(p){if(!_pnGroups[p])_pnGroups[p]=[];_pnGroups[p].push(invId+'|'+it.no);}});
+  Object.values(_pnGroups).forEach(keys=>{if(keys.length>1)keys.forEach((k,i)=>_pnRank.set(k,`${i+1}/${keys.length}`));});
   const _q=_pnSearch.trim();
   // Chain detection: items whose orderNo matches another defective item's pn are "children"
   const _allDefPns=new Set(_defItems.map(({it})=>it.pn?.trim()).filter(Boolean));
@@ -3149,7 +3148,7 @@ function render(){
         <div style="flex:1;min-width:0">
           <div style="font-size:10px;font-weight:700;font-family:monospace;color:var(--k)">${esc(it.pn)}${_badge(it.pn,_allDone)}${_chainLabel?`<span style="font-size:9px;font-weight:400;color:var(--g400);margin-left:4px">${esc(_chainLabel)}</span>`:''}</div>
           <div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name||'—')}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div>
-          <div style="font-size:9px;color:var(--g400);margin-top:1px">${esc(inv.number||invId)}</div>
+          <div style="font-size:9px;color:var(--g400);margin-top:1px">${esc(inv.number||invId)}${_pnRank.has(key)?`<span style="margin-left:5px;font-size:8px;font-weight:600;color:var(--g400);font-family:monospace">${_pnRank.get(key)}</span>`:''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px" onclick="event.stopPropagation()">
           <div style="font-size:9px;letter-spacing:1px;color:${it.disp==='return'?'var(--red)':it.disp==='sample'?'var(--teal)':it.disp==='sent'?'var(--amber)':'var(--g400)'}">${dispStr}</div>
@@ -3230,7 +3229,7 @@ ${(()=>{
   if(!_processModal)return '';
   const _chain=buildProcessChain(_processModal.invId,_processModal.no);
   if(!_chain)return '';
-  const{chains,title}=_chain;
+  const{steps,title}=_chain;
   const _defs={
     order:        {icon:'📦',label:'ORDER',          color:'var(--g700)'},
     delivery:     {icon:'📦',label:'REPLACEMENT',     color:'var(--g700)'},
@@ -3240,33 +3239,26 @@ ${(()=>{
     ok:           {icon:'✅', label:'OK',             color:'var(--teal)'},
     pending:      {icon:'⏳', label:'PENDING',        color:'var(--amber)'},
   };
-  let _delay=0;
-  const html=chains.map((steps,ci)=>{
-    const multiChain=chains.length>1;
-    const chainHeader=multiChain?`<div style="font-size:9px;color:var(--g400);margin:${ci>0?'12px':0} 0 6px;${ci>0?'border-top:1px dashed var(--g100);padding-top:10px':''}">${ci+1} / ${chains.length}</div>`:'';
-    const stepsHtml=steps.map((s,i)=>{
-      const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
-      const isLast=i===steps.length-1;
-      let sub='';
-      if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
-      else if(s.type==='pn'){sub=s.pn;}
-      else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
-      const delay=_delay;_delay+=150;
-      return `<div class="proc-step" style="animation-delay:${delay}ms">
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
-            <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
-            ${!isLast?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
-          </div>
-          <div style="padding:5px 0">
-            <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${d.label}</div>
-            ${sub?`<div style="font-size:11px;color:var(--g500);margin-top:1px;font-family:${s.type==='pn'?'monospace':'inherit'}">${sub}</div>`:''}
-          </div>
+  const html=steps.map((s,i)=>{
+    const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
+    const isLast=i===steps.length-1;
+    let sub='';
+    if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
+    else if(s.type==='pn'){sub=s.pn;}
+    else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
+    const delay=i*150;
+    return `<div class="proc-step" style="animation-delay:${delay}ms">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+          <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
+          ${!isLast?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
         </div>
-      </div>`;
-    }).join('');
-    _delay+=200;
-    return chainHeader+stepsHtml;
+        <div style="padding:5px 0">
+          <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${d.label}</div>
+          ${sub?`<div style="font-size:11px;color:var(--g500);margin-top:1px;font-family:${s.type==='pn'?'monospace':'inherit'}">${sub}</div>`:''}
+        </div>
+      </div>
+    </div>`;
   }).join('');
   return `<div class="overlay" onclick="if(event.target===this){_processModal=null;render()}" style="z-index:300">
     <div class="sheet">

@@ -292,7 +292,7 @@
   @keyframes disp-hop{0%{transform:translateY(0)}20%{transform:translateY(-9px)}40%{transform:translateY(-2px)}60%{transform:translateY(-6px)}80%{transform:translateY(-1px)}100%{transform:translateY(0)}}
   .disp-hop{animation:disp-hop 0.7s ease;}
   @keyframes pn-blink{0%,100%{opacity:1}50%{opacity:0.25}}
-  .pn-badge{animation:pn-blink 1.2s ease-in-out infinite;font-size:8px;letter-spacing:.5px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 5px}
+  .pn-badge{font-size:8px;letter-spacing:.5px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:3px;padding:1px 5px}
   @keyframes proc-step-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   @keyframes proc-line-in{from{transform:scaleY(0)}to{transform:scaleY(1)}}
   @keyframes guide-swipe{0%,12%{transform:translateX(0);opacity:1;animation-timing-function:ease-in}40%,65%{transform:translateX(-156px);opacity:1}66%,100%{transform:translateX(0);opacity:0}}
@@ -3741,7 +3741,7 @@ function render(){
     :_defItems.filter(x=>!_isChild(x));
   // Unique invoice numbers for filter dropdown
   const _invNums=[...new Set(_defItems.map(({inv})=>inv.number||'').filter(Boolean))].sort();
-  const _badge=(pn,allDone=false)=>{const tag=getDnpSc(pn,_om);if(!tag)return '';if(allDone){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle"><span class="pn-badge" style="color:var(--teal);border-color:var(--teal);animation:badge-matched 3s ease-in-out infinite">Matched</span><span class="pn-badge" style="position:absolute;left:0;white-space:nowrap;color:var(--teal);border-color:var(--teal);animation:badge-all-done 3s ease-in-out infinite">ALL DONE</span></span>`;}return `<span class="pn-badge" style="margin-left:4px">Matched</span>`;};
+  const _badge=(pn,allDone=false)=>{const tag=getDnpSc(pn,_om);if(!tag)return '';if(allDone){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle"><span class="pn-badge" style="background:var(--teal);border-color:var(--teal);animation:badge-matched 3s ease-in-out infinite">Matched</span><span class="pn-badge" style="position:absolute;left:0;white-space:nowrap;background:var(--teal);border-color:var(--teal);animation:badge-all-done 3s ease-in-out infinite">ALL DONE</span></span>`;}return `<span class="pn-badge" style="margin-left:4px">Matched</span>`;};
   const rows=_filtered.map(({it,inv,invId})=>{
     const key=invId+'|'+it.no;
     const isOpen=_pnItemDetail===key;

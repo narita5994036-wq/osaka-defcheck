@@ -3228,14 +3228,9 @@ function render(){
   </div>`:''}
 ${(()=>{
   if(!_processModal)return '';
-  // Find root item and sibling defectives with same itemNo in same invoice
-  let _pmRootItem=null;
-  const _pmSibNos=[];
-  try{const _pmRaw=localStorage.getItem('mykita_dc_inv_'+_processModal.invId);if(_pmRaw){const _pmInv=JSON.parse(_pmRaw);_pmRootItem=_pmInv.items.find(i=>i.no===_processModal.no);if(_pmRootItem?.itemNo){_pmInv.items.forEach(i=>{if(i.no!==_processModal.no&&i.itemNo===_pmRootItem.itemNo&&i.status==='defective')_pmSibNos.push(i.no);});}}}catch(x){}
-  const _pmAllNos=[_processModal.no,..._pmSibNos];
-  const _pmAllData=_pmAllNos.map(no=>buildProcessChain(_processModal.invId,no)).filter(Boolean);
-  if(!_pmAllData.length)return '';
-  const title=_pmAllData[0].title;
+  const _chain=buildProcessChain(_processModal.invId,_processModal.no);
+  if(!_chain)return '';
+  const{chains,title}=_chain;
   const _defs={
     order:        {icon:'📦',label:'ORDER',          color:'var(--g700)'},
     delivery:     {icon:'📦',label:'REPLACEMENT',     color:'var(--g700)'},
@@ -3245,15 +3240,18 @@ ${(()=>{
     ok:           {icon:'✅', label:'OK',             color:'var(--teal)'},
     pending:      {icon:'⏳', label:'PENDING',        color:'var(--amber)'},
   };
-  function renderSteps(steps,startDelay){
-    return steps.map((s,i)=>{
+  let _delay=0;
+  const html=chains.map((steps,ci)=>{
+    const multiChain=chains.length>1;
+    const chainHeader=multiChain?`<div style="font-size:9px;color:var(--g400);margin:${ci>0?'12px':0} 0 6px;${ci>0?'border-top:1px dashed var(--g100);padding-top:10px':''}">${ci+1} / ${chains.length}</div>`:'';
+    const stepsHtml=steps.map((s,i)=>{
       const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
       const isLast=i===steps.length-1;
       let sub='';
       if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
       else if(s.type==='pn'){sub=s.pn;}
       else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
-      const delay=startDelay+i*150;
+      const delay=_delay;_delay+=150;
       return `<div class="proc-step" style="animation-delay:${delay}ms">
         <div style="display:flex;align-items:flex-start;gap:10px">
           <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
@@ -3267,20 +3265,8 @@ ${(()=>{
         </div>
       </div>`;
     }).join('');
-  }
-  const multiItem=_pmAllData.length>1;
-  let _delayBase=0;
-  const html=_pmAllData.map((data,dataIdx)=>{
-    const{chains,posNo}=data;
-    const multiChain=chains.length>1;
-    const itemHeader=multiItem?`<div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:var(--g400);margin:${dataIdx>0?'20px':0} 0 8px;padding-top:${dataIdx>0?'16px':0};${dataIdx>0?'border-top:1px solid var(--g100)':''}">ITEM ${dataIdx+1} / ${_pmAllData.length} <span style="font-weight:400;font-family:monospace">· pos ${esc(posNo||'')}</span></div>`:'';
-    const chainsHtml=chains.map((steps,ci)=>{
-      const chainHeader=multiChain?`<div style="font-size:9px;color:var(--g400);margin:${ci>0?'12px':0} 0 6px;${ci>0?'border-top:1px dashed var(--g100);padding-top:10px':''}">${ci+1} / ${chains.length}</div>`:'';
-      const stepsHtml=renderSteps(steps,_delayBase);
-      _delayBase+=steps.length*150+200;
-      return chainHeader+stepsHtml;
-    }).join('');
-    return itemHeader+chainsHtml;
+    _delay+=200;
+    return chainHeader+stepsHtml;
   }).join('');
   return `<div class="overlay" onclick="if(event.target===this){_processModal=null;render()}" style="z-index:300">
     <div class="sheet">

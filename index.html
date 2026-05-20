@@ -530,30 +530,36 @@ function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
 function buildProcessChain(rootInvId,rootItemNo){
   const allInvs={};
   loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;const inv=JSON.parse(d);allInvs[e.id]={...inv,items:inv.items.map(it=>{const patch=_pnListChanges[e.id+'|'+it.no];return patch?{...it,...patch}:it;})};}catch(x){}});
-  const steps=[];
-  function traverse(invId,item,depth){
-    const inv=allInvs[invId];if(!inv)return;
-    steps.push({type:depth===0?'order':'delivery',invNumber:inv.number||invId,cat:item.cat,name:item.name,no:item.subOf||item.no});
+  function buildChains(invId,item,depth){
+    const inv=allInvs[invId];if(!inv)return [[]];
+    const base=[{type:depth===0?'order':'delivery',invNumber:inv.number||invId,cat:item.cat,name:item.name,no:item.subOf||item.no}];
     if(item.status==='defective'){
-      steps.push({type:'defective'});
-      if(item.pn)steps.push({type:'pn',pn:item.pn});
+      base.push({type:'defective'});
+      if(item.pn)base.push({type:'pn',pn:item.pn});
       if(item.pn){
+        const allMatches=[];
         for(const[cId,cInv]of Object.entries(allInvs)){
           if(cId===invId)continue;
           const child=cInv.items.find(it=>it.orderNo&&it.orderNo.trim()===item.pn.trim());
-          if(child){traverse(cId,child,depth+1);break;}
+          if(child)allMatches.push({cId,child});
         }
+        if(!allMatches.length)return [base];
+        const result=[];
+        allMatches.forEach(m=>{buildChains(m.cId,m.child,depth+1).forEach(c=>result.push([...base,...c]));});
+        return result;
       }
+      return [base];
     }else if(item.status==='ok'){
-      steps.push({type:'ok_receiving',invNumber:inv.number||invId});
+      return [[...base,{type:'ok_receiving',invNumber:inv.number||invId}]];
     }else{
-      steps.push({type:'pending'});
+      return [[...base,{type:'pending'}]];
     }
   }
   const rootInv=allInvs[rootInvId];if(!rootInv)return null;
   const rootItem=rootInv.items.find(i=>i.no===rootItemNo);if(!rootItem)return null;
-  traverse(rootInvId,rootItem,0);
-  return{steps,title:rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'')};
+  const chains=buildChains(rootInvId,rootItem,0);
+  const title=rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'');
+  return{chains,steps:chains[0]||[],title,itemNo:rootItem.itemNo||'',posNo:rootItem.subOf||rootItem.no};
 }
 function openProcessModal(invId,no){_processModal={invId,no};render();}
 function parseMsgForPns(raw){
@@ -3222,9 +3228,14 @@ function render(){
   </div>`:''}
 ${(()=>{
   if(!_processModal)return '';
-  const _chain=buildProcessChain(_processModal.invId,_processModal.no);
-  if(!_chain)return '';
-  const{steps,title}=_chain;
+  // Find root item and sibling defectives with same itemNo in same invoice
+  let _pmRootItem=null;
+  const _pmSibNos=[];
+  try{const _pmRaw=localStorage.getItem('mykita_dc_inv_'+_processModal.invId);if(_pmRaw){const _pmInv=JSON.parse(_pmRaw);_pmRootItem=_pmInv.items.find(i=>i.no===_processModal.no);if(_pmRootItem?.itemNo){_pmInv.items.forEach(i=>{if(i.no!==_processModal.no&&i.itemNo===_pmRootItem.itemNo&&i.status==='defective')_pmSibNos.push(i.no);});}}}catch(x){}
+  const _pmAllNos=[_processModal.no,..._pmSibNos];
+  const _pmAllData=_pmAllNos.map(no=>buildProcessChain(_processModal.invId,no)).filter(Boolean);
+  if(!_pmAllData.length)return '';
+  const title=_pmAllData[0].title;
   const _defs={
     order:        {icon:'📦',label:'ORDER',          color:'var(--g700)'},
     delivery:     {icon:'📦',label:'REPLACEMENT',     color:'var(--g700)'},
@@ -3234,25 +3245,42 @@ ${(()=>{
     ok:           {icon:'✅', label:'OK',             color:'var(--teal)'},
     pending:      {icon:'⏳', label:'PENDING',        color:'var(--amber)'},
   };
-  const html=steps.map((s,i)=>{
-    const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
-    const isLast=i===steps.length-1;
-    let sub='';
-    if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
-    else if(s.type==='pn'){sub=s.pn;}
-    else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}    const delay=i*150;
-    return `<div class="proc-step" style="animation-delay:${delay}ms">
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
-          <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
-          ${!isLast?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
+  function renderSteps(steps,startDelay){
+    return steps.map((s,i)=>{
+      const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
+      const isLast=i===steps.length-1;
+      let sub='';
+      if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
+      else if(s.type==='pn'){sub=s.pn;}
+      else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
+      const delay=startDelay+i*150;
+      return `<div class="proc-step" style="animation-delay:${delay}ms">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+            <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
+            ${!isLast?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
+          </div>
+          <div style="padding:5px 0">
+            <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${d.label}</div>
+            ${sub?`<div style="font-size:11px;color:var(--g500);margin-top:1px;font-family:${s.type==='pn'?'monospace':'inherit'}">${sub}</div>`:''}
+          </div>
         </div>
-        <div style="padding:5px 0">
-          <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${d.label}</div>
-          ${sub?`<div style="font-size:11px;color:var(--g500);margin-top:1px;font-family:${s.type==='pn'?'monospace':'inherit'}">${sub}</div>`:''}
-        </div>
-      </div>
-    </div>`;
+      </div>`;
+    }).join('');
+  }
+  const multiItem=_pmAllData.length>1;
+  let _delayBase=0;
+  const html=_pmAllData.map((data,dataIdx)=>{
+    const{chains,posNo}=data;
+    const multiChain=chains.length>1;
+    const itemHeader=multiItem?`<div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:var(--g400);margin:${dataIdx>0?'20px':0} 0 8px;padding-top:${dataIdx>0?'16px':0};${dataIdx>0?'border-top:1px solid var(--g100)':''}">ITEM ${dataIdx+1} / ${_pmAllData.length} <span style="font-weight:400;font-family:monospace">· pos ${esc(posNo||'')}</span></div>`:'';
+    const chainsHtml=chains.map((steps,ci)=>{
+      const chainHeader=multiChain?`<div style="font-size:9px;color:var(--g400);margin:${ci>0?'12px':0} 0 6px;${ci>0?'border-top:1px dashed var(--g100);padding-top:10px':''}">${ci+1} / ${chains.length}</div>`:'';
+      const stepsHtml=renderSteps(steps,_delayBase);
+      _delayBase+=steps.length*150+200;
+      return chainHeader+stepsHtml;
+    }).join('');
+    return itemHeader+chainsHtml;
   }).join('');
   return `<div class="overlay" onclick="if(event.target===this){_processModal=null;render()}" style="z-index:300">
     <div class="sheet">

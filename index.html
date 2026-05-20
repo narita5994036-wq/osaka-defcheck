@@ -308,11 +308,10 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','defective','ok'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',itemSearch:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',itemSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={};
 let _recDatePicker=null;
-let _editDateId=null;
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
@@ -433,16 +432,6 @@ function confirmRecDate(){
 }
 function cancelRecDate(){_recDatePicker=null;_dispSw.openNo=null;render();}
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
-function openEditDate(id){_editDateId=id;render();}
-function saveEditDate(id,val){
-  if(!val)return;
-  const newCreatedAt=new Date(val).toISOString();
-  const list=loadList();
-  const idx=list.findIndex(e=>e.id===id);
-  if(idx>=0){list[idx].createdAt=newCreatedAt;saveList(list);}
-  try{const raw=localStorage.getItem('mykita_dc_inv_'+id);if(raw){const inv=JSON.parse(raw);inv.createdAt=newCreatedAt;localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));if(S.invoiceId===id&&S.invoice)S.invoice.createdAt=newCreatedAt;}}catch(e){}
-  _editDateId=null;render();
-}
 function defToggleOk(no){
   if(_defOkSet.has(no))_defOkSet.delete(no);
   else _defOkSet.add(no);
@@ -1428,7 +1417,8 @@ function registerInvoice(inv){
   S.invoiceId=id;
   const tot=inv.items.length;
   const pend=inv.items.filter(i=>i.status==='pending').length;
-  list.unshift({id,number:inv.number,date:inv.date||'',createdAt:new Date().toISOString(),archived:false,tot,pend});
+  const createdAt=inv.createdAt||(S.uploadDate?new Date(S.uploadDate+'T00:00:00').toISOString():new Date().toISOString());
+  list.unshift({id,number:inv.number,date:inv.date||'',createdAt,archived:false,tot,pend});
   saveList(list);
   _invsDirty=true;_dirty=true;
   try{localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));}catch(e){console.warn('registerInvoice save failed:',e);}
@@ -1502,7 +1492,7 @@ function invCardHtml(e,isArchived){
             return`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;letter-spacing:1px;background:var(--blue);color:#fff;border-radius:3px;padding:2px 6px;font-weight:600;flex-shrink:0">${planeIcon}SENT</span>`;
           })():''}
         </div>
-        <div class="inv-card-date" onclick="event.stopPropagation();openEditDate('${e.id}')" style="cursor:pointer">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;opacity:.45;flex-shrink:0"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+        <div class="inv-card-date">${dateStr}${dateStr&&createdStr?' · ':''}${createdStr}</div>
         ${tot?`<div class="inv-card-prog-bar"><div class="inv-card-prog-fill" style="width:${prg}%;${prg===100?'background:var(--green)':''}"></div></div>
         <div class="inv-card-prg" style="${prg===100?'color:var(--green)':''}">${checked} / ${tot} checked</div>`:''}
         ${(()=>{const dt=e.dispTotal||0;const ds=e.dispSet||0;const rc=e.receCount||0;const parts=[];if(dt){const allSet=ds===dt;parts.push(`<span style="color:${allSet?'var(--teal)':'var(--g600)'}">Disposition: ${ds} / ${dt}${allSet?' — complete':''}</span>`);}if(rc){parts.push(`<span style="color:var(--blue)">RECE: ${rc} / ${dt}</span>`);}return parts.length?`<div class="inv-card-prg" style="margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">${parts.join('')}</div>`:''})()}
@@ -2416,6 +2406,8 @@ function render(){
 
   // UPLOAD
   if(S.screen==='upload'){
+    const _todayVal=new Date().toISOString().slice(0,10);
+    const _upDateVal=S.uploadDate||_todayVal;
     body=`
       <div class="upzone">
         <input type="file" accept=".pdf" onchange="handleFile(this.files[0])">
@@ -2423,6 +2415,13 @@ function render(){
         <div class="up-tit">PROFORMA INVOICE PDF</div>
         <div class="up-sub">タップしてファイルを選択</div>
       </div>
+      <details style="margin-top:14px;border:1px solid var(--g200);border-radius:8px;overflow:hidden">
+        <summary style="padding:10px 14px;font-size:12px;font-weight:600;color:var(--g600);list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--g50)">アップロード日<span style="font-size:10px;color:var(--g400);font-weight:400">${_upDateVal===_todayVal?'当日':_upDateVal}</span></summary>
+        <div style="padding:12px 14px;background:#fff">
+          <input type="date" value="${_upDateVal}" style="width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;background:var(--g50);color:var(--g800);outline:none" onchange="S.uploadDate=this.value;render()">
+          ${S.uploadDate&&S.uploadDate!==_todayVal?`<button style="margin-top:8px;font-size:11px;color:var(--g400);background:none;border:none;padding:0;cursor:pointer" onclick="S.uploadDate='';render()">当日にリセット</button>`:''}
+        </div>
+      </details>
       ${S.loading?`<div class="lbar"><div class="lfill"></div></div><div class="ltxt">解析中...</div>`:''}
       ${S.parseErr?`<div class="alert">${S.parseErr}</div>`:''}`;
   }
@@ -3264,24 +3263,8 @@ ${(()=>{
     </div>
   </div>`;
 })()}
-${(()=>{
-  if(!_editDateId)return '';
-  const _edEntry=loadList().find(e=>e.id===_editDateId);
-  const _edInputVal=_edEntry?.createdAt?new Date(_edEntry.createdAt).toISOString().slice(0,10):'';
-  return `<div class="overlay" onclick="if(event.target===this){_editDateId=null;render()}" style="z-index:800">
-    <div class="sheet" style="max-width:320px;padding:20px">
-      <div class="sheet-tit" style="margin-bottom:16px">アップロード日を変更<button class="close-btn" onclick="_editDateId=null;render()">×</button></div>
-      <div style="font-size:11px;color:var(--g500);margin-bottom:10px">${esc(_edEntry?.number||'')}</div>
-      <input type="date" id="edit-date-inp" value="${_edInputVal}" style="width:100%;padding:10px 12px;border:1px solid var(--g200);border-radius:6px;font-size:15px;font-family:inherit;box-sizing:border-box;background:var(--g50);color:var(--g800);outline:none">
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn out" style="flex:1;margin-top:0" onclick="_editDateId=null;render()">キャンセル</button>
-        <button class="btn" style="flex:1;margin-top:0" onclick="saveEditDate('${_editDateId}',document.getElementById('edit-date-inp').value)">保存</button>
-      </div>
-    </div>
-  </div>`;
-})()}
     `;
-  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_editDateId;
+  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt;
   document.body.style.overflow=_hasModal?'hidden':'';
   requestAnimationFrame(()=>{if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}else{window.scrollTo(0,_sy);}});
   if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}

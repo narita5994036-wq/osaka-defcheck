@@ -3118,8 +3118,9 @@ function render(){
   const _allDefPns=new Set(_defItems.map(({it})=>it.pn?.trim()).filter(Boolean));
   const _isChild=({it})=>!!it.orderNo&&_allDefPns.has(it.orderNo.trim());
   // child pn → parent pn chain indicator
-  const _chainNext={}; // parent pn → [child pn, ...]
-  _defItems.forEach(({it})=>{if(it.orderNo&&_allDefPns.has(it.orderNo.trim()))(_chainNext[it.orderNo.trim()]||=_chainNext[it.orderNo.trim()]||[]).push(it.pn||'?');});
+  const _chainNext={}; // parent pn → [child pn, ...] (deduped, no self-refs)
+  const _cnSeen=new Set();
+  _defItems.forEach(({it})=>{const pn=(it.pn||'').trim();const oNo=(it.orderNo||'').trim();if(oNo&&pn&&oNo!==pn&&_allDefPns.has(oNo)){const k=oNo+'→'+pn;if(!_cnSeen.has(k)){_cnSeen.add(k);(_chainNext[oNo]||=[]).push(pn);}}});
   const _hasFilter=_q||_pnInvFilter||_pnMatchFilter!=='all';
   const _filtered=_hasFilter
     ?_defItems.filter(({it,inv})=>{
@@ -3139,7 +3140,7 @@ function render(){
     const dispStr=it.disp?it.disp.charAt(0).toUpperCase()+it.disp.slice(1):'—';
     const matches=_om[it.pn]||[];
     // Build chain label: 258386 → 259325 → ...
-    const _buildChainLabel=(pn,depth=0)=>{if(!pn||depth>8)return '';const next=_chainNext[pn.trim()];if(!next||!next.length)return '';return next.map(n=>`→ ${n}${_buildChainLabel(n,depth+1)}`).join(', ');};
+    const _buildChainLabel=(pn,depth=0,visited=new Set())=>{if(!pn||depth>8||visited.has(pn.trim()))return '';const next=_chainNext[pn.trim()];if(!next||!next.length)return '';const vis=new Set(visited);vis.add(pn.trim());return next.map(n=>`→ ${n}${_buildChainLabel(n,depth+1,vis)}`).join(', ');};
     const _chainLabel=_buildChainLabel(it.pn);
     const _proc=buildProcessChain(invId,it.no);
     const _allDone=_proc&&_proc.steps.length>0&&['ok','ok_receiving'].includes(_proc.steps[_proc.steps.length-1].type);

@@ -3935,7 +3935,7 @@ ${(()=>{
     const _pnS=document.getElementById('pn-list-sheet');if(_pnS)_pnS.scrollTop=_pnSy;
   });
   if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}
-  _applyItemSearch();_applyHomeItemSearch();
+  _applyItemSearch();_applyPnNameSearch();_applyHomeItemSearch();
   const fab=document.getElementById('scroll-fab');
   if(fab){
     fab.style.display=((S.screen==='checklist'||S.screen==='stamp')&&!S.showEmail)?'flex':'none';

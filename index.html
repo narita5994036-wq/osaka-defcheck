@@ -1801,8 +1801,10 @@ function simpleModeCardHtml(e){
   const chipRece=receCount?`<span style="font-size:8px;letter-spacing:.8px;font-weight:700;padding:2px 7px;border-radius:20px;color:var(--teal);background:var(--tealL);border:1px solid #80cbc4">RECE ${receCount}</span>`:'';
   const chipMemo=e.memoCount?`<span style="font-size:8px;letter-spacing:.8px;font-weight:700;padding:2px 7px;border-radius:20px;color:var(--amber);background:var(--amberL);border:1px solid #fcd34d" onclick="event.stopPropagation();openMemoList('${e.id}')">MEMO ${e.memoCount}</span>`:'';
   const chips=[chipMemo,chipDef,chipSent,chipRece].filter(Boolean).join('');
-  const progBar=!checkDone&&tot?`<div style="margin-top:10px"><div style="height:3px;background:var(--g200);border-radius:2px;overflow:hidden"><div style="height:100%;border-radius:2px;background:${prg>0?'var(--blue)':'var(--g200)'};width:${prg}%"></div></div><div style="font-size:10px;color:var(--g600);margin-top:3px"><span style="color:${prg>0?'var(--blue)':'var(--g400)'};font-weight:600">${checked}</span> / ${tot} checked</div></div>`:'';
-  const receProgress=sent&&!allDone&&dispTotal?`<div style="display:flex;align-items:center;gap:8px;margin-top:10px"><div style="flex:1;height:3px;background:var(--g200);border-radius:2px;overflow:hidden"><div style="height:100%;border-radius:2px;background:var(--teal);width:${dispTotal?Math.round(receCount/dispTotal*100):0}%"></div></div><span style="font-size:10px;color:var(--teal);font-weight:600;white-space:nowrap">${receCount} / ${dispTotal} 入庫済</span></div>`:'';
+  const _collapsed=_smCollapsed.has(e.id);
+  const _hasProgress=(!checkDone&&tot)||(!!(sent&&!allDone&&dispTotal));
+  const progBar=!checkDone&&tot&&!_collapsed?`<div style="margin-top:10px"><div style="height:3px;background:var(--g200);border-radius:2px;overflow:hidden"><div style="height:100%;border-radius:2px;background:${prg>0?'var(--blue)':'var(--g200)'};width:${prg}%"></div></div><div style="font-size:10px;color:var(--g600);margin-top:3px"><span style="color:${prg>0?'var(--blue)':'var(--g400)'};font-weight:600">${checked}</span> / ${tot} checked</div></div>`:'';
+  const receProgress=sent&&!allDone&&dispTotal&&!_collapsed?`<div style="display:flex;align-items:center;gap:8px;margin-top:10px"><div style="flex:1;height:3px;background:var(--g200);border-radius:2px;overflow:hidden"><div style="height:100%;border-radius:2px;background:var(--teal);width:${dispTotal?Math.round(receCount/dispTotal*100):0}%"></div></div><span style="font-size:10px;color:var(--teal);font-weight:600;white-space:nowrap">${receCount} / ${dispTotal} 入庫済</span></div>`:'';
   let ctaBtn;
   if(allDone){
     ctaBtn=`<button class="sm-btn sm-grn" onclick="invCardTap('${e.id}')"><span>✓ 全工程完了</span><span style="font-size:10px;opacity:.6">詳細を見る</span></button>
@@ -1825,12 +1827,13 @@ function simpleModeCardHtml(e){
         </div>
         ${chips?`<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;padding-top:2px">${chips}</div>`:''}
       </div>
-      <div style="margin-top:12px">
-        <div class="sm-step-bar">
+      <div style="margin-top:12px;display:flex;align-items:flex-end;gap:4px">
+        <div class="sm-step-bar" style="flex:1">
           <div class="sm-step ${s1cls}" onclick="event.stopPropagation();invCardTap('${e.id}')" style="cursor:pointer"><div class="sm-dot">${d1}</div><div class="sm-lbl">DEF CHECK</div></div>
           <div class="sm-step ${s2cls}" onclick="event.stopPropagation();${sent?`toggleSent('${e.id}')`:`quickMail('${e.id}')`}" style="cursor:pointer"><div class="sm-dot">${d2}</div><div class="sm-lbl">SEND MAIL</div></div>
           <div class="sm-step ${s3cls}" onclick="event.stopPropagation();openSmReceSheet('${e.id}')" style="cursor:pointer"><div class="sm-dot">${d3}</div><div class="sm-lbl">RECEIVING</div></div>
         </div>
+        ${_hasProgress?`<button onclick="event.stopPropagation();toggleSmCollapsed('${e.id}')" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--g300);font-size:11px;padding:0 0 2px;line-height:1">${_collapsed?'▼':'▲'}</button>`:''}
       </div>
       ${progBar}
       ${receProgress}
@@ -2573,6 +2576,8 @@ const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
 let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false,_settingsShowReparse=false;
 let _guideOpen=false,_guideStep=0;
+let _smCollapsed=new Set();
+function toggleSmCollapsed(id){_smCollapsed.has(id)?_smCollapsed.delete(id):_smCollapsed.add(id);render();}
 let _trainingMode=localStorage.getItem('mykita_dc_training')==='1';
 let _trainPop=null;
 const TRAIN_STEPS={

@@ -1821,13 +1821,13 @@ function simpleModeCardHtml(e){
     <div class="sm-body">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div>
-          <div style="font-size:16px;font-weight:700;letter-spacing:.5px;line-height:1.2">${esc(e.number||'—')}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="font-size:16px;font-weight:700;letter-spacing:.5px;line-height:1.2">${esc(e.number||'—')}</div>
+            <button onclick="event.stopPropagation();toggleSmCollapsed('${e.id}')" style="background:none;border:none;cursor:pointer;color:var(--g400);font-size:11px;padding:0;line-height:1;flex-shrink:0">${_collapsed?'▼':'▲'}</button>
+          </div>
           ${dateStr?`<div style="font-size:10px;color:var(--g400);letter-spacing:.5px;margin-top:3px">${dateStr}</div>`:''}
         </div>
-        <div style="display:flex;align-items:flex-start;gap:4px;flex-shrink:0;padding-top:2px">
-          ${chips?`<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${chips}</div>`:''}
-          <button onclick="event.stopPropagation();toggleSmCollapsed('${e.id}')" style="background:none;border:none;cursor:pointer;color:var(--g300);font-size:13px;padding:1px 0 0;line-height:1;flex-shrink:0">${_collapsed?'▼':'▲'}</button>
-        </div>
+        ${chips?`<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;padding-top:2px">${chips}</div>`:''}
       </div>
       ${_collapsed?'':`<div style="margin-top:12px">
         <div class="sm-step-bar">
@@ -1837,9 +1837,8 @@ function simpleModeCardHtml(e){
         </div>
         ${progBar}${receProgress}
       </div>`}
-
     </div>
-    <div class="sm-cta">${ctaBtn}</div>
+    ${_collapsed?'':`<div class="sm-cta">${ctaBtn}</div>`}
     <div class="sm-item-hits"></div>
   </div>`;
 }

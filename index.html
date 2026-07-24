@@ -1808,13 +1808,13 @@ function simpleModeCardHtml(e){
     ctaBtn=`<button class="sm-btn sm-grn" onclick="invCardTap('${e.id}')"><span>✓ 全工程完了</span><span style="font-size:10px;opacity:.6">詳細を見る</span></button>
     <button onclick="event.stopPropagation();exportSumarejiCSVById('${e.id}')" style="width:100%;margin-top:6px;padding:8px 16px;border-radius:7px;border:1px solid var(--g200);background:transparent;color:var(--g600);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between"><span>↓ スマレジCSV 再出力</span><span style="font-size:12px;opacity:.7">›</span></button>`;
   }else if(sent){
-    const receBtn=receCount?`<button onclick="event.stopPropagation();openSmReceSheet('${e.id}')" style="width:100%;margin-top:6px;padding:8px 16px;border-radius:7px;border:1px solid var(--teal);background:transparent;color:var(--teal);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between"><span>入庫確認 ${receCount}/${dispTotal}</span><span style="font-size:12px;opacity:.7">›</span></button>`:'';
-    ctaBtn=`<button class="sm-btn sm-teal" onclick="event.stopPropagation();exportSumarejiCSVById('${e.id}')"><span>スマレジCSVを出力</span><span style="font-size:14px;opacity:.7">→</span></button>${receBtn}`;
+    const receBtn=receCount?`<button onclick="event.stopPropagation();_tgate('receConf',()=>openSmReceSheet('${e.id}'))" style="width:100%;margin-top:6px;padding:8px 16px;border-radius:7px;border:1px solid var(--teal);background:transparent;color:var(--teal);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between"><span>入庫確認 ${receCount}/${dispTotal}</span><span style="font-size:12px;opacity:.7">›</span></button>`:'';
+    ctaBtn=`<button class="sm-btn sm-teal" onclick="event.stopPropagation();_tgate('smCsv',()=>exportSumarejiCSVById('${e.id}'))"><span>スマレジCSVを出力</span><span style="font-size:14px;opacity:.7">→</span></button>${receBtn}`;
   }else if(checkDone){
-    ctaBtn=`<button class="sm-btn sm-blk" onclick="quickMail('${e.id}')"><span>レポートメールを送信</span><span style="font-size:14px;opacity:.7">→</span></button>
-    <button onclick="event.stopPropagation();toggleSent('${e.id}')" style="width:100%;margin-top:6px;padding:8px 16px;border-radius:7px;border:1px solid var(--g200);background:transparent;color:var(--g600);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between"><span>送信済みにする</span><span style="font-size:12px;opacity:.7">›</span></button>`;
+    ctaBtn=`<button class="sm-btn sm-blk" onclick="_tgate('sendMail',()=>quickMail('${e.id}'))"><span>レポートメールを送信</span><span style="font-size:14px;opacity:.7">→</span></button>
+    <button onclick="event.stopPropagation();_tgate('markSent',()=>toggleSent('${e.id}'))" style="width:100%;margin-top:6px;padding:8px 16px;border-radius:7px;border:1px solid var(--g200);background:transparent;color:var(--g600);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between"><span>送信済みにする</span><span style="font-size:12px;opacity:.7">›</span></button>`;
   }else{
-    ctaBtn=`<button class="sm-btn ${checked>0?'sm-blk':'sm-sec'}" onclick="invCardTap('${e.id}')"><span>チェックリストを開く</span><span style="font-size:14px;opacity:.7">→</span></button>`;
+    ctaBtn=`<button class="sm-btn ${checked>0?'sm-blk':'sm-sec'}" onclick="_tgate('defCheck',()=>invCardTap('${e.id}'))"><span>チェックリストを開く</span><span style="font-size:14px;opacity:.7">→</span></button>`;
   }
   return `<div class="sm-card" data-id="${e.id}">
     <div class="sm-body">
@@ -2573,6 +2573,19 @@ const MK_MS_CLIENT='mykita_ms_client_id';
 const MK_MS_TENANT='mykita_ms_tenant_id';
 let _msalApp=null,_msalAccount=null,_settingsShowMs=false,_settingsShowHelp=false,_settingsShowCsvFields=false,_settingsShowReparse=false;
 let _guideOpen=false,_guideStep=0;
+let _trainingMode=localStorage.getItem('mykita_dc_training')==='1';
+let _trainPop=null;
+const TRAIN_STEPS={
+  newInvoice:{no:1,of:6,title:'インボイスを登録',icon:'📄',body:'MYKITAから届いたProforma Invoice（PDF）をアップロードします。PDFを選択するとアイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
+  defCheck:{no:2,of:6,title:'ディフェクティブチェック',icon:'🔍',body:'各アイテムの状態を確認します。問題がなければ <b>OK</b>、不具合があれば <b>D（Defective）</b> を選択してください。Defectiveのアイテムは不具合箇所・状態の詳細入力が必要です。'},
+  sendMail:{no:3,of:6,title:'レポートメールを送信',icon:'📧',body:'Defectiveアイテムの情報をMYKITAへメールで報告します。メール本文が自動作成されますので、内容を確認してから送信してください。<br><br>📷 不具合箇所を撮影した写真の添付をお忘れなく。'},
+  markSent:{no:4,of:6,title:'送信済みにする（SENT）',icon:'✈️',body:'MYKITAへメールを送信済みであることをアプリに記録します。SENTにすることでスマレジCSV出力が可能になります。<br><br>まだ送信していない場合はスキップしてください。'},
+  smCsv:{no:5,of:6,title:'スマレジ入庫CSVを出力',icon:'📦',body:'MYKITAから代替品が届いたら、スマレジ用の入庫CSVを出力します。<br><br>このCSVをスマレジにインポートして入庫登録を完了させてください。'},
+  receConf:{no:6,of:6,title:'入庫確認',icon:'✅',body:'入庫した品番の数量を確認して、受入れ完了にします。全アイテムが完了すると「全工程完了」になります。'},
+};
+function _tgate(key,cb){if(!_trainingMode){cb();return;}_trainPop={step:TRAIN_STEPS[key],cb};render();}
+function _trainOk(){const cb=_trainPop&&_trainPop.cb;_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
+function toggleTrainingMode(){_trainingMode=!_trainingMode;localStorage.setItem('mykita_dc_training',_trainingMode?'1':'0');render();}
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
 function getMsTenantId(){return localStorage.getItem(MK_MS_TENANT)||'common';}
@@ -2883,7 +2896,7 @@ function render(){
     }).join('');
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
-      <button class="home-new" onclick="S.screen='upload';render()">+ NEW INVOICE</button>
+      <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}
@@ -3294,6 +3307,15 @@ function render(){
           <span style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">SMART MODE</span>
           <button onclick="toggleSimpleMode()" style="position:relative;width:44px;height:24px;border-radius:12px;border:none;background:${_simpleMode?'var(--blue)':'var(--g200)'};cursor:pointer;transition:background .2s;flex-shrink:0">
             <span style="position:absolute;top:3px;left:${_simpleMode?'23px':'3px'};width:18px;height:18px;border-radius:9px;background:#fff;transition:left .2s;display:block"></span>
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--g100);padding:14px 0 0;margin-top:4px">
+          <div>
+            <span style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">TRAINING MODE</span>
+            ${_trainingMode?`<div style="font-size:9px;color:var(--blue);margin-top:2px;letter-spacing:.3px">各操作前に説明が表示されます</div>`:''}
+          </div>
+          <button onclick="toggleTrainingMode()" style="position:relative;width:44px;height:24px;border-radius:12px;border:none;background:${_trainingMode?'var(--blue)':'var(--g200)'};cursor:pointer;transition:background .2s;flex-shrink:0">
+            <span style="position:absolute;top:3px;left:${_trainingMode?'23px':'3px'};width:18px;height:18px;border-radius:9px;background:#fff;transition:left .2s;display:block"></span>
           </button>
         </div>
         <button style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--g100);padding:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:var(--g400);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;margin-top:16px" onclick="tryToggleCreds()">
@@ -3860,7 +3882,7 @@ function render(){
       <button id="pn-scroll-fab" onclick="(function(){const s=document.getElementById('pn-list-sheet');if(!s)return;const atBottom=s.scrollHeight-s.scrollTop-s.clientHeight<40;s.scrollTo({top:atBottom?0:s.scrollHeight,behavior:'smooth'});})()" style="position:sticky;bottom:16px;left:calc(100% - 48px);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:none;background:var(--k);color:var(--w);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:10;margin-top:8px;float:right">↓</button>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px"><div style="background:var(--blue);padding:20px 20px 16px;color:#fff"><div style="font-size:9px;letter-spacing:2px;opacity:.75;margin-bottom:6px">STEP ${step.no} / ${step.of} — TRAINING MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">実行する →</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>
@@ -3926,7 +3948,7 @@ ${(()=>{
   </div>`;
 })()}
     `;
-  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt;
+  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_trainPop;
   document.body.style.overflow=_hasModal?'hidden':'';
   requestAnimationFrame(()=>{
     if(_scrollToDef){_scrollToDef=false;setTimeout(()=>{const _ds=document.getElementById('def-sum');if(_ds){const _top=_ds.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:_top,behavior:'smooth'});}},80);}else if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}

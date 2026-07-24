@@ -3970,7 +3970,15 @@ ${(()=>{
 }
 
 localStorage.removeItem('mykita_dc_dirty'); // clean up legacy persisted dirty flag
-initApp(); _listSnap=_listForSnap(loadList()); render(); gistAutoSync();
+initApp();
+_listSnap=_listForSnap(loadList());
+(()=>{
+  const list=loadList().filter(e=>!e.archived);
+  if(list.length<=1)return;
+  const newest=list.slice().sort((a,b)=>(b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||''))[0];
+  list.forEach(e=>{if(e.id!==newest.id)_smCollapsed.add(e.id);});
+})();
+render(); gistAutoSync();
 
 function fabAtBottom(){const sh=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);return window.innerHeight+window.scrollY>=sh-20;}
 function fabTap(){

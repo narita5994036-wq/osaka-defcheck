@@ -2011,7 +2011,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)===false){S.invoice=null;S.screen='home';}else{S.screen='checklist';}}
+    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)===false){S.invoice=null;S.screen='home';}else{S.screen='checklist';if(_trainingMode&&!_trainPop){_trainPop={step:TRAIN_STEPS.defCheck,cb:null};}}}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -2123,7 +2123,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};if(registerInvoice(S.invoice)===false){S.invoice=null;}else{S.screen='checklist';}render();
+  S.invoice={number,date,items};if(registerInvoice(S.invoice)===false){S.invoice=null;}else{S.screen='checklist';if(_trainingMode&&!_trainPop){_trainPop={step:TRAIN_STEPS.defCheck,cb:null};}}render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');
@@ -2161,6 +2161,7 @@ function cycle(no){
   if(checkArchived())return;
   let _newOkItem=null;
   let _okWarnItem=null;
+  let _markedDefective=false;
   S.invoice.items=S.invoice.items.map(it=>{
     if(it.no!==no)return it;
     const prev=it.status;
@@ -2168,6 +2169,7 @@ function cycle(no){
     const next=CYCLE_STATS[(i<0?0:i+1)%CYCLE_STATS.length];
     if(next==='defective'){
       S.pickerOpen[no]=true;
+      _markedDefective=true;
     }else if(prev==='defective'){
       delete S.pickerOpen[no];
       const cleaned=it.defects.filter((d,idx)=>
@@ -2182,6 +2184,7 @@ function cycle(no){
   if(_okWarnItem)_promptSmDone(_okWarnItem.no,_okWarnItem.custRef);
   save();
   if(_newOkItem&&S.invoice.number)_autoSetRece([_newOkItem],S.invoice.number);
+  if(_markedDefective&&_trainingMode&&!_firstDTrainShown){_firstDTrainShown=true;_trainPop={step:TRAIN_STEPS.firstD,cb:null};}
   render();
 }
 function toggleGrp(subOf){S.grpCollapsed[subOf]=!S.grpCollapsed[subOf];render();}
@@ -2579,13 +2582,17 @@ let _smCollapsed=new Set();
 function toggleSmCollapsed(id){_smCollapsed.has(id)?_smCollapsed.delete(id):_smCollapsed.add(id);render();}
 let _trainingMode=localStorage.getItem('mykita_dc_training')==='1';
 let _trainPop=null;
+let _appStartTrainShown=false;
+let _firstDTrainShown=false;
 const TRAIN_STEPS={
-  newInvoice:{no:1,of:6,title:'インボイスを登録',icon:'📄',body:'MYKITAから届いたProforma Invoice（PDF）をアップロードします。PDFを選択するとアイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
-  defCheck:{no:2,of:6,title:'ディフェクティブチェック',icon:'🔍',body:'各アイテムの状態を確認します。問題がなければ <b>OK</b>、不具合があれば <b>D（Defective）</b> を選択してください。Defectiveのアイテムは不具合箇所・状態の詳細入力が必要です。'},
-  sendMail:{no:3,of:6,title:'レポートメールを送信',icon:'📧',body:'Defectiveアイテムの情報をMYKITAへメールで報告します。メール本文が自動作成されますので、内容を確認してから送信してください。<br><br>📷 不具合箇所を撮影した写真の添付をお忘れなく。'},
-  markSent:{no:4,of:6,title:'送信済みにする（SENT）',icon:'✈️',body:'MYKITAへメールを送信済みであることをアプリに記録します。SENTにすることでスマレジCSV出力が可能になります。<br><br>まだ送信していない場合はスキップしてください。'},
-  smCsv:{no:5,of:6,title:'スマレジ入庫CSVを出力',icon:'📦',body:'MYKITAから代替品が届いたら、スマレジ用の入庫CSVを出力します。<br><br>このCSVをスマレジにインポートして入庫登録を完了させてください。'},
-  receConf:{no:6,of:6,title:'入庫確認',icon:'✅',body:'入庫した品番の数量を確認して、受入れ完了にします。全アイテムが完了すると「全工程完了」になります。'},
+  appStart:{no:1,of:8,title:'ようこそ',icon:'👋',body:'+NEW INVOICEをタップしてディフェクティブチェックを開始します。MYKITAから届いたProforma Invoice（PDF）を準備してください。'},
+  newInvoice:{no:2,of:8,title:'インボイスを登録',icon:'📄',body:'MYKITAから届いたProforma Invoice（PDF）をアップロードします。PDFを選択するとアイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
+  defCheck:{no:3,of:8,title:'ディフェクティブチェック',icon:'🔍',body:'各アイテムの状態を確認します。問題がなければ <b>OK</b>、不具合があれば <b>D（Defective）</b> を選択してください。Defectiveのアイテムは不具合箇所・状態の詳細入力が必要です。'},
+  firstD:{no:4,of:8,title:'ディフェクティブ箇所を選択',icon:'⚠️',body:'ディフェクティブ箇所を選択し、フルフレームの場合はテンプルに印字されているIDを入力してください。'},
+  sendMail:{no:5,of:8,title:'レポートメールを送信',icon:'📧',body:'Defectiveアイテムの情報をMYKITAへメールで報告します。メール本文が自動作成されますので、内容を確認してから送信してください。<br><br>📷 不具合箇所を撮影した写真の添付をお忘れなく。'},
+  markSent:{no:6,of:8,title:'送信済みにする（SENT）',icon:'✈️',body:'MYKITAへメールを送信済みであることをアプリに記録します。SENTにすることでスマレジCSV出力が可能になります。<br><br>まだ送信していない場合はスキップしてください。'},
+  smCsv:{no:7,of:8,title:'スマレジ入庫CSVを出力',icon:'📦',body:'MYKITAから代替品が届いたら、スマレジ用の入庫CSVを出力します。<br><br>このCSVをスマレジにインポートして入庫登録を完了させてください。'},
+  receConf:{no:8,of:8,title:'入庫確認',icon:'✅',body:'入庫した品番の数量を確認して、受入れ完了にします。全アイテムが完了すると「全工程完了」になります。'},
 };
 function _tgate(key,cb){if(!_trainingMode){cb();return;}_trainPop={step:TRAIN_STEPS[key],cb};render();}
 function _trainOk(){const cb=_trainPop&&_trainPop.cb;_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
@@ -2837,6 +2844,7 @@ function defAreaHtml(it){
 
 /* RENDER */
 function render(){
+  if(_trainingMode&&!_trainPop&&!_appStartTrainShown&&S.screen==='home'){_appStartTrainShown=true;_trainPop={step:TRAIN_STEPS.appStart,cb:null};}
   const _sy=window.scrollY||0;
   const _pnSheetEl=document.getElementById('pn-list-sheet');
   const _pnSy=_pnSheetEl?_pnSheetEl.scrollTop:0;

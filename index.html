@@ -2585,8 +2585,9 @@ let _trainPop=null;
 let _appStartTrainShown=false;
 let _firstDTrainShown=false;
 const TRAIN_STEPS={
-  appStart:{no:1,of:10,title:'ようこそ',icon:'👋',body:'まずは「EXPORT LOGISTIC」メールを確認して PROFORMA INVOICE（PDF）をダウンロードしてください。',btnLabel:'次へ →',nextKey:'newInvoice'},
-  newInvoice:{no:2,of:10,title:'インボイスを登録',icon:'📄',body:'MYKITAから届いたProforma Invoice（PDF）をアップロードします。PDFを選択するとアイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
+  appStart:{no:1,of:10,title:'ようこそ',icon:'👋',body:'ステップアップモードへようこそ！このモードではデリバリー業務フローをステップごとに確認しながら入庫までを完了できるようお手伝いします！',btnLabel:'始める →',nextKey:'newInvoice'},
+  newInvoice:{no:2,of:10,title:'インボイスを登録',icon:'📄',body:'まず、チェックリスト作成の準備です。MYKITA（EXPORT LOGISTIC）から届いているEメールに添付されているProforma Invoice（PDF）をダウンロードしてください。',btnLabel:'次へ →',nextKey:'newInvoice2',action:()=>{S.screen='upload';}},
+  newInvoice2:{no:2,of:10,title:'インボイスを登録',icon:'📄',body:'PDFを選択してアップロードを行うと、アイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
   deliveryCheck:{no:3,of:10,title:'納品数量の確認',icon:'📋',body:'リスト通りにアイテムが納品されているか確認してください。',btnLabel:'次へ →',nextKey:'replaceCheck'},
   replaceCheck:{no:4,of:10,title:'リプレイスアイテムの確認',icon:'🔧',body:'パーツで納品されているリプレイスアイテムを確認して、以前のディフェクティブアイテムから該当品を組み上げてください。',btnLabel:'次へ →',nextKey:'defCheck'},
   defCheck:{no:5,of:10,title:'ディフェクティブチェック',icon:'🔍',body:'各アイテムの状態を確認します。問題がなければ <b>OK</b>、不具合があれば <b>D（Defective）</b> を選択してください。Defectiveのアイテムは不具合箇所・状態の詳細入力が必要です。'},
@@ -2597,7 +2598,7 @@ const TRAIN_STEPS={
   receConf:{no:10,of:10,title:'入庫確認',icon:'✅',body:'入庫した品番の数量を確認して、受入れ完了にします。全アイテムが完了すると「全工程完了」になります。'},
 };
 function _tgate(key,cb){if(!_trainingMode){cb();return;}_trainPop={step:TRAIN_STEPS[key],cb};render();}
-function _trainOk(){const{step,cb}=_trainPop||{};if(step&&step.nextKey){_trainPop={step:TRAIN_STEPS[step.nextKey],cb};render();return;}_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
+function _trainOk(){const{step,cb}=_trainPop||{};if(step&&step.nextKey){if(step.action)step.action();_trainPop={step:TRAIN_STEPS[step.nextKey],cb};render();return;}_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
 function toggleTrainingMode(){_trainingMode=!_trainingMode;localStorage.setItem('mykita_dc_training',_trainingMode?'1':'0');render();}
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
@@ -2802,6 +2803,16 @@ function defPickerHtml(it){
   </div>`;
 }
 
+function _camSvg(taken){return`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="24" height="24" style="display:block;flex-shrink:0">
+    <rect x="1" y="7" width="22" height="14" rx="2.5" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8"/>
+    <path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="12" cy="14" r="3.8" fill="${taken?'rgba(255,255,255,.25)':'none'}" stroke="${taken?'#fff':'#bbb'}" stroke-width="1.8"/>
+    <circle cx="12" cy="14" r="1.4" fill="${taken?'rgba(255,255,255,.55)':'#bbb'}"/>
+    ${taken
+      ?'<circle cx="21" cy="21" r="6" fill="#fff" stroke="var(--red)" stroke-width="1.5"/><path d="M18 21l2.2 2.2 3.5-3.5" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+      :'<line x1="3" y1="3" x2="21" y2="21" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>'}
+  </svg>`;}
+
 /* DEFECT AREA: collapsed inline or expanded picker */
 function defAreaHtml(it){
   const no=it.no;
@@ -2810,29 +2821,16 @@ function defAreaHtml(it){
     ${it.disp?`<span class="disp-lbl">DISP</span><span class="disp-btn${it.disp==='return'?' ret':it.disp==='sample_full'?' smp':it.disp==='sample_parts'?' smp-p':it.disp==='sample'?' smp':''}" style="pointer-events:none">${dispLabel(it.disp)}</span>`:''}
     ${it.receiving?`<span style="display:inline-flex;align-items:center;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid var(--blue);background:var(--blue);color:#fff;font-weight:600;pointer-events:none">${it.receivingDate?it.receivingDate+'で入庫':'入庫'}</span>`:''}
   </div>`:'';
-  const _camSvg=taken=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="24" height="24" style="display:block;flex-shrink:0">
-    <rect x="1" y="7" width="22" height="14" rx="2.5" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8"/>
-    <path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="${taken?'var(--red)':'none'}" stroke="${taken?'var(--red)':'#bbb'}" stroke-width="1.8" stroke-linejoin="round"/>
-    <circle cx="12" cy="14" r="3.8" fill="${taken?'rgba(255,255,255,.25)':'none'}" stroke="${taken?'#fff':'#bbb'}" stroke-width="1.8"/>
-    <circle cx="12" cy="14" r="1.4" fill="${taken?'rgba(255,255,255,.55)':'#bbb'}"/>
-    ${taken
-      ?'<circle cx="21" cy="21" r="6" fill="#fff" stroke="var(--red)" stroke-width="1.5"/><path d="M18 21l2.2 2.2 3.5-3.5" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-      :'<line x1="3" y1="3" x2="21" y2="21" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>'}
-  </svg>`;
-  const photoRowOpen=`<div style="margin-top:10px;margin-left:32px;display:flex;align-items:center;gap:8px" onclick="event.stopPropagation()">
-    <button onclick="togglePhotoTaken('${no}')" style="padding:4px 6px;border-radius:3px;border:1px solid ${it.photoTaken?'var(--red)':'var(--g200)'};background:${it.photoTaken?'var(--redL)':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_camSvg(it.photoTaken)}</button>
+  const photoRowOpen=`<div style="margin-top:10px;margin-left:32px" onclick="event.stopPropagation()">
     <input type="text" value="${esc(it.itemId||'')}" placeholder="ID" inputmode="numeric"
       oninput="setItemId('${no}',this.value)" onclick="event.stopPropagation()"
-      style="flex:1;padding:5px 10px;border:1px solid ${it.itemId?'var(--red)':'var(--g200)'};border-radius:3px;font-size:12px;background:${it.itemId?'var(--redL)':'transparent'};color:${it.itemId?'var(--red)':'var(--g900)'};font-family:inherit;outline:none">
+      style="width:100%;box-sizing:border-box;padding:5px 10px;border:1px solid ${it.itemId?'var(--red)':'var(--g200)'};border-radius:3px;font-size:12px;background:${it.itemId?'var(--redL)':'transparent'};color:${it.itemId?'var(--red)':'var(--g900)'};font-family:inherit;outline:none">
   </div>`;
   if(isOpen){
     return defPickerHtml(it)+photoRowOpen+dispHtml;
   }
   const txt=it.remark||'';
-  const photoRowClosed=(it.photoTaken||it.itemId)?`<div style="display:flex;gap:6px;margin-left:32px;margin-top:4px;align-items:center">
-    ${it.photoTaken?`<span style="display:inline-flex;align-items:center;padding:1px 4px;background:var(--redL);border:1px solid var(--red);border-radius:3px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="16" height="16"><rect x="1" y="7" width="22" height="14" rx="2.5" fill="var(--red)" stroke="var(--red)" stroke-width="1.8"/><path d="M9 7V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7" fill="var(--red)" stroke="var(--red)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.8" fill="rgba(255,255,255,.25)" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="14" r="1.4" fill="rgba(255,255,255,.55)"/><circle cx="21" cy="21" r="6" fill="#fff" stroke="var(--red)" stroke-width="1.5"/><path d="M18 21l2.2 2.2 3.5-3.5" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span>`:''}
-    ${it.itemId?`<span style="font-size:10px;color:var(--g600)">ID: ${esc(it.itemId)}</span>`:''}
-  </div>`:'';
+  const photoRowClosed=it.itemId?`<div style="margin-left:32px;margin-top:4px"><span style="font-size:10px;color:var(--g600)">ID: ${esc(it.itemId)}</span></div>`:'';
   return `<div class="def-inline" onclick="togglePicker('${no}')">
     ${txt
       ?`<span class="def-inline-txt">▸ ${esc(txt)}</span>`
@@ -2846,7 +2844,7 @@ function defAreaHtml(it){
 
 /* RENDER */
 function render(){
-  if(_trainingMode&&!_trainPop&&!_appStartTrainShown&&S.screen==='home'){_appStartTrainShown=true;_trainPop={step:TRAIN_STEPS.appStart,cb:()=>{S.screen='upload';render();}};}
+  if(_trainingMode&&!_trainPop&&!_appStartTrainShown&&S.screen==='home'){_appStartTrainShown=true;_trainPop={step:TRAIN_STEPS.appStart,cb:null};}
   const _sy=window.scrollY||0;
   const _pnSheetEl=document.getElementById('pn-list-sheet');
   const _pnSy=_pnSheetEl?_pnSheetEl.scrollTop:0;
@@ -3019,6 +3017,15 @@ function render(){
               value="${esc(it.itemId||'')}"
               placeholder=""
               oninput="setItemId('${it.no}',this.value)">
+          </div>
+          <div class="stamp-field" style="margin-top:8px">
+            <label>PHOTO CHECK</label>
+            <button onclick="togglePhotoTaken('${it.no}')" style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;border:1px solid ${it.photoTaken?'var(--red)':'var(--g200)'};background:${it.photoTaken?'var(--redL)':'transparent'};cursor:pointer;font-family:inherit">
+              ${_camSvg(it.photoTaken)}
+              <span style="font-size:12px;font-weight:600;color:${it.photoTaken?'var(--red)':'var(--g500)'}">
+                ${it.photoTaken?'撮影済':'未撮影'}
+              </span>
+            </button>
           </div>
         </div>`;
       }).join('')}

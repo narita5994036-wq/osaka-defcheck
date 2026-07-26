@@ -2588,7 +2588,8 @@ const TRAIN_STEPS={
   appStart:{no:1,of:10,title:'ようこそ',icon:'👋',body:'ステップアップモードへようこそ！このモードではデリバリー業務フローをステップごとに確認しながら入庫までを完了できるようお手伝いします！',btnLabel:'始める →',nextKey:'newInvoice'},
   newInvoice:{no:2,of:10,title:'インボイスを登録',icon:'📄',body:'まず、チェックリスト作成の準備です。MYKITA（EXPORT LOGISTIC）から届いているEメールに添付されているProforma Invoice（PDF）をダウンロードしてください。',btnLabel:'次へ →',nextKey:'newInvoice2',action:()=>{S.screen='upload';}},
   newInvoice2:{no:2,of:10,title:'インボイスを登録',icon:'📄',body:'PDFを選択してアップロードを行うと、アイテム情報が自動で読み込まれ、チェックリストが作成されます。'},
-  deliveryCheck:{no:3,of:10,title:'納品数量の確認',icon:'📋',body:'リスト通りにアイテムが納品されているか確認してください。',btnLabel:'次へ →',nextKey:'replaceCheck'},
+  deliveryCheck:{no:3,of:10,title:'納品確認',icon:'📋',body:'ケースからフレームを取り出し、リストのポジションNo.順になるようトレーに陳列してください。',btnLabel:'次へ →',nextKey:'deliveryCheck2'},
+  deliveryCheck2:{no:3,of:10,title:'納品確認',icon:'📋',body:'リスト通りにアイテムが納品されているか確認してください。',btnLabel:'確認完了 →',nextKey:'replaceCheck'},
   replaceCheck:{no:4,of:10,title:'リプレイスアイテムの確認',icon:'🔧',body:'パーツで納品されているリプレイスアイテムを確認して、以前のディフェクティブアイテムから該当品を組み上げてください。',btnLabel:'次へ →',nextKey:'defCheck'},
   defCheck:{no:5,of:10,title:'ディフェクティブチェック',icon:'🔍',body:'各アイテムの状態を確認します。問題がなければ <b>OK</b>、不具合があれば <b>D（Defective）</b> を選択してください。Defectiveのアイテムは不具合箇所・状態の詳細入力が必要です。'},
   firstD:{no:6,of:10,title:'ディフェクティブ箇所を選択',icon:'⚠️',body:'ディフェクティブ箇所を選択し、フルフレームの場合はテンプルに印字されているIDを入力してください。'},
@@ -3169,7 +3170,7 @@ function render(){
       <div style="margin:0 20px;border:1px solid var(--g200);border-radius:4px;padding:14px 16px">
         <div style="font-size:9px;letter-spacing:2px;color:var(--g400);font-weight:600;margin-bottom:10px">一括操作</div>
         <div style="display:flex;gap:8px">
-          <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">全て OK</button>
+          <button onclick="setAllOk()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">未確認を全て OK</button>
           <button onclick="resetAllStatus()" style="flex:1;font-size:9px;letter-spacing:1px;padding:5px 0;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit;font-weight:600">ステータスリセット</button>
         </div>
       </div>
@@ -3332,7 +3333,7 @@ function render(){
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--g100);padding:14px 0 0;margin-top:4px">
           <div>
-            <span style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">TRAINING MODE</span>
+            <span style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">STEP UP MODE</span>
             ${_trainingMode?`<div style="font-size:9px;color:var(--blue);margin-top:2px;letter-spacing:.3px">各操作前に説明が表示されます</div>`:''}
           </div>
           <button onclick="toggleTrainingMode()" style="position:relative;width:44px;height:24px;border-radius:12px;border:none;background:${_trainingMode?'var(--blue)':'var(--g200)'};cursor:pointer;transition:background .2s;flex-shrink:0">
@@ -3903,7 +3904,7 @@ function render(){
       <button id="pn-scroll-fab" onclick="(function(){const s=document.getElementById('pn-list-sheet');if(!s)return;const atBottom=s.scrollHeight-s.scrollTop-s.clientHeight<40;s.scrollTo({top:atBottom?0:s.scrollHeight,behavior:'smooth'});})()" style="position:sticky;bottom:16px;left:calc(100% - 48px);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:none;background:var(--k);color:var(--w);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:10;margin-top:8px;float:right">↓</button>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px)"><div style="background:var(--blue);padding:20px 20px 16px;color:#fff"><div style="font-size:9px;letter-spacing:2px;opacity:.75;margin-bottom:6px">STEP ${step.no} / ${step.of} — TRAINING MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px)"><div style="background:var(--blue);padding:20px 20px 16px;color:#fff"><div style="font-size:9px;letter-spacing:2px;opacity:.75;margin-bottom:6px">STEP ${step.no} / ${step.of} — STEP UP MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

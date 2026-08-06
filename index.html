@@ -2011,7 +2011,7 @@ async function handleFile(f){
     }
     S.rawText=text;
     const inv=parseMykita(text);
-    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)===false){S.invoice=null;S.screen='home';}else{S.screen='checklist';if(_trainingMode&&!_trainPop){_trainPop={step:TRAIN_STEPS.deliveryCheck,cb:null};}}}
+    if(inv&&inv.items.length>0){S.invoice=inv;if(registerInvoice(inv)===false){S.invoice=null;S.screen='home';}else{S.screen='checklist';if(_trainingMode&&!_trainPop){setTimeout(()=>{if(!_trainPop){_trainPop={step:TRAIN_STEPS.deliveryCheck,cb:null};render();}},400);}}}
     else{S.screen='parsing';S.parseErr='自動解析できませんでした。手動で入力してください。'}
   }catch(e){S.parseErr='PDF読込エラー: '+e.message;S.screen='parsing'}
   S.loading=false;render();
@@ -2123,7 +2123,7 @@ function applyManual(){
   });
   const number=document.getElementById('inp-no')?.value.trim()||'(未入力)';
   const date=document.getElementById('inp-dt')?.value.trim()||'';
-  S.invoice={number,date,items};if(registerInvoice(S.invoice)===false){S.invoice=null;}else{S.screen='checklist';if(_trainingMode&&!_trainPop){_trainPop={step:TRAIN_STEPS.deliveryCheck,cb:null};}}render();
+  S.invoice={number,date,items};if(registerInvoice(S.invoice)===false){S.invoice=null;}else{S.screen='checklist';if(_trainingMode&&!_trainPop){setTimeout(()=>{if(!_trainPop){_trainPop={step:TRAIN_STEPS.deliveryCheck,cb:null};render();}},400);}}render();
 }
 function addManRow(){
   const w=document.getElementById('mrows');
@@ -2184,7 +2184,7 @@ function cycle(no){
   if(_okWarnItem)_promptSmDone(_okWarnItem.no,_okWarnItem.custRef);
   save();
   if(_newOkItem&&S.invoice.number)_autoSetRece([_newOkItem],S.invoice.number);
-  if(_markedDefective&&_trainingMode&&!_firstDTrainShown){_firstDTrainShown=true;_trainPop={step:TRAIN_STEPS.firstD,cb:null};}
+  if(_markedDefective&&_trainingMode&&!_firstDTrainShown){_firstDTrainShown=true;setTimeout(()=>{if(!_trainPop){_trainPop={step:TRAIN_STEPS.firstD,cb:null};render();}},400);}
   render();
 }
 function toggleGrp(subOf){S.grpCollapsed[subOf]=!S.grpCollapsed[subOf];render();}
@@ -2615,7 +2615,7 @@ const TRAIN_STEPS={
   receConf:{no:10,of:10,title:'入庫確認',icon:'✅',body:'入庫した品番の数量を確認して、受入れ完了にします。全アイテムが完了すると「全工程完了」になります。'},
 };
 function _tgate(key,cb){if(!_trainingMode){cb();return;}_trainPop={step:TRAIN_STEPS[key],cb};render();}
-function _trainOk(){const{step,cb}=_trainPop||{};if(step&&step.nextKey){if(step.action)step.action();_trainPop={step:TRAIN_STEPS[step.nextKey],cb};render();return;}_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
+function _trainOk(){const{step,cb}=_trainPop||{};if(step&&step.nextKey){if(step.action)step.action();_trainPop=null;render();setTimeout(()=>{if(!_trainPop){_trainPop={step:TRAIN_STEPS[step.nextKey],cb};render();}},300);return;}_trainPop=null;render();requestAnimationFrame(()=>{if(cb)cb();});}
 function toggleTrainingMode(){_trainingMode=!_trainingMode;localStorage.setItem('mykita_dc_training',_trainingMode?'1':'0');render();}
 let _msalInitPromise=null;
 function getMsClientId(){return localStorage.getItem(MK_MS_CLIENT)||'';}
@@ -2861,7 +2861,7 @@ function defAreaHtml(it){
 
 /* RENDER */
 function render(){
-  if(_trainingMode&&!_trainPop&&!_appStartTrainShown&&S.screen==='home'){_appStartTrainShown=true;_trainPop={step:TRAIN_STEPS.appStart,cb:null};}
+  if(_trainingMode&&!_trainPop&&!_appStartTrainShown&&S.screen==='home'){_appStartTrainShown=true;setTimeout(()=>{if(!_trainPop){_trainPop={step:TRAIN_STEPS.appStart,cb:null};render();}},400);}
   const _sy=window.scrollY||0;
   const _pnSheetEl=document.getElementById('pn-list-sheet');
   const _pnSy=_pnSheetEl?_pnSheetEl.scrollTop:0;

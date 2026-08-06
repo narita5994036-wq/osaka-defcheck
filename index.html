@@ -2419,7 +2419,9 @@ function clearAllStatus(){
 function goToStamp(){
   const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
   if(pend){
-    if(!confirm('チェックリストが完了していません（'+pend+'件未確認）。\nOK = スキップしてスタンプ入力へ\nキャンセル = 中止'))return;
+    if(!confirm('チェックリストが完了していません。\n（'+pend+'件未確認）\n\nOK = 未確認をOKにして進む\nキャンセル = 中止'))return;
+    S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
+    save();
   }
   // Check for any remaining un-dismissed warn items (in case user skipped the per-item dialog)
   const defRefItems=S.invoice?S.invoice.items.filter(i=>
@@ -3164,7 +3166,7 @@ function render(){
       ${def>0?`<div class="def-sum" id="def-sum">
         <div class="def-sum-tit">DEFECTIVE — ${def}</div>
         ${defItems.map(it=>`<div class="def-li"><div class="def-li-hd"><span class="def-li-no">${it.no}.</span>${esc(it.name)}${it.colorCode?' #'+it.colorCode:''}</div>${it.remark?`<div class="def-li-rm">▸ ${esc(it.remark)}</div>`:''}</div>`).join('')}
-        <button class="btn blk" onclick="goToStamp()">→ スタンプ番号・IDを入力</button>
+        <button class="btn blk" onclick="goToStamp()">スタンプ番号を入力</button>
       </div>`:''}
       ${S.parseErr?`<div class="alert" style="margin-top:16px">${S.parseErr}</div>`:''}
       <div style="margin:0 20px;border:1px solid var(--g200);border-radius:4px;padding:14px 16px">

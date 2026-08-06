@@ -2416,14 +2416,7 @@ function clearAllStatus(){
   save();render();
   alert('全てクリアしました。\n\n誤って操作した場合の復帰方法（PUSH前の場合のみ）:\n・右上の ← から「変更を破棄して戻る」を選択\n・またはブラウザをリロード');
 }
-function goToStamp(){
-  const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
-  if(pend){
-    if(!confirm('チェックリストが完了していません。\n（'+pend+'件未確認）\n\nOK = 未確認をOKにして進む\nキャンセル = 中止'))return;
-    S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
-    save();
-  }
-  // Check for any remaining un-dismissed warn items (in case user skipped the per-item dialog)
+function _goToStampDirect(){
   const defRefItems=S.invoice?S.invoice.items.filter(i=>
     (i.cat==='rx'||i.cat==='sun')&&i.status==='ok'&&!i.smDone&&_isWarnCustRef(i.custRef)
   ):[];
@@ -2435,6 +2428,23 @@ function goToStamp(){
     }
   }
   S.screen='stamp';_forceScrollTop=true;render();
+}
+function goToStamp(){
+  const pend=S.invoice?S.invoice.items.filter(i=>i.status==='pending').length:0;
+  if(pend){
+    showConfirm({
+      title:'チェックリストが完了していません',
+      body:pend+'件のアイテムが未確認です。',
+      okLabel:'未確認をOKにして進む',
+      cancelLabel:'中止',
+      onOk:()=>{
+        S.invoice.items=S.invoice.items.map(it=>it.status==='pending'?{...it,status:'ok'}:it);
+        save();_goToStampDirect();
+      }
+    });
+    return;
+  }
+  _goToStampDirect();
 }
 function _checkStampIdAndBuild(){
   if(!S.invoice)return;
@@ -2584,6 +2594,10 @@ let _smCollapsed=new Set();
 function toggleSmCollapsed(id){_smCollapsed.has(id)?_smCollapsed.delete(id):_smCollapsed.add(id);render();}
 let _trainingMode=localStorage.getItem('mykita_dc_training')==='1';
 let _trainPop=null;
+let _confirmDlg=null;
+function showConfirm(opts){_confirmDlg=opts;render();}
+function _confirmOk(){const cb=_confirmDlg&&_confirmDlg.onOk;_confirmDlg=null;render();if(cb)cb();}
+function _confirmCancel(){_confirmDlg=null;render();}
 let _appStartTrainShown=false;
 let _firstDTrainShown=false;
 const TRAIN_STEPS={
@@ -3906,7 +3920,7 @@ function render(){
       <button id="pn-scroll-fab" onclick="(function(){const s=document.getElementById('pn-list-sheet');if(!s)return;const atBottom=s.scrollHeight-s.scrollTop-s.clientHeight<40;s.scrollTo({top:atBottom?0:s.scrollHeight,behavior:'smooth'});})()" style="position:sticky;bottom:16px;left:calc(100% - 48px);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:none;background:var(--k);color:var(--w);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:10;margin-top:8px;float:right">↓</button>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px)"><div style="background:var(--blue);padding:20px 20px 16px;color:#fff"><div style="font-size:9px;letter-spacing:2px;opacity:.75;margin-bottom:6px">STEP ${step.no} / ${step.of} — STEP UP MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_confirmDlg?(()=>{const d=_confirmDlg;return`<div class="overlay" style="z-index:850;align-items:center;justify-content:center;padding:0 24px"><div style="background:var(--w);width:100%;max-width:320px;box-shadow:0 12px 48px rgba(0,0,0,.14);border-radius:2px;overflow:hidden"><div style="padding:28px 24px 22px"><div style="font-size:7px;letter-spacing:3.5px;color:var(--g300);margin-bottom:16px;font-weight:600">MYKITA DC</div><div style="font-size:16px;font-weight:600;letter-spacing:-.2px;color:var(--k);line-height:1.4">${esc(d.title)}</div>${d.body?`<div style="font-size:12px;color:var(--g500);margin-top:10px;line-height:1.75">${esc(d.body)}</div>`:''}</div><div style="border-top:1px solid var(--g100);display:grid;grid-template-columns:1fr 1fr"><button onclick="_confirmCancel()" style="padding:16px 12px;border:none;border-right:1px solid var(--g100);background:transparent;color:var(--g400);font-size:11px;letter-spacing:.8px;cursor:pointer;font-family:inherit">${esc(d.cancelLabel||'キャンセル')}</button><button onclick="_confirmOk()" style="padding:16px 12px;border:none;background:transparent;color:var(--k);font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit">${esc(d.okLabel||'OK')}</button></div></div></div>`})():''}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px)"><div style="background:var(--blue);padding:20px 20px 16px;color:#fff"><div style="font-size:9px;letter-spacing:2px;opacity:.75;margin-bottom:6px">STEP ${step.no} / ${step.of} — STEP UP MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>
@@ -3972,7 +3986,7 @@ ${(()=>{
   </div>`;
 })()}
     `;
-  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_trainPop;
+  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_trainPop||!!_confirmDlg;
   document.body.style.overflow=_hasModal?'hidden':'';
   requestAnimationFrame(()=>{
     if(_scrollToDef){_scrollToDef=false;setTimeout(()=>{const _ds=document.getElementById('def-sum');if(_ds){const _top=_ds.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:_top,behavior:'smooth'});}},80);}else if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}

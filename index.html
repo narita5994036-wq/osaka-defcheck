@@ -496,6 +496,34 @@ function saveSmReceSheet(){
   if(idx>=0){list[idx].receCount=inv.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
   _smReceSheet=null;_smReceDetail=null;render();
 }
+function _bulkCompleteReceiving(id){
+  const allInvs={};
+  loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;allInvs[e.id]=JSON.parse(d);}catch(x){}});
+  const inv=allInvs[id];if(!inv)return;
+  const toSave=JSON.parse(JSON.stringify(inv));
+  let filled=0;
+  for(const it of inv.items){
+    if(it.status!=='defective'||it.receiving||!it.pn)continue;
+    const chain=buildProcessChain(id,it.no);if(!chain)continue;
+    const last=chain.steps[chain.steps.length-1];
+    if(!last||!['ok','ok_receiving'].includes(last.type))continue;
+    let deliveryInvNumber=null;
+    for(let i=chain.steps.length-1;i>=0;i--){
+      if(chain.steps[i].type==='ok_receiving'||chain.steps[i].type==='ok'){
+        for(let j=i-1;j>=0;j--){if(chain.steps[j].type==='delivery'){deliveryInvNumber=chain.steps[j].invNumber;break;}}
+        break;
+      }
+    }
+    if(!deliveryInvNumber)continue;
+    toSave.items=toSave.items.map(i=>i.no!==it.no?i:{...i,receiving:true,receivingDate:deliveryInvNumber});
+    filled++;
+  }
+  if(!filled)return;
+  localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(toSave));
+  const list=loadList();const idx=list.findIndex(e=>e.id===id);
+  if(idx>=0){list[idx].receCount=toSave.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
+  if(S.invoiceId===id)S.invoice=toSave;render();
+}
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function defToggleOk(no){
   if(_defOkSet.has(no))_defOkSet.delete(no);
@@ -1179,6 +1207,9 @@ function openCsvPicker(id){
   S.showCsvPicker=true;S.csvPickerId=id;render();
 }
 function exportSumarejiCSVById(id){
+  showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'代替品の受領が確認済みのディフェクティブアイテムを入庫済みにします。CSVはいずれの場合もダウンロードされます。',okLabel:'一括補完してDL',cancelLabel:'補完せずにDL',onOk:()=>{_bulkCompleteReceiving(id);_doExportSumarejiCSVById(id);},onCancel:()=>_doExportSumarejiCSVById(id)});
+}
+function _doExportSumarejiCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
   if(!d){alert('Data not found.');return;}
   try{
@@ -2600,7 +2631,7 @@ let _trainPopExiting=false;
 let _confirmDlg=null;
 function showConfirm(opts){_confirmDlg=opts;render();}
 function _confirmOk(){const cb=_confirmDlg&&_confirmDlg.onOk;_confirmDlg=null;render();if(cb)cb();}
-function _confirmCancel(){_confirmDlg=null;render();}
+function _confirmCancel(){const cb=_confirmDlg&&_confirmDlg.onCancel;_confirmDlg=null;render();if(cb)cb();}
 let _appStartTrainShown=false;
 let _firstDTrainShown=false;
 const TRAIN_STEPS={
@@ -3923,7 +3954,7 @@ function render(){
       <button id="pn-scroll-fab" onclick="(function(){const s=document.getElementById('pn-list-sheet');if(!s)return;const atBottom=s.scrollHeight-s.scrollTop-s.clientHeight<40;s.scrollTo({top:atBottom?0:s.scrollHeight,behavior:'smooth'});})()" style="position:sticky;bottom:16px;left:calc(100% - 48px);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:none;background:var(--k);color:var(--w);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:10;margin-top:8px;float:right">↓</button>
     </div>
   </div>`;
-})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_confirmDlg?(()=>{const d=_confirmDlg;return`<div class="overlay" style="z-index:850;align-items:center;justify-content:center;padding:0 24px"><div style="background:var(--w);width:100%;max-width:320px;box-shadow:0 12px 48px rgba(0,0,0,.14);border-radius:2px;overflow:hidden"><div style="padding:28px 24px 22px"><div style="font-size:7px;letter-spacing:3.5px;color:var(--g300);margin-bottom:16px;font-weight:600">MYKITA DC</div><div style="font-size:16px;font-weight:600;letter-spacing:-.2px;color:var(--k);line-height:1.4">${esc(d.title)}</div>${d.body?`<div style="font-size:12px;color:var(--g500);margin-top:10px;line-height:1.75">${esc(d.body)}</div>`:''}</div><div style="border-top:1px solid var(--g100);display:grid;grid-template-columns:1fr 1fr"><button onclick="_confirmCancel()" style="padding:16px 12px;border:none;border-right:1px solid var(--g100);background:transparent;color:var(--g400);font-size:11px;letter-spacing:.8px;cursor:pointer;font-family:inherit">${esc(d.cancelLabel||'キャンセル')}</button><button onclick="_confirmOk()" style="padding:16px 12px;border:none;background:transparent;color:var(--k);font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit">${esc(d.okLabel||'OK')}</button></div></div></div>`})():''}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px);animation:${_trainPopExiting?'trainPopOut .2s ease-in forwards':'trainPopIn .28s cubic-bezier(.22,1,.36,1)'}">`})():''}${_trainPop?(()=>{const{step}=_trainPop;return`<div style="background:var(--w);padding:20px 20px 16px;border-bottom:1px solid var(--g100)"><div style="font-size:9px;letter-spacing:2px;color:var(--blue);margin-bottom:6px;font-weight:600">STEP ${step.no} / ${step.of} — STEP UP MODE</div><div style="font-size:26px;margin-bottom:8px">${step.icon}</div><div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.3;color:var(--k)">${step.title}</div></div><div style="padding:18px 20px 14px;font-size:13px;color:var(--g700);line-height:1.75">${step.body}</div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px"><button onclick="_trainOk()" style="width:100%;padding:13px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--g200);background:transparent;color:var(--g500);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
+})()}${xlsxSelSheet}${csvSelSheet}${csvPickerSheet}${settingsSheet}${pickerBackdrop}${guideModal}${_confirmDlg?(()=>{const d=_confirmDlg;return`<div class="overlay" style="z-index:850;align-items:center;justify-content:center;padding:0 24px"><div style="background:var(--w);width:100%;max-width:320px;box-shadow:0 12px 48px rgba(0,0,0,.14);border-radius:2px;overflow:hidden"><div style="padding:28px 24px 22px"><div style="font-size:7px;letter-spacing:3.5px;color:var(--g300);margin-bottom:16px;font-weight:600">MYKITA DC</div><div style="font-size:16px;font-weight:600;letter-spacing:-.2px;color:var(--k);line-height:1.4">${esc(d.title)}</div>${d.body?`<div style="font-size:12px;color:var(--g500);margin-top:10px;line-height:1.75">${esc(d.body)}</div>`:''}</div><div style="border-top:1px solid var(--g100);display:grid;grid-template-columns:1fr 1fr"><button onclick="_confirmCancel()" style="padding:16px 12px;border:none;border-right:1px solid var(--g100);background:transparent;color:var(--g400);font-size:11px;letter-spacing:.8px;cursor:pointer;font-family:inherit">${esc(d.cancelLabel||'キャンセル')}</button><button onclick="_confirmOk()" style="padding:16px 12px;border:none;background:transparent;color:var(--k);font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit">${esc(d.okLabel||'OK')}</button></div></div></div>`})():''}${_trainPop?(()=>{const{step}=_trainPop;return`<div class="overlay" style="z-index:800;align-items:center;justify-content:center"><div class="sheet" style="border-radius:14px;padding:0;overflow:hidden;max-width:360px;width:calc(100% - 40px);animation:${_trainPopExiting?'trainPopOut .2s ease-in forwards':'trainPopIn .28s cubic-bezier(.22,1,.36,1)'}">`})():''}${_trainPop?(()=>{const{step}=_trainPop;return`<div style="background:#111"><div style="height:4px;background:var(--blue)"></div><div style="padding:28px 24px 18px;text-align:center"><div style="font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.35);margin-bottom:18px;font-weight:600">STEP ${step.no} / ${step.of} — STEP UP MODE</div><div style="font-size:44px;margin-bottom:14px">${step.icon}</div><div style="font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.3;color:#fff">${step.title}</div></div><div style="padding:0 24px 22px;font-size:13px;color:rgba(255,255,255,.6);line-height:1.85;text-align:center">${step.body}</div><div style="padding:0 24px 28px;display:flex;flex-direction:column;gap:10px"><button onclick="_trainOk()" style="width:100%;padding:14px;border-radius:8px;border:none;background:#fff;color:#111;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.3px">${step.btnLabel||'実行する →'}</button><button onclick="_trainPop=null;render()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.45);font-size:12px;cursor:pointer;font-family:inherit">スキップ</button></div></div></div>`})():''}${S.pushing?`
   <div style="position:fixed;inset:0;z-index:600;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px">
     <svg class="glass-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" width="80" height="28">
       <path d="M1 6 L8 11" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>

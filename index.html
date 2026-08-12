@@ -1111,6 +1111,11 @@ function _findPartsRoot(orderNo,_pnMap){
 }
 function exportSumarejiCSV(){
   if(!S.csvSelIds||!S.csvSelIds.size){alert('Select at least one invoice.');return;}
+  const _ids=[...S.csvSelIds];
+  showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'代替品の受領が確認済みのディフェクティブアイテムを入庫済みにします。CSVはいずれの場合もダウンロードされます。',okLabel:'一括補完してDL',cancelLabel:'補完せずにDL',onOk:()=>{_ids.forEach(id=>_bulkCompleteReceiving(id));_doExportSumarejiCSV();},onCancel:()=>_doExportSumarejiCSV()});
+}
+function _doExportSumarejiCSV(){
+  if(!S.csvSelIds||!S.csvSelIds.size)return;
   const grouped=new Map();
   const invNums=[];
   const _pnMap=buildPnMap();

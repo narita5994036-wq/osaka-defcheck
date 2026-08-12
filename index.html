@@ -496,6 +496,15 @@ function saveSmReceSheet(){
   if(idx>=0){list[idx].receCount=inv.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
   _smReceSheet=null;_smReceDetail=null;render();
 }
+function _bulkCompleteReceiving(id){
+  const d=localStorage.getItem('mykita_dc_inv_'+id);if(!d)return;
+  const inv=JSON.parse(d);
+  inv.items=inv.items.map(it=>it.status==='defective'&&!it.receiving?{...it,receiving:true,receivingDate:inv.number||null}:it);
+  localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));
+  const list=loadList();const idx=list.findIndex(e=>e.id===id);
+  if(idx>=0){list[idx].receCount=inv.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
+  if(S.invoiceId===id)S.invoice=inv;render();
+}
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function defToggleOk(no){
   if(_defOkSet.has(no))_defOkSet.delete(no);
@@ -1255,7 +1264,8 @@ function exportSumarejiCSVById(id){
     // Mark this invoice as smExported in list
     const _list=loadList();const _idx=_list.findIndex(e=>e.id===id);
     if(_idx>=0&&!_list[_idx].smExported){_list[_idx].smExported=true;saveList(_list);}
-    S.showCsvPicker=false;S.csvPickerId=null;render();
+    S.showCsvPicker=false;S.csvPickerId=null;
+    showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'このインボイスの全ディフェクティブアイテムを入庫済みにします。',okLabel:'一括補完する',cancelLabel:'スキップ',onOk:()=>_bulkCompleteReceiving(id)});
   }catch(err){alert('Error: '+err.message);}
 }
 function tryCloseDispSheet(){

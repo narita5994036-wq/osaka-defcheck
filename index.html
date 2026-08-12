@@ -497,13 +497,32 @@ function saveSmReceSheet(){
   _smReceSheet=null;_smReceDetail=null;render();
 }
 function _bulkCompleteReceiving(id){
-  const d=localStorage.getItem('mykita_dc_inv_'+id);if(!d)return;
-  const inv=JSON.parse(d);
-  inv.items=inv.items.map(it=>it.status==='defective'&&!it.receiving?{...it,receiving:true,receivingDate:inv.number||null}:it);
-  localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(inv));
+  const allInvs={};
+  loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;allInvs[e.id]=JSON.parse(d);}catch(x){}});
+  const inv=allInvs[id];if(!inv)return;
+  const toSave=JSON.parse(JSON.stringify(inv));
+  let filled=0;
+  for(const it of inv.items){
+    if(it.status!=='defective'||it.receiving||!it.pn)continue;
+    const chain=buildProcessChain(id,it.no);if(!chain)continue;
+    const last=chain.steps[chain.steps.length-1];
+    if(!last||!['ok','ok_receiving'].includes(last.type))continue;
+    let deliveryInvNumber=null;
+    for(let i=chain.steps.length-1;i>=0;i--){
+      if(chain.steps[i].type==='ok_receiving'||chain.steps[i].type==='ok'){
+        for(let j=i-1;j>=0;j--){if(chain.steps[j].type==='delivery'){deliveryInvNumber=chain.steps[j].invNumber;break;}}
+        break;
+      }
+    }
+    if(!deliveryInvNumber)continue;
+    toSave.items=toSave.items.map(i=>i.no!==it.no?i:{...i,receiving:true,receivingDate:deliveryInvNumber});
+    filled++;
+  }
+  if(!filled)return;
+  localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(toSave));
   const list=loadList();const idx=list.findIndex(e=>e.id===id);
-  if(idx>=0){list[idx].receCount=inv.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
-  if(S.invoiceId===id)S.invoice=inv;render();
+  if(idx>=0){list[idx].receCount=toSave.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
+  if(S.invoiceId===id)S.invoice=toSave;render();
 }
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function defToggleOk(no){
@@ -1188,7 +1207,7 @@ function openCsvPicker(id){
   S.showCsvPicker=true;S.csvPickerId=id;render();
 }
 function exportSumarejiCSVById(id){
-  showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'このインボイスの全ディフェクティブアイテムを入庫済みにします。CSVはいずれの場合もダウンロードされます。',okLabel:'一括補完してDL',cancelLabel:'補完せずにDL',onOk:()=>{_bulkCompleteReceiving(id);_doExportSumarejiCSVById(id);},onCancel:()=>_doExportSumarejiCSVById(id)});
+  showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'代替品の受領が確認済みのディフェクティブアイテムを入庫済みにします。CSVはいずれの場合もダウンロードされます。',okLabel:'一括補完してDL',cancelLabel:'補完せずにDL',onOk:()=>{_bulkCompleteReceiving(id);_doExportSumarejiCSVById(id);},onCancel:()=>_doExportSumarejiCSVById(id)});
 }
 function _doExportSumarejiCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);

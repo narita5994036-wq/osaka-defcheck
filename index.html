@@ -1188,6 +1188,9 @@ function openCsvPicker(id){
   S.showCsvPicker=true;S.csvPickerId=id;render();
 }
 function exportSumarejiCSVById(id){
+  showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'このインボイスの全ディフェクティブアイテムを入庫済みにします。CSVはいずれの場合もダウンロードされます。',okLabel:'一括補完してDL',cancelLabel:'補完せずにDL',onOk:()=>{_bulkCompleteReceiving(id);_doExportSumarejiCSVById(id);},onCancel:()=>_doExportSumarejiCSVById(id)});
+}
+function _doExportSumarejiCSVById(id){
   const d=localStorage.getItem('mykita_dc_inv_'+id);
   if(!d){alert('Data not found.');return;}
   try{
@@ -1264,8 +1267,7 @@ function exportSumarejiCSVById(id){
     // Mark this invoice as smExported in list
     const _list=loadList();const _idx=_list.findIndex(e=>e.id===id);
     if(_idx>=0&&!_list[_idx].smExported){_list[_idx].smExported=true;saveList(_list);}
-    S.showCsvPicker=false;S.csvPickerId=null;
-    showConfirm({title:'PUT IN STOCK を一括補完しますか？',body:'このインボイスの全ディフェクティブアイテムを入庫済みにします。',okLabel:'一括補完する',cancelLabel:'スキップ',onOk:()=>_bulkCompleteReceiving(id)});
+    S.showCsvPicker=false;S.csvPickerId=null;render();
   }catch(err){alert('Error: '+err.message);}
 }
 function tryCloseDispSheet(){
@@ -2610,7 +2612,7 @@ let _trainPopExiting=false;
 let _confirmDlg=null;
 function showConfirm(opts){_confirmDlg=opts;render();}
 function _confirmOk(){const cb=_confirmDlg&&_confirmDlg.onOk;_confirmDlg=null;render();if(cb)cb();}
-function _confirmCancel(){_confirmDlg=null;render();}
+function _confirmCancel(){const cb=_confirmDlg&&_confirmDlg.onCancel;_confirmDlg=null;render();if(cb)cb();}
 let _appStartTrainShown=false;
 let _firstDTrainShown=false;
 const TRAIN_STEPS={

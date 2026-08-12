@@ -497,32 +497,41 @@ function saveSmReceSheet(){
   _smReceSheet=null;_smReceDetail=null;render();
 }
 function _bulkCompleteReceiving(id){
+  // Determine the invoice number of the delivery (CSV export) invoice
+  const _ed=localStorage.getItem('mykita_dc_inv_'+id);if(!_ed)return;
+  const exportInvNumber=JSON.parse(_ed).number;if(!exportInvNumber)return;
+  // Scan ALL invoices for defective items completed by this delivery invoice
   const allInvs={};
   loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;allInvs[e.id]=JSON.parse(d);}catch(x){}});
-  const inv=allInvs[id];if(!inv)return;
-  const toSave=JSON.parse(JSON.stringify(inv));
-  let filled=0;
-  for(const it of inv.items){
-    if(it.status!=='defective'||it.receiving||!it.pn)continue;
-    const chain=buildProcessChain(id,it.no);if(!chain)continue;
-    const last=chain.steps[chain.steps.length-1];
-    if(!last||!['ok','ok_receiving'].includes(last.type))continue;
-    let deliveryInvNumber=null;
-    for(let i=chain.steps.length-1;i>=0;i--){
-      if(chain.steps[i].type==='ok_receiving'||chain.steps[i].type==='ok'){
-        for(let j=i-1;j>=0;j--){if(chain.steps[j].type==='delivery'){deliveryInvNumber=chain.steps[j].invNumber;break;}}
-        break;
+  const toSave={};let filled=0;
+  for(const [invId,inv] of Object.entries(allInvs)){
+    for(const it of inv.items){
+      if(it.status!=='defective'||it.receiving||!it.pn)continue;
+      const chain=buildProcessChain(invId,it.no);if(!chain)continue;
+      const last=chain.steps[chain.steps.length-1];
+      if(!last||!['ok','ok_receiving'].includes(last.type))continue;
+      let deliveryInvNumber=null;
+      for(let i=chain.steps.length-1;i>=0;i--){
+        if(chain.steps[i].type==='ok_receiving'||chain.steps[i].type==='ok'){
+          for(let j=i-1;j>=0;j--){if(chain.steps[j].type==='delivery'){deliveryInvNumber=chain.steps[j].invNumber;break;}}
+          break;
+        }
       }
+      if(deliveryInvNumber!==exportInvNumber)continue;
+      if(!toSave[invId])toSave[invId]=JSON.parse(JSON.stringify(allInvs[invId]));
+      toSave[invId].items=toSave[invId].items.map(i=>i.no!==it.no?i:{...i,receiving:true,receivingDate:deliveryInvNumber});
+      filled++;
     }
-    if(!deliveryInvNumber)continue;
-    toSave.items=toSave.items.map(i=>i.no!==it.no?i:{...i,receiving:true,receivingDate:deliveryInvNumber});
-    filled++;
   }
   if(!filled)return;
-  localStorage.setItem('mykita_dc_inv_'+id,JSON.stringify(toSave));
-  const list=loadList();const idx=list.findIndex(e=>e.id===id);
-  if(idx>=0){list[idx].receCount=toSave.items.filter(it=>it.status==='defective'&&it.receiving).length;saveList(list);}
-  if(S.invoiceId===id)S.invoice=toSave;render();
+  const list=loadList();
+  for(const [invId,inv] of Object.entries(toSave)){
+    localStorage.setItem('mykita_dc_inv_'+invId,JSON.stringify(inv));
+    const idx=list.findIndex(e=>e.id===invId);
+    if(idx>=0)list[idx].receCount=inv.items.filter(it=>it.status==='defective'&&it.receiving).length;
+    if(S.invoiceId===invId)S.invoice=inv;
+  }
+  saveList(list);render();
 }
 function setRecDate(d){if(_recDatePicker)_recDatePicker.selected=d;render();}
 function defToggleOk(no){

@@ -341,12 +341,12 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',itemSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
-let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={};
+let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={};
 let _recDatePicker=null;
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
-let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='';
+let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_dispRemarkEditPrevMsg='';
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
@@ -637,8 +637,8 @@ function openDispSheet(id){
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
     // snapshot original disposition values for dirty detection
-    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';});
+    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';});
     if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
     _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv};render();
@@ -650,7 +650,7 @@ function openDefSheet(id){
     if(!d)return;
     const inv=JSON.parse(d);
     _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';});
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';});
     _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
@@ -892,9 +892,9 @@ function setDispInSheet(no,val){
 }
 function _dispIsDirty(){
   if(!_dispSheet)return false;
-  if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||''));
+  if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.msg||'')!==(_dispOrigMsg[it.no]||''));
   const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
-  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false)||(it.receivingDate||null)!==(_dispOrigRecDate[it.no]||null));
+  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false)||(it.receivingDate||null)!==(_dispOrigRecDate[it.no]||null)||(it.msg||'')!==(_dispOrigMsg[it.no]||''));
 }
 function saveDispSheet(){
   if(!_dispSheet)return;
@@ -914,7 +914,7 @@ function saveDispSheet(){
   }catch(e){console.warn('saveDispSheet failed:',e);}
   if(S.invoiceId===_dispSheet.id)S.invoice=_dispSheet.inv;
   _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
-  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_recDatePicker=null;_defDetailNo=null;render();
+  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_recDatePicker=null;_defDetailNo=null;render();
 }
 function setPnInSheet(no,val){
   if(!_dispSheet)return;
@@ -930,11 +930,18 @@ function setRemarkInSheet(no,val){
   const btn=document.getElementById('disp-done-btn');
   if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
 }
+function setMsgInSheet(no,val){
+  if(!_dispSheet)return;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,msg:val});
+  const btn=document.getElementById('disp-done-btn');
+  if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
+}
 function openRemarkEdit(no){
   if(!_dispSheet)return;
   const it=_dispSheet.inv.items.find(i=>i.no===no);
   _dispRemarkEditPrev=it?it.remark||'':'';
   _dispRemarkEditPrevId=it?it.itemId||'':'';
+  _dispRemarkEditPrevMsg=it?it.msg||'':'';
   _dispRemarkEditNo=no;
   _defSw.openNo=null;_dispSw.openNo=null;
   render();
@@ -942,8 +949,8 @@ function openRemarkEdit(no){
 }
 function closeRemarkEdit(save){
   if(!save&&_dispRemarkEditNo)
-    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==_dispRemarkEditNo?it:{...it,remark:_dispRemarkEditPrev,itemId:_dispRemarkEditPrevId});
-  _dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevId='';
+    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==_dispRemarkEditNo?it:{...it,remark:_dispRemarkEditPrev,itemId:_dispRemarkEditPrevId,msg:_dispRemarkEditPrevMsg});
+  _dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevId='';_dispRemarkEditPrevMsg='';
   render();
 }
 function setItemIdInSheet(no,val){
@@ -1306,7 +1313,7 @@ function tryCloseDispSheet(){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
       saveDispSheet();
     }else{
-      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_recDatePicker=null;_defDetailNo=null;render();
+      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_recDatePicker=null;_defDetailNo=null;render();
     }
   }else{
     _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_recDatePicker=null;_defDetailNo=null;render();
@@ -3656,12 +3663,16 @@ function render(){
                   <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:3px">REMARK</div>
                   <textarea id="remark-ta-${it.no}" rows="3" style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--red);border-radius:3px;font-size:10px;font-family:inherit;color:var(--red);resize:none;outline:none;background:var(--w);line-height:1.5"
                     oninput="setRemarkInSheet('${it.no}',this.value)">${esc(it.remark||'')}</textarea>
+                  <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:3px;margin-top:6px">MSG</div>
+                  <textarea id="msg-ta-${it.no}" rows="3" style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--amber);border-radius:3px;font-size:10px;font-family:inherit;color:var(--amber);resize:none;outline:none;background:var(--w);line-height:1.5"
+                    oninput="setMsgInSheet('${it.no}',this.value)" placeholder="MYKITAからのメッセージ">${esc(it.msg||'')}</textarea>
                   <div style="display:flex;gap:6px;margin-top:4px">
                     <button onclick="closeRemarkEdit(false)" style="flex:1;padding:5px;border:1px solid var(--g200);border-radius:3px;font-size:10px;letter-spacing:1px;font-family:inherit;background:var(--w);color:var(--g500);cursor:pointer">CANCEL</button>
                     <button onclick="closeRemarkEdit(true)" style="flex:2;padding:5px;border:none;border-radius:3px;font-size:10px;letter-spacing:1px;font-family:inherit;background:var(--k);color:var(--w);cursor:pointer;font-weight:600">SAVE</button>
                   </div>
                 </div>`
-              :`${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:8px">▸ ${esc(it.remark)}</div>`:''}`}
+              :`${it.remark?`<div style="font-size:10px;color:var(--red);margin-bottom:4px">▸ ${esc(it.remark)}</div>`:''}`}
+            ${!_dispRemarkEditNo||_dispRemarkEditNo!==it.no?`${it.msg?`<div style="font-size:10px;color:var(--amber);margin-bottom:8px;padding:5px 8px;border-left:2px solid var(--amber);background:var(--amberL,#fff8e1);border-radius:0 3px 3px 0;line-height:1.5">✉ ${esc(it.msg)}</div>`:''}`:``}
             ${it.receiving&&it.receivingDate?`<div style="font-size:10px;color:var(--blue);margin-bottom:6px;letter-spacing:0.5px">対応INV: ${esc(it.receivingDate)}</div>`:''}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${ds.pnOnly?'':`<button class="disp-btn${it.disp==='return'?' ret':''}" onclick="setDispInSheet('${it.no}','return')">Return</button>

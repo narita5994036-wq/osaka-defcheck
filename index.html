@@ -341,12 +341,12 @@ const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
 let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',itemSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
-let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={};
+let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={},_dispOrigNoRep={};
 let _recDatePicker=null;
 let _defOkSet=new Set(),_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
-let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_dispRemarkEditPrevMsg='';
+let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_dispRemarkEditPrevMsg='',_dispRemarkEditPrevNoRep=false;
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
@@ -506,7 +506,7 @@ function _bulkCompleteReceiving(id){
   const toSave={};let filled=0;
   for(const [invId,inv] of Object.entries(allInvs)){
     for(const it of inv.items){
-      if(it.status!=='defective'||it.receiving||!it.pn)continue;
+      if(it.status!=='defective'||it.receiving||!it.pn||it.noReplacement)continue;
       const chain=buildProcessChain(invId,it.no);if(!chain)continue;
       const last=chain.steps[chain.steps.length-1];
       if(!last||!['ok','ok_receiving'].includes(last.type))continue;
@@ -597,7 +597,7 @@ function autoFillPutInStockRece(){
   let filled=0,skipped=0;
   for(const [invId,inv] of Object.entries(allInvs)){
     for(const it of inv.items){
-      if(it.status!=='defective'||it.receiving||!it.pn)continue;
+      if(it.status!=='defective'||it.receiving||!it.pn||it.noReplacement)continue;
       const chain=buildProcessChain(invId,it.no);
       if(!chain)continue;
       const last=chain.steps[chain.steps.length-1];
@@ -637,8 +637,8 @@ function openDispSheet(id){
     const inv=JSON.parse(d);
     inv.items=inv.items.map(migrateItem);
     // snapshot original disposition values for dirty detection
-    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';});
+    _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispOrigNoRep={};
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';_dispOrigNoRep[it.no]=it.noReplacement||false;});
     if(!_dispSyncSnap[id])_dispSyncSnap[id]={..._dispOrigDisp};
     _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv};render();
@@ -650,7 +650,7 @@ function openDefSheet(id){
     if(!d)return;
     const inv=JSON.parse(d);
     _dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};
-    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';});
+    inv.items.filter(i=>i.status==='defective').forEach(it=>{_dispOrigDisp[it.no]=it.disp||null;_dispOrigPn[it.no]=it.pn||'';_dispOrigReceiving[it.no]=it.receiving||false;_dispOrigRecDate[it.no]=it.receivingDate||null;_dispOrigRemark[it.no]=it.remark||'';_dispOrigItemId[it.no]=it.itemId||'';_dispOrigMsg[it.no]=it.msg||'';_dispOrigNoRep[it.no]=it.noReplacement||false;});
     _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
@@ -892,9 +892,9 @@ function setDispInSheet(no,val){
 }
 function _dispIsDirty(){
   if(!_dispSheet)return false;
-  if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.msg||'')!==(_dispOrigMsg[it.no]||''));
+  if(_dispSheet.pnOnly)return _defOkSet.size>0||_dispSheet.inv.items.filter(i=>i.status==='defective').some(it=>(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.msg||'')!==(_dispOrigMsg[it.no]||'')||(it.noReplacement||false)!==(_dispOrigNoRep[it.no]||false));
   const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');
-  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false)||(it.receivingDate||null)!==(_dispOrigRecDate[it.no]||null)||(it.msg||'')!==(_dispOrigMsg[it.no]||''));
+  return defs.some(it=>(it.disp||null)!==(_dispOrigDisp[it.no]||null)||(it.pn||'')!==(_dispOrigPn[it.no]||'')||(it.remark||'')!==(_dispOrigRemark[it.no]||'')||(it.itemId||'')!==(_dispOrigItemId[it.no]||'')||(it.receiving||false)!==(_dispOrigReceiving[it.no]||false)||(it.receivingDate||null)!==(_dispOrigRecDate[it.no]||null)||(it.msg||'')!==(_dispOrigMsg[it.no]||'')||(it.noReplacement||false)!==(_dispOrigNoRep[it.no]||false));
 }
 function saveDispSheet(){
   if(!_dispSheet)return;
@@ -914,7 +914,7 @@ function saveDispSheet(){
   }catch(e){console.warn('saveDispSheet failed:',e);}
   if(S.invoiceId===_dispSheet.id)S.invoice=_dispSheet.inv;
   _defOkSet=new Set();_defSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
-  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_recDatePicker=null;_defDetailNo=null;render();
+  _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispOrigNoRep={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_dispRemarkEditPrevNoRep=false;_recDatePicker=null;_defDetailNo=null;render();
 }
 function setPnInSheet(no,val){
   if(!_dispSheet)return;
@@ -936,12 +936,20 @@ function setMsgInSheet(no,val){
   const btn=document.getElementById('disp-done-btn');
   if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
 }
+function toggleNoRepInSheet(no){
+  if(!_dispSheet)return;
+  _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,noReplacement:!it.noReplacement});
+  const btn=document.getElementById('disp-done-btn');
+  if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
+  render();
+}
 function openRemarkEdit(no){
   if(!_dispSheet)return;
   const it=_dispSheet.inv.items.find(i=>i.no===no);
   _dispRemarkEditPrev=it?it.remark||'':'';
   _dispRemarkEditPrevId=it?it.itemId||'':'';
   _dispRemarkEditPrevMsg=it?it.msg||'':'';
+  _dispRemarkEditPrevNoRep=it?it.noReplacement||false:false;
   _dispRemarkEditNo=no;
   _defSw.openNo=null;_dispSw.openNo=null;
   render();
@@ -949,8 +957,8 @@ function openRemarkEdit(no){
 }
 function closeRemarkEdit(save){
   if(!save&&_dispRemarkEditNo)
-    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==_dispRemarkEditNo?it:{...it,remark:_dispRemarkEditPrev,itemId:_dispRemarkEditPrevId,msg:_dispRemarkEditPrevMsg});
-  _dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevId='';_dispRemarkEditPrevMsg='';
+    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==_dispRemarkEditNo?it:{...it,remark:_dispRemarkEditPrev,itemId:_dispRemarkEditPrevId,msg:_dispRemarkEditPrevMsg,noReplacement:_dispRemarkEditPrevNoRep});
+  _dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevId='';_dispRemarkEditPrevMsg='';_dispRemarkEditPrevNoRep=false;
   render();
 }
 function setItemIdInSheet(no,val){
@@ -1313,7 +1321,7 @@ function tryCloseDispSheet(){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
       saveDispSheet();
     }else{
-      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_recDatePicker=null;_defDetailNo=null;render();
+      _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispOrigMsg={};_dispOrigNoRep={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_dispRemarkEditPrevMsg='';_dispRemarkEditPrevNoRep=false;_recDatePicker=null;_defDetailNo=null;render();
     }
   }else{
     _dispSheet=null;_dispOrigDisp={};_dispOrigPn={};_dispOrigReceiving={};_dispOrigRecDate={};_dispOrigRemark={};_dispOrigItemId={};_dispRemarkEditNo=null;_dispRemarkEditPrev='';_recDatePicker=null;_defDetailNo=null;render();
@@ -3645,7 +3653,7 @@ function render(){
           const innerContent=`
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
               <span style="font-size:11px;color:var(--g400);flex-shrink:0">${pos}.</span>
-              <span onclick="event.stopPropagation();toggleDefDetail('${it.no}')" style="font-size:13px;font-weight:500;color:${it.receiving?'var(--blue)':'inherit'};${it.receiving?'border:1px solid var(--blue);border-radius:4px;padding:1px 5px;':''}cursor:pointer">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>${_dnpBadge}
+              <span onclick="event.stopPropagation();toggleDefDetail('${it.no}')" style="font-size:13px;font-weight:500;color:${it.receiving?'var(--blue)':'inherit'};${it.receiving?'border:1px solid var(--blue);border-radius:4px;padding:1px 5px;':''}cursor:pointer">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400);font-size:10px">#${it.colorCode}</span>`:''}</span>${it.noReplacement?`<span style="font-size:8px;letter-spacing:1px;font-weight:700;padding:2px 6px;border-radius:3px;background:var(--red);color:#fff;flex-shrink:0">NO REPL</span>`:''} ${_dnpBadge}
             </div>
             ${_showDetail?`<div style="margin-bottom:8px;padding:6px 10px;background:var(--g50);border-radius:4px;font-size:10px;line-height:1.7">
               ${ds.pnOnly?`<div><span style="color:var(--g400)">DISP</span> <span style="color:var(--k);font-weight:600">${dispLabel(it.disp)}</span></div>`:''}
@@ -3656,6 +3664,7 @@ function render(){
             </div>`:''}
             ${_dispRemarkEditNo===it.no
               ?`<div style="margin-bottom:8px" onclick="event.stopPropagation()">
+                  <button onclick="toggleNoRepInSheet('${it.no}')" style="width:100%;margin-bottom:10px;padding:8px;border-radius:4px;border:1px solid ${it.noReplacement?'var(--red)':'var(--g200)'};background:${it.noReplacement?'var(--red)':'transparent'};color:${it.noReplacement?'#fff':'var(--g400)'};font-size:10px;letter-spacing:1.5px;font-weight:600;cursor:pointer;font-family:inherit">NO REPLACEMENT ${it.noReplacement?'✓ ON':'OFF'}</button>
                   <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:3px">ID</div>
                   <input id="itemid-inp-${it.no}" type="text" inputmode="numeric" value="${esc(it.itemId||'')}" placeholder="ID Number"
                     oninput="setItemIdInSheet('${it.no}',this.value)"

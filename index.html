@@ -3895,7 +3895,7 @@ function render(){
       <div style="padding:10px 0;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="togglePnDetail('${key}')">
         <div style="flex:1;min-width:0">
           <div style="font-size:10px;font-weight:700;font-family:monospace;color:var(--k)">${esc(it.pn)}${_badge(it.pn,_allDone,_allDef)}${_chainLabel?`<span style="font-size:9px;font-weight:400;color:var(--g400);margin-left:4px">${esc(_chainLabel)}</span>`:''}</div>
-          <div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name||'—')}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div>
+          <div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name||'—')}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}${it.noReplacement?` <span style="font-size:8px;letter-spacing:1px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red);color:#fff;vertical-align:middle">NO REPL</span>`:''}</div>
           <div style="font-size:9px;color:var(--g400);margin-top:1px">${esc(inv.number||invId)}${_pnRank.has(key)?`<span style="margin-left:5px;font-size:8px;font-weight:600;color:var(--g400);font-family:monospace">${_pnRank.get(key)}</span>`:''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px" onclick="event.stopPropagation()">
@@ -3909,6 +3909,7 @@ function render(){
       </div>
       ${isOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
         ${it.remark?`<div style="color:var(--red);margin-bottom:4px">▸ ${esc(it.remark)}</div>`:''}
+        ${it.msg?`<div style="color:var(--amber);margin-bottom:6px;padding:4px 7px;border-left:2px solid var(--amber);background:var(--amberL);border-radius:0 3px 3px 0;line-height:1.5">✉ ${esc(it.msg)}</div>`:''}
         ${it.itemId?`<div><span style="color:var(--g400)">ID</span> <span style="font-family:monospace;color:var(--g800);font-weight:600">${esc(it.itemId)}</span></div>`:''}
         ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace">${esc(it.orderNo)}</span></div>`:''}
         ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> ${esc(it.custRef)}</div>`:''}
@@ -4011,19 +4012,23 @@ ${(()=>{
   const _chain=buildProcessChain(_processModal.invId,_processModal.no);
   if(!_chain)return '';
   const{steps,title}=_chain;
+  const _pmInvRaw=localStorage.getItem('mykita_dc_inv_'+_processModal.invId);
+  const _pmItem=_pmInvRaw?JSON.parse(_pmInvRaw).items.find(i=>i.no===_processModal.no):null;
+  const _pmSteps=(_pmItem&&_pmItem.noReplacement)?[...steps,{type:'no_replacement'}]:steps;
   const _defs={
-    order:        {icon:'📦',label:'ORDER',          color:'var(--g700)'},
-    delivery:     {icon:'📦',label:'REPLACEMENT',     color:'var(--g700)'},
-    defective:    {icon:'🔴',label:'DEFECTIVE',      color:'var(--red)'},
-    pn:           {icon:'🏷', label:'RPN REGISTERED', color:'var(--blue)'},
-    ok_receiving: {icon:'✅', label:'OK (RECEIVING)', color:'var(--teal)'},
-    ok:           {icon:'✅', label:'OK',             color:'var(--teal)'},
-    pending:      {icon:'⏳', label:'PENDING',        color:'var(--amber)'},
+    order:          {icon:'📦',label:'ORDER',           color:'var(--g700)'},
+    delivery:       {icon:'📦',label:'REPLACEMENT',      color:'var(--g700)'},
+    defective:      {icon:'🔴',label:'DEFECTIVE',       color:'var(--red)'},
+    pn:             {icon:'🏷', label:'RPN REGISTERED',  color:'var(--blue)'},
+    ok_receiving:   {icon:'✅', label:'OK (RECEIVING)',  color:'var(--teal)'},
+    ok:             {icon:'✅', label:'OK',              color:'var(--teal)'},
+    pending:        {icon:'⏳', label:'PENDING',         color:'var(--amber)'},
+    no_replacement: {icon:'🚫', label:'NO REPLACEMENT',  color:'var(--red)'},
   };
-  const html=steps.map((s,i)=>{
+  const html=_pmSteps.map((s,i)=>{
     const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
     const _label=(s.type==='defective'&&s.missing)?'DEFECTIVE (MISSING)':d.label;
-    const isLast=i===steps.length-1;
+    const isLast=i===_pmSteps.length-1;
     let sub='';
     if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
     else if(s.type==='pn'){sub=s.pn;}

@@ -2375,17 +2375,14 @@ function toggleDefPartOther(no,idx){
   updDefect(no,idx,d=>({...d,partOther:d.partOther===null?'':null}));
 }
 function setDefPartOther(no,idx,v){
-  updDefect(no,idx,d=>({...d,partOther:v}));
+  S.invoice.items=S.invoice.items.map(it=>{if(it.no!==no)return it;const defects=it.defects.map((d,i)=>i===idx?{...d,partOther:v}:d);return syncRemark({...it,defects});});
+  save();
 }
 function toggleDefCondOther(no,idx){
   updDefect(no,idx,d=>({...d,condOther:d.condOther===null?'':null}));
 }
 function setDefCondOther(no,idx,v){
-  S.invoice.items=S.invoice.items.map(it=>{
-    if(it.no!==no)return it;
-    const defects=it.defects.map((d,i)=>i===idx?{...d,condOther:v}:d);
-    return syncRemark({...it,defects});
-  });
+  S.invoice.items=S.invoice.items.map(it=>{if(it.no!==no)return it;const defects=it.defects.map((d,i)=>i===idx?{...d,condOther:v}:d);return syncRemark({...it,defects});});
   save();
 }
 function addDefect(no){
@@ -2848,7 +2845,7 @@ function defEntryHtml(no,d,idx,total){
         ${DEF_PART.map(v=>`<span class="pill${d.part===v?' sel':''}" onclick="toggleDefPart('${no}',${idx},'${v}')">${v}</span>`).join('')}
         <span class="pill-other${partOtherOn?' sel':''}" onclick="toggleDefPartOther('${no}',${idx})">Other</span>
       </div>
-      ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)"></div>`:''}
+      ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="setDefPartOther('${no}',${idx},this.value)" onblur="render()"></div>`:''}
       ${(d.part==='Front Parts'||d.part==='Temple')?`<div style="margin-top:4px">
         <button class="dpick-detail-toggle${d.partDetail?' has-val':''}" onclick="togglePartDetailOpen('${no}',${idx})">${d.partDetail?'▸ '+d.partDetail:'+ detail'}</button>
         ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${(d.part==='Temple'?DEF_TEMPLE_DETAIL:DEF_PART_DETAIL).map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="setPartDetail('${no}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
@@ -2866,7 +2863,7 @@ function defEntryHtml(no,d,idx,total){
         ${(DEF_COND_MAP[d.part]||DEF_COND_MAP['']).map(v=>`<span class="pill-wrap"><span class="pill${d.cond.includes(v)?' sel':''}" onclick="toggleDefCond('${no}',${idx},'${v}')">${v}</span><span class="pill-tip">${DEF_COND_JP[v]||''}</span></span>`).join('')}
         <span class="pill-wrap"><span class="pill-other${condOtherOn?' sel':''}" onclick="toggleDefCondOther('${no}',${idx})">Other</span><span class="pill-tip">その他</span></span>
       </div>
-      ${condOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.condOther||'')}" placeholder="e.g. Bent, Missing part..." oninput="setDefCondOther('${no}',${idx},this.value)"></div>`:''}
+      ${condOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.condOther||'')}" placeholder="e.g. Bent, Missing part..." oninput="setDefCondOther('${no}',${idx},this.value)" onblur="render()"></div>`:''}
     </div>
   </div>`;
 }
@@ -3932,7 +3929,7 @@ function render(){
       </div>
       <div style="position:relative;margin-bottom:8px">
         <input id="pn-name-search-inp" type="text" value="${esc(_pnNameSearch)}" placeholder="アイテム名 / ID"
-          oninput="_pnNameSearch=this.value;_pnPage=0;render()"
+          oninput="_pnNameSearch=this.value;_pnPage=0;_applyPnNameSearch()"
           style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--g200);border-radius:4px;font-size:13px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
         ${_pnNameSearch?`<button onclick="_pnNameSearch='';_pnPage=0;render()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px">×</button>`:''}
       </div>

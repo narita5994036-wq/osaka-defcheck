@@ -1097,6 +1097,9 @@ function collectReceItems(targetInvNumber){
       const inv=JSON.parse(d);if(!inv.number)continue;
       inv.items.forEach(it=>{
         if(it.status==='defective'&&it.receiving&&it.receivingDate===targetInvNumber&&(it.cat==='rx'||it.cat==='sun')){
+          // skip if chain ends in defective (replacement is itself defective = def new prod)
+          const chain=buildProcessChain(e.id,it.no);
+          if(chain&&chain.steps.length>0&&chain.steps[chain.steps.length-1].type==='defective')return;
           items.push({it,invNumber:inv.number,invId:e.id});
         }
       });

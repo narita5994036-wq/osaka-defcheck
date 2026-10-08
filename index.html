@@ -348,6 +348,7 @@ let _dispSw={no:null,startX:0,startY:0,curX:0,openNo:null,moved:false};
 const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_dispRemarkEditPrevMsg='',_dispRemarkEditPrevNoRep=false;
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
+let _clEditNo=null;
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
@@ -719,6 +720,28 @@ function savePnListChanges(){
 }
 function toggleDefDetail(no){_defDetailNo=(_defDetailNo===no)?null:no;render();}
 function toggleClDetail(no){_clDetailNo=(_clDetailNo===no)?null:no;render();}
+function openItemEdit(key){_clEditNo=key;render();}
+function cancelItemEdit(){_clEditNo=null;render();}
+function saveItemEdit(key){
+  if(!S.invoice)return;
+  const nameVal=(document.getElementById('cl-edit-name')||{}).value;
+  const colorVal=(document.getElementById('cl-edit-color')||{}).value;
+  const itemNoVal=(document.getElementById('cl-edit-itemno')||{}).value;
+  const catVal=(document.getElementById('cl-edit-cat')||{}).value;
+  if(key.startsWith('g:')){
+    const gNo=key.slice(2);
+    S.invoice.items=S.invoice.items.map(i=>{
+      if(i.subOf!==gNo)return i;
+      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat};
+    });
+  } else {
+    S.invoice.items=S.invoice.items.map(i=>{
+      if(i.no!==key)return i;
+      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat};
+    });
+  }
+  _clEditNo=null;save();render();
+}
 function buildProcessChain(rootInvId,rootItemNo){
   const allInvs={};
   loadList().forEach(e=>{try{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(!d)return;const inv=JSON.parse(d);allInvs[e.id]={...inv,items:inv.items.map(it=>{const patch=_pnListChanges[e.id+'|'+it.no];return patch?{...it,...patch}:it;})};}catch(x){}});
@@ -3133,6 +3156,36 @@ function render(){
       </div>`;
   }
 
+  // Helper: inline edit form for checklist items
+  const clEditForm=(it,key)=>`<div style="padding:4px 0 6px" onclick="event.stopPropagation()">
+    <div style="margin-bottom:5px">
+      <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ITEM NAME</div>
+      <input id="cl-edit-name" type="text" value="${esc(it.name)}" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:inherit;color:var(--k);background:var(--w);outline:none">
+    </div>
+    <div style="display:grid;grid-template-columns:90px 1fr;gap:6px;margin-bottom:5px">
+      <div>
+        <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">COLOR#</div>
+        <input id="cl-edit-color" type="text" maxlength="3" value="${esc(it.colorCode||'')}" placeholder="000" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:monospace;color:var(--k);background:var(--w);outline:none">
+      </div>
+      <div>
+        <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">CATEGORY</div>
+        <select id="cl-edit-cat" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:inherit;color:var(--k);background:var(--w);outline:none">
+          <option value="rx"${it.cat==='rx'?' selected':''}>RX</option>
+          <option value="sun"${it.cat==='sun'?' selected':''}>SUN</option>
+          <option value="parts"${it.cat==='parts'?' selected':''}>PARTS</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ITEM#</div>
+      <input id="cl-edit-itemno" type="text" value="${esc(it.itemNo||'')}" placeholder="10000000" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:monospace;color:var(--k);background:var(--w);outline:none">
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="event.stopPropagation();saveItemEdit('${esc(key)}')" style="flex:1;padding:6px 0;border:none;background:var(--k);color:var(--w);border-radius:3px;font-size:10px;letter-spacing:1px;font-family:inherit;font-weight:600;cursor:pointer">保存</button>
+      <button onclick="event.stopPropagation();cancelItemEdit()" style="padding:6px 14px;border:1px solid var(--g200);background:none;color:var(--g600);border-radius:3px;font-size:10px;font-family:inherit;cursor:pointer">×</button>
+    </div>
+  </div>`;
+
   // CHECKLIST
   if(S.screen==='checklist'&&inv){
     body=`
@@ -3185,9 +3238,11 @@ function render(){
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
                   <div class="item-tags">${catTag}${_grpPuBadge}${_grpSbBadge}${_grpDnpBadge}${_grpPnBadge}</div>
+                  ${_clEditNo==='g:'+it.subOf?clEditForm(it,'g:'+it.subOf):`
                   <div class="grp-hdr-name" onclick="event.stopPropagation();toggleClDetail('${it.subOf}')" style="cursor:pointer">${esc(it.name)}${it.colorCode?' <span style="color:var(--g400);font-size:10px">#'+it.colorCode+'</span>':''}</div>
                   <div class="grp-hdr-code">${esc(it.itemNo)} &nbsp;·&nbsp; ${esc(it.subTotal)}点${statusSummary}</div>
-                  <div style="font-size:10px;color:var(--g300);margin-top:2px">${collapsed?'▶':'▼'}</div>
+                  <button onclick="event.stopPropagation();openItemEdit('g:${it.subOf}')" style="margin-top:2px;font-size:8px;letter-spacing:1px;padding:1px 8px;border:1px solid var(--g200);border-radius:3px;background:none;color:var(--g400);cursor:pointer;font-family:inherit">✎ EDIT</button>
+                  <div style="font-size:10px;color:var(--g300);margin-top:2px">${collapsed?'▶':'▼'}</div>`}
                   ${(()=>{
                     const _grpAll=S.invoice.items.filter(g=>g.subOf===it.subOf);
                     const _memoSubs=_grpAll.filter(g=>g.smDone&&g.smDoneNote);
@@ -3236,9 +3291,11 @@ function render(){
                   <div class="item-no">${it.no}</div>
                   <div class="item-body">
                     <div class="item-tags">${catTag}${_puBadge}${_sbBadge}${_dnpBadge}${_pnBadge}</div>
+                    ${_clEditNo===it.no?clEditForm(it,it.no):`
                     <div class="item-name" onclick="event.stopPropagation();toggleClDetail('${it.no}')" style="cursor:pointer">${esc(it.name)}</div>
                     <div class="item-code">${esc(it.itemNo)}${it.colorCode?' · #'+it.colorCode:''}</div>
-                    ${smChip}
+                    <button onclick="event.stopPropagation();openItemEdit('${it.no}')" style="margin-top:3px;font-size:8px;letter-spacing:1px;padding:1px 8px;border:1px solid var(--g200);border-radius:3px;background:none;color:var(--g400);cursor:pointer;font-family:inherit">✎ EDIT</button>
+                    ${smChip}`}
                   </div>
                   <button class="sbtn ${sc}" onclick="cycle('${it.no}')">${SLBL[it.status]}</button>
                 </div>

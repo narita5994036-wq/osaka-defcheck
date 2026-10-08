@@ -2095,9 +2095,10 @@ function parseMykita(text){
   // Item lines: anchor on Delivery# (8-digit, e.g. 81299521) then HS-Code (8-digit), DE, prices, JPY
   // Columns: Position Qty Unit Item# [Description Color CustomerRef OrderNo] Delivery# [SUN/RX] [Material] HS-Code DE UnitPrice TotalPrice JPY
   const re=/^[ \t]*(\d{1,2})[ \t]+(\d+)[ \t]+(PC|PA)[ \t]+(\d{8})[ \t]+(.+?)[ \t]+(\d{8})[ \t]+(SUN[ \t]+|RX[ \t]+)?(?:metal[ \t]+|acetate[ \t]+|MYLON[ \t]+|plastic[ \t]+)?(\d{8})[ \t]+DE[ \t]+(\d+)[ \t]+\d+[ \t]+JPY/gm;
-  // Pre-extract orphan model names: lines that contain only a MYKITA model name (separated from row data by pdfjs)
+  // Pre-extract orphan model names: lines that contain only a MYKITA model name (separated from row data by pdfjs).
+  // _RX/_SUN suffix is optional — some PDFs omit it on the orphan line.
   const _orphans=[];
-  {const _or=/^[ \t]*([A-Z]{2,}(?:\s+[A-Z0-9]+)?(?:[\-\/][A-Z0-9\/\-_]+)+_(?:RX|SUN)(?:\*)?)\s*$/gm;let _om;while((_om=_or.exec(text))!==null)_orphans.push({index:_om.index,name:_om[1].trim()});}
+  {const _or=/^[ \t]*([A-Z]{2,}(?:\s+[A-Z0-9]+)?(?:[\-\/][A-Z0-9\/\-_]+)+(?:_(?:RX|SUN)(?:\*)?)?\s*)\s*$/gm;let _om;while((_om=_or.exec(text))!==null){const n=_om[1].trim();if(n)_orphans.push({index:_om.index,name:n});}}
   const items=[];
   let m;
   while((m=re.exec(text))!==null){
@@ -2173,6 +2174,20 @@ function parseMykita(text){
       for(let si=1;si<=qtyN;si++){
         items.push({no:pos+'-'+si,qty:'1',unit,itemNo,name,colorCode,cat,unitPrice,orderNo,custRef,status:'pending',remark:'',subOf:pos,subIdx:si,subTotal:qtyN,defects:[newDefect()],stampNo:'',photoTaken:false,itemId:''});
       }
+    }
+  }
+  // Post-process: fix items where the model name was omitted in the PDF (same item# continues).
+  // When the PDF skips the model name on continuation rows, descRaw contains only the color
+  // code (a 3-digit number) making name="698" etc. If consecutive items share the same itemNo
+  // and the current name starts with a digit, inherit the previous item's name.
+  for(let i=1;i<items.length;i++){
+    const it=items[i],prev=items[i-1];
+    if(it.itemNo===prev.itemNo&&/^\d/.test(it.name)&&prev.name&&!/^\d/.test(prev.name)){
+      if(!it.colorCode){
+        const cld=it.name.match(/^(\d{3})\b/);
+        if(cld)it.colorCode=cld[1];
+      }
+      it.name=prev.name;
     }
   }
   return{number,date,items};

@@ -2103,10 +2103,15 @@ function parseMykita(text){
   while((m=re.exec(text))!==null){
     const pos=m[1],qty=m[2],unit=m[3],itemNo=m[4];
     let descRaw=m[5].trim();
-    // If descRaw starts with a digit, model name may be an orphan line nearby in the text
+    // If descRaw starts with a digit, model name may be an orphan line nearby in the text.
+    // Use the last orphan that appeared before (or within 100 chars after) this match —
+    // this correctly handles consecutive items sharing the same model name, where the
+    // PDF omits the name on continuation rows. The previous nearest-by-distance approach
+    // with a 500-char cap failed when the shared orphan was >500 chars before the 2nd row.
     if(/^\d/.test(descRaw)&&_orphans.length){
-      const nearest=_orphans.reduce((b,o)=>{const d=Math.abs(o.index-m.index);return d<b.dist?{name:o.name,dist:d}:b;},{name:null,dist:Infinity});
-      if(nearest.name&&nearest.dist<500)descRaw=nearest.name+' '+descRaw;
+      const before=_orphans.filter(o=>o.index<=m.index+100).sort((a,b)=>b.index-a.index);
+      const best=before.length?before[0]:null;
+      if(best)descRaw=best.name+' '+descRaw;
     }
     // m[6]=delivery#, m[7]=SUN/RX column (undefined if blank), m[8]=HS-Code, m[9]=unitPrice (not stored)
     const sunRxCol=(m[7]||'').trim().toUpperCase();

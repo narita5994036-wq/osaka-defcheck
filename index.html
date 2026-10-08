@@ -728,16 +728,18 @@ function saveItemEdit(key){
   const colorVal=(document.getElementById('cl-edit-color')||{}).value;
   const itemNoVal=(document.getElementById('cl-edit-itemno')||{}).value;
   const catVal=(document.getElementById('cl-edit-cat')||{}).value;
+  const orderNoVal=(document.getElementById('cl-edit-orderno')||{}).value;
+  const custRefVal=(document.getElementById('cl-edit-custref')||{}).value;
   if(key.startsWith('g:')){
     const gNo=key.slice(2);
     S.invoice.items=S.invoice.items.map(i=>{
       if(i.subOf!==gNo)return i;
-      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat};
+      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat,orderNo:(orderNoVal||'').trim(),custRef:(custRefVal||'').trim()};
     });
   } else {
     S.invoice.items=S.invoice.items.map(i=>{
       if(i.no!==key)return i;
-      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat};
+      return{...i,name:(nameVal||'').trim()||i.name,colorCode:(colorVal||'').trim(),itemNo:(itemNoVal||'').trim()||i.itemNo,cat:catVal||i.cat,orderNo:(orderNoVal||'').trim(),custRef:(custRefVal||'').trim()};
     });
   }
   _clEditNo=null;save();render();
@@ -3176,9 +3178,19 @@ function render(){
         </select>
       </div>
     </div>
-    <div style="margin-bottom:8px">
+    <div style="margin-bottom:5px">
       <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ITEM#</div>
       <input id="cl-edit-itemno" type="text" value="${esc(it.itemNo||'')}" placeholder="10000000" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:monospace;color:var(--k);background:var(--w);outline:none">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+      <div>
+        <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ORDER#</div>
+        <input id="cl-edit-orderno" type="text" value="${esc(it.orderNo||'')}" placeholder="000000" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:monospace;color:var(--k);background:var(--w);outline:none">
+      </div>
+      <div>
+        <div style="font-size:8px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">CUSTREF</div>
+        <input id="cl-edit-custref" type="text" value="${esc(it.custRef||'')}" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--g300);border-radius:3px;font-size:11px;font-family:inherit;color:var(--k);background:var(--w);outline:none">
+      </div>
     </div>
     <div style="display:flex;gap:6px">
       <button onclick="event.stopPropagation();saveItemEdit('${esc(key)}')" style="flex:1;padding:6px 0;border:none;background:var(--k);color:var(--w);border-radius:3px;font-size:10px;letter-spacing:1px;font-family:inherit;font-weight:600;cursor:pointer">保存</button>

@@ -1173,6 +1173,7 @@ function _doExportSumarejiCSV(){
   const _partsResolved=[];
   const _currentPartsOrderNos=new Set();
   const _dsSbWarnItems=[];
+  const _excludedPartsRootNos=new Set();
   S.csvSelIds.forEach(id=>{
     const d=localStorage.getItem('mykita_dc_inv_'+id);
     if(!d)return;
@@ -1191,12 +1192,17 @@ function _doExportSumarejiCSV(){
       });
       // PARTS OK with PN match
       inv.items.forEach(it=>{
-        if(it.cat==='parts'&&it.status==='ok'&&!it.smDone&&it.orderNo&&_pnMap.has(it.orderNo.trim())){
-          _currentPartsOrderNos.add(it.orderNo.trim());
+        if(it.cat==='parts'&&it.status==='ok'&&it.orderNo&&_pnMap.has(it.orderNo.trim())){
           const _root=_findPartsRoot(it.orderNo.trim(),_pnMap);
-          if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
-          if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
-            _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
+          if(!it.smDone){
+            _currentPartsOrderNos.add(it.orderNo.trim());
+            if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
+            if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
+              _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
+          } else {
+            // Excluded PARTS: still block their root item from appearing in receAll
+            if(_root)_excludedPartsRootNos.add(_root.item.itemNo);
+          }
         }
       });
     }catch(e){}
@@ -1221,12 +1227,13 @@ function _doExportSumarejiCSV(){
       }
     }
   }
-  // RECE items: exclude already counted as OK SUN/RX and items whose root is handled by resolved PARTS
+  // RECE items: exclude already counted as OK SUN/RX, items whose root is handled by resolved PARTS,
+  // and root items of excluded (smDone=true) PARTS replacements
   let _receAdded=false;
   const receAll=[];
   invNums.forEach(num=>receAll.push(...collectReceItems(num)));
   const _resolvedRootNos=new Set(_partsResolved.map(({rootItem})=>rootItem.itemNo));
-  const receFiltered=receAll.filter(({it})=>!grouped.has(it.itemNo)&&!_resolvedRootNos.has(it.itemNo));
+  const receFiltered=receAll.filter(({it})=>!grouped.has(it.itemNo)&&!_resolvedRootNos.has(it.itemNo)&&!_excludedPartsRootNos.has(it.itemNo));
   if(receFiltered.length){
     _appendReceToRows(rows,receFiltered,_currentPartsOrderNos);_receAdded=true;
     const lines=receFiltered.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.subOf||it.no})`).join('\n');
@@ -1275,6 +1282,7 @@ function _doExportSumarejiCSVById(id){
     const _partsResolved=[];
     const _currentPartsOrderNos=new Set();
     const _dsSbWarnItems=[];
+    const _excludedPartsRootNos=new Set();
     inv.items.forEach(it=>{
       if((it.cat==='rx'||it.cat==='sun')&&it.status==='ok'&&!it.smDone){
         if(!grouped.has(it.itemNo))grouped.set(it.itemNo,{count:0,name:it.name,unitPrice:it.unitPrice||'',posNo:it.subOf||it.no,colorCode:it.colorCode||'',note:'',cat:it.cat.toUpperCase()});
@@ -1284,12 +1292,17 @@ function _doExportSumarejiCSVById(id){
         if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
           _dsSbWarnItems.push({itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
       }
-      if(it.cat==='parts'&&it.status==='ok'&&!it.smDone&&it.orderNo&&_pnMap.has(it.orderNo.trim())){
-        _currentPartsOrderNos.add(it.orderNo.trim());
+      if(it.cat==='parts'&&it.status==='ok'&&it.orderNo&&_pnMap.has(it.orderNo.trim())){
         const _root=_findPartsRoot(it.orderNo.trim(),_pnMap);
-        if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
-        if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
-          _dsSbWarnItems.push({itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
+        if(!it.smDone){
+          _currentPartsOrderNos.add(it.orderNo.trim());
+          if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
+          if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
+            _dsSbWarnItems.push({itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
+        } else {
+          // Excluded PARTS: still block their root item from appearing in receAll
+          if(_root)_excludedPartsRootNos.add(_root.item.itemNo);
+        }
       }
     });
     const rows=[];
@@ -1309,10 +1322,11 @@ function _doExportSumarejiCSVById(id){
       }
     }
     // RECE items: exclude already counted + items whose root is handled by resolved PARTS
+    // + root items of excluded (smDone=true) PARTS replacements
     let _receAdded=false;
     const receItems=collectReceItems(inv.number);
     const _resolvedRootNos=new Set(_partsResolved.map(({rootItem})=>rootItem.itemNo));
-    const receFiltered=receItems.filter(({it})=>!grouped.has(it.itemNo)&&!_resolvedRootNos.has(it.itemNo));
+    const receFiltered=receItems.filter(({it})=>!grouped.has(it.itemNo)&&!_resolvedRootNos.has(it.itemNo)&&!_excludedPartsRootNos.has(it.itemNo));
     if(receFiltered.length){
       _appendReceToRows(rows,receFiltered,_currentPartsOrderNos);_receAdded=true;
       const lines=receFiltered.map(({it,invNumber})=>`・${it.name||it.itemNo} (${invNumber}-${it.subOf||it.no})`).join('\n');
@@ -3914,7 +3928,7 @@ function render(){
           <div style="font-size:10px;line-height:1.7;background:var(--g50);border-radius:4px;padding:6px 10px">
             <div style="display:grid;grid-template-columns:max-content 1fr;gap:0 8px;align-items:center">
               <span style="color:var(--g400)">Memo</span>
-              <textarea rows="1" style="font-size:10px;font-family:inherit;border:none;background:transparent;resize:none;outline:none;color:var(--g800);width:100%;overflow:hidden;padding:0;line-height:1.7" placeholder="—" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateMemoNote('${_memoListId}','${it.no}',this.value)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur()}">${esc(it.smDoneNote||'')}</textarea>
+              <textarea rows="1" style="font-size:10px;font-family:inherit;border:none;background:transparent;resize:none;outline:none;color:var(--g800);width:100%;overflow:hidden;padding:0;line-height:1.7" placeholder="—" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" onblur="updateMemoNote('${_memoListId}','${it.no}',this.value)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur()}">${esc(it.smDoneNote||'')}</textarea>
             </div>
           </div>
         </div>`).join("")}

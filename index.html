@@ -3928,7 +3928,7 @@ function render(){
           <div style="font-size:10px;line-height:1.7;background:var(--g50);border-radius:4px;padding:6px 10px">
             <div style="display:grid;grid-template-columns:max-content 1fr;gap:0 8px;align-items:center">
               <span style="color:var(--g400)">Memo</span>
-              <textarea rows="1" style="font-size:10px;font-family:inherit;border:none;background:transparent;resize:none;outline:none;color:var(--g800);width:100%;overflow:hidden;padding:0;line-height:1.7" placeholder="—" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateMemoNote('${_memoListId}','${it.no}',this.value)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur()}">${esc(it.smDoneNote||'')}</textarea>
+              <textarea rows="1" style="font-size:10px;font-family:inherit;border:none;background:transparent;resize:none;outline:none;color:var(--g800);width:100%;overflow:hidden;padding:0;line-height:1.7" placeholder="—" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" onblur="updateMemoNote('${_memoListId}','${it.no}',this.value)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur()}">${esc(it.smDoneNote||'')}</textarea>
             </div>
           </div>
         </div>`).join("")}

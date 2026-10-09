@@ -339,7 +339,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','defective','ok'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',itemSearch:'',uploadDate:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',itemSearch:'',custRefSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={},_dispOrigNoRep={};
 let _recDatePicker=null;
@@ -1195,6 +1195,8 @@ function _doExportSumarejiCSV(){
           _currentPartsOrderNos.add(it.orderNo.trim());
           const _root=_findPartsRoot(it.orderNo.trim(),_pnMap);
           if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
+          if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
+            _dsSbWarnItems.push({invId:id,itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
         }
       });
     }catch(e){}
@@ -1286,6 +1288,8 @@ function _doExportSumarejiCSVById(id){
         _currentPartsOrderNos.add(it.orderNo.trim());
         const _root=_findPartsRoot(it.orderNo.trim(),_pnMap);
         if(_root&&_root.item.receiving!==false)_partsResolved.push({partsIt:it,rootItem:_root.item,rootInvNumber:_root.invNumber});
+        if(isDsSbCustRef(it.custRef)&&!_dsSbWarnItems.some(w=>w.itemNo===it.itemNo))
+          _dsSbWarnItems.push({itemNo:it.itemNo,posNo:it.subOf||it.no,name:it.name,custRef:it.custRef||''});
       }
     });
     const rows=[];
@@ -1694,11 +1698,17 @@ function _itemSearchHits(invId,query){
 function _applyItemSearch(){
   const q=(S.itemSearch||'').toLowerCase().trim();
   const words=q?q.split(/\s+/).filter(Boolean):[];
+  const qc=(S.custRefSearch||'').toLowerCase().trim();
+  const cwords=qc?qc.split(/\s+/).filter(Boolean):[];
   document.querySelectorAll('[data-search-name]').forEach(el=>{
     const name=(el.dataset.searchName||'').toLowerCase();
-    el.style.display=(!words.length||words.every(w=>name.includes(w)))?'':'none';
+    const cr=(el.dataset.searchCustref||'').toLowerCase();
+    const nameOk=!words.length||words.every(w=>name.includes(w));
+    const crOk=!cwords.length||cwords.every(w=>cr.includes(w));
+    el.style.display=(nameOk&&crOk)?'':'none';
   });
 }
+function _onCustRefSearch(val){S.custRefSearch=val;_applyItemSearch();}
 function _applyPnNameSearch(){
   const q=(_pnNameSearch||'').toLowerCase().trim();
   const words=q?q.split(/\s+/).filter(Boolean):[];
@@ -3217,6 +3227,11 @@ function render(){
           style="width:100%;box-sizing:border-box;padding:7px 12px;border:1px solid var(--g200);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--w);color:var(--k)"
           oninput="_onItemSearch(this.value)" onclick="event.stopPropagation()">
       </div>
+      <div style="padding:4px 20px 0">
+        <input id="custref-search-input" type="search" value="${esc(S.custRefSearch||'')}" placeholder="CustRef を検索..."
+          style="width:100%;box-sizing:border-box;padding:7px 12px;border:1px solid var(--g200);border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:var(--w);color:var(--k)"
+          oninput="_onCustRefSearch(this.value)" onclick="event.stopPropagation()">
+      </div>
       <div style="display:flex;align-items:center;gap:6px;padding:8px 20px 14px">
         ${[['rx','RX'],['sun','SUN'],['parts','PARTS']].map(([k,l])=>{const on=S.tagFilter.includes(k);return `<button onclick="(()=>{const f=S.tagFilter.includes('${k}')?S.tagFilter.filter(x=>x!=='${k}'):[...S.tagFilter,'${k}'];S.tagFilter=f;render()})()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:3px;border:1px solid ${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g200)'};background:${on?(k==='parts'?'var(--tealL)':k==='sun'?'var(--amberL)':'var(--blueL)'):'transparent'};color:${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:600">${l}</button>`;}).join('')}
         ${S.tagFilter.length>0?`<span style="font-size:10px;color:var(--g600);margin-left:4px">${vis.length} / ${tot}</span>`:''}
@@ -3246,7 +3261,7 @@ function render(){
               const _grpScBadge=_isStockClaimCustRef(it.custRef)?`<span class="sc-badge">Stock Claim</span>`:'';
               const _grpSbBadge=_isShopBreakageCustRef(it.custRef)?`<span class="sb-badge">${(it.custRef||'').toLowerCase().includes('shop breakage')?'Shop Breakage':'Def Stock'}</span>`:'';
               const _grpDnpBadge=_isDefNewProdCustRef(it.custRef)?`<span class="dnp-badge">Def New Prod</span>`:'';
-              html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
+              html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
                   <div class="item-tags">${catTag}${_grpPuBadge}${_grpSbBadge}${_grpDnpBadge}${_grpPnBadge}</div>
@@ -3277,7 +3292,7 @@ function render(){
                 ?`<div style="padding:3px 0 3px 32px">
                     <button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--amber)':'var(--g200)'};background:${it.smDone?'var(--amber)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫CSVから除外':'入庫'}</button>
                   </div>`:'';
-              html+=`<div class="sub-item" data-search-name="${esc(it.name)}">
+              html+=`<div class="sub-item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}">
                 <div class="sub-item-row">
                   <div class="sub-bar"></div>
                   <div class="sub-idx">${it.subIdx}/${it.subTotal}</div>
@@ -3288,8 +3303,6 @@ function render(){
               </div>`;
             } else {
               // NORMAL SINGLE ITEM
-              const smChip=(it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'))
-                ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--amber)':'var(--g200)'};background:${it.smDone?'var(--amber)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫CSVから除外':'入庫'}</button>`:'';
               const _clDet=_clDetailNo===it.no;
               const _pnMatches=it.orderNo?(_pnMap.get(it.orderNo.trim())||[]):[];
               const _pnTooltip=_pnMatches.map(m=>`/RPN MATCH：INV${m.invNumber}-${m.no}.`).join(', ');
@@ -3298,7 +3311,10 @@ function render(){
               const _scBadge=_isStockClaimCustRef(it.custRef)?`<span class="sc-badge">Stock Claim</span>`:'';
               const _sbBadge=_isShopBreakageCustRef(it.custRef)?`<span class="sb-badge">${(it.custRef||'').toLowerCase().includes('shop breakage')?'Shop Breakage':'Def Stock'}</span>`:'';
               const _dnpBadge=_isDefNewProdCustRef(it.custRef)?`<span class="dnp-badge">Def New Prod</span>`:'';
-              html+=`<div class="item" data-search-name="${esc(it.name)}">
+              const _showSmChip=it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'||(it.cat==='parts'&&_pnMatches.length>0));
+              const smChip=_showSmChip
+                ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--amber)':'var(--g200)'};background:${it.smDone?'var(--amber)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫CSVから除外':'入庫'}</button>`:'';
+              html+=`<div class="item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
                   <div class="item-body">

@@ -339,7 +339,7 @@ const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','defective','ok'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',homeItemNoSearch:'',itemSearch:'',custRefSearch:'',itemNoSearch:'',uploadDate:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',homeItemIdSearch:'',itemSearch:'',custRefSearch:'',itemIdSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={},_dispOrigNoRep={};
 let _recDatePicker=null;
@@ -1699,18 +1699,18 @@ function setDisp(no,val){
   save();render();
 }
 
-function _itemSearchHits(invId,query,itemNoQuery){
-  if(!query&&!itemNoQuery)return[];
+function _itemSearchHits(invId,query,itemIdQuery){
+  if(!query&&!itemIdQuery)return[];
   try{
     const d=localStorage.getItem('mykita_dc_inv_'+invId);
     if(!d)return[];
     const inv=JSON.parse(d);
     const words=query?query.toLowerCase().trim().split(/\s+/).filter(Boolean):[];
-    const nwords=itemNoQuery?itemNoQuery.toLowerCase().trim().split(/\s+/).filter(Boolean):[];
+    const iwords=itemIdQuery?itemIdQuery.toLowerCase().trim().split(/\s+/).filter(Boolean):[];
     return inv.items.filter(it=>{
       const nameOk=!words.length||(it.name&&words.every(w=>it.name.toLowerCase().includes(w)));
-      const inoOk=!nwords.length||(it.itemNo&&nwords.every(w=>it.itemNo.toLowerCase().includes(w)));
-      return nameOk&&inoOk;
+      const idOk=!iwords.length||(it.itemId&&iwords.every(w=>it.itemId.toLowerCase().includes(w)));
+      return nameOk&&idOk;
     });
   }catch(e){return[];}
 }
@@ -1719,20 +1719,20 @@ function _applyItemSearch(){
   const words=q?q.split(/\s+/).filter(Boolean):[];
   const qc=(S.custRefSearch||'').toLowerCase().trim();
   const cwords=qc?qc.split(/\s+/).filter(Boolean):[];
-  const qn=(S.itemNoSearch||'').toLowerCase().trim();
-  const nwords=qn?qn.split(/\s+/).filter(Boolean):[];
+  const qi=(S.itemIdSearch||'').toLowerCase().trim();
+  const iwords=qi?qi.split(/\s+/).filter(Boolean):[];
   document.querySelectorAll('[data-search-name]').forEach(el=>{
     const name=(el.dataset.searchName||'').toLowerCase();
     const cr=(el.dataset.searchCustref||'').toLowerCase();
-    const ino=(el.dataset.searchItemno||'').toLowerCase();
+    const iid=(el.dataset.searchItemid||'').toLowerCase();
     const nameOk=!words.length||words.every(w=>name.includes(w));
     const crOk=!cwords.length||cwords.every(w=>cr.includes(w));
-    const inoOk=!nwords.length||nwords.every(w=>ino.includes(w));
-    el.style.display=(nameOk&&crOk&&inoOk)?'':'none';
+    const idOk=!iwords.length||iwords.every(w=>iid.includes(w));
+    el.style.display=(nameOk&&crOk&&idOk)?'':'none';
   });
 }
 function _onCustRefSearch(val){S.custRefSearch=val;_applyItemSearch();}
-function _onItemNoSearch(val){S.itemNoSearch=val;_applyItemSearch();}
+function _onItemIdSearch(val){S.itemIdSearch=val;_applyItemSearch();}
 function _applyPnNameSearch(){
   const q=(_pnNameSearch||'').toLowerCase().trim();
   const words=q?q.split(/\s+/).filter(Boolean):[];
@@ -1744,15 +1744,15 @@ function _applyPnNameSearch(){
 }
 function _applyHomeItemSearch(){
   const iq=(S.homeItemSearch||'').trim();
-  const inq=(S.homeItemNoSearch||'').trim();
+  const iiq=(S.homeItemIdSearch||'').trim();
   document.querySelectorAll('.inv-swipe-wrap[data-id]').forEach(wrap=>{
     const id=wrap.dataset.id;
-    const hits=(iq||inq)?_itemSearchHits(id,iq,inq):[];
-    wrap.style.display=((!iq&&!inq)||hits.length)?'':'none';
+    const hits=(iq||iiq)?_itemSearchHits(id,iq,iiq):[];
+    wrap.style.display=((!iq&&!iiq)||hits.length)?'':'none';
     const hitsDiv=wrap.querySelector('.inv-home-hits');
     if(hitsDiv){
       if(hits.length){
-        hitsDiv.innerHTML='<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--g100)">'+hits.slice(0,5).map(it=>'<div style="font-size:10px;color:'+(it.status==='defective'?'var(--red)':'var(--g500)')+';line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--g300);margin-right:3px">'+esc(it.subOf||it.no)+'.</span>'+esc(it.name)+(it.itemNo?'<span style="color:var(--g300);margin-left:4px">'+esc(it.itemNo)+'</span>':'')+'</div>').join('')+(hits.length>5?'<div style="font-size:10px;color:var(--g400)">+'+(hits.length-5)+' 件</div>':'')+'</div>';
+        hitsDiv.innerHTML='<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--g100)">'+hits.slice(0,5).map(it=>'<div style="font-size:10px;color:'+(it.status==='defective'?'var(--red)':'var(--g500)')+';line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--g300);margin-right:3px">'+esc(it.subOf||it.no)+'.</span>'+esc(it.name)+(it.itemId?'<span style="color:var(--g300);margin-left:4px">'+esc(it.itemId)+'</span>':'')+'</div>').join('')+(hits.length>5?'<div style="font-size:10px;color:var(--g400)">+'+(hits.length-5)+' 件</div>':'')+'</div>';
       }else{
         hitsDiv.innerHTML='';
       }
@@ -1760,12 +1760,12 @@ function _applyHomeItemSearch(){
   });
   document.querySelectorAll('.sm-card[data-id]').forEach(card=>{
     const id=card.dataset.id;
-    const hits=(iq||inq)?_itemSearchHits(id,iq,inq):[];
-    card.style.display=((!iq&&!inq)||hits.length)?'':'none';
+    const hits=(iq||iiq)?_itemSearchHits(id,iq,iiq):[];
+    card.style.display=((!iq&&!iiq)||hits.length)?'':'none';
     const hitsDiv=card.querySelector('.sm-item-hits');
     if(hitsDiv){
       if(hits.length){
-        hitsDiv.innerHTML='<div style="margin:0 14px 12px;padding-top:8px;border-top:1px solid var(--g100)">'+hits.slice(0,5).map(it=>'<div style="font-size:10px;color:'+(it.status==='defective'?'var(--red)':'var(--g500)')+';line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--g300);margin-right:3px">'+esc(it.subOf||it.no)+'.</span>'+esc(it.name)+(it.itemNo?'<span style="color:var(--g300);margin-left:4px">'+esc(it.itemNo)+'</span>':'')+'</div>').join('')+(hits.length>5?'<div style="font-size:10px;color:var(--g400)">+'+(hits.length-5)+' 件</div>':'')+'</div>';
+        hitsDiv.innerHTML='<div style="margin:0 14px 12px;padding-top:8px;border-top:1px solid var(--g100)">'+hits.slice(0,5).map(it=>'<div style="font-size:10px;color:'+(it.status==='defective'?'var(--red)':'var(--g500)')+';line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--g300);margin-right:3px">'+esc(it.subOf||it.no)+'.</span>'+esc(it.name)+(it.itemId?'<span style="color:var(--g300);margin-left:4px">'+esc(it.itemId)+'</span>':'')+'</div>').join('')+(hits.length>5?'<div style="font-size:10px;color:var(--g400)">+'+(hits.length-5)+' 件</div>':'')+'</div>';
       }else{
         hitsDiv.innerHTML='';
       }
@@ -1775,10 +1775,10 @@ function _applyHomeItemSearch(){
   if(inp)inp.style.borderColor=iq?'var(--k)':'var(--g200)';
   const clr=document.getElementById('home-item-search-clear');
   if(clr)clr.style.display=iq?'block':'none';
-  const inpNo=document.getElementById('home-itemno-search');
-  if(inpNo)inpNo.style.borderColor=inq?'var(--k)':'var(--g200)';
-  const clrNo=document.getElementById('home-itemno-search-clear');
-  if(clrNo)clrNo.style.display=inq?'block':'none';
+  const inpId=document.getElementById('home-itemid-search');
+  if(inpId)inpId.style.borderColor=iiq?'var(--k)':'var(--g200)';
+  const clrId=document.getElementById('home-itemid-search-clear');
+  if(clrId)clrId.style.display=iiq?'block':'none';
 }
 function _onItemSearch(val){S.itemSearch=val;_applyItemSearch();}
 function newDefect(){return {part:'',partOther:null,partDetail:null,side:'',cond:[],condOther:null};}
@@ -3059,7 +3059,7 @@ function render(){
     const _fuzzy=(e,q)=>!q||e.number.toLowerCase().replace(/\s/g,'').includes(q.toLowerCase().replace(/\s/g,''));
     const q=S.homeSearch.trim();
     const iq=S.homeItemSearch.trim();
-    const inq=S.homeItemNoSearch.trim();
+    const iiq=S.homeItemIdSearch.trim();
     const _matches=e=>_fuzzy(e,q);
     const sortActive=_sort(list.filter(e=>!e.archived&&_matches(e)));
     const archived=_sort(list.filter(e=>e.archived&&_matches(e)));
@@ -3087,10 +3087,10 @@ function render(){
         <button id="home-item-search-clear" onclick="S.homeItemSearch='';this.style.display='none';document.getElementById('home-item-search').value='';_applyHomeItemSearch()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px;display:${iq?'block':'none'}">×</button>
       </div>
       <div style="margin:4px 20px 0;position:relative">
-        <input id="home-itemno-search" type="text" value="${esc(S.homeItemNoSearch)}" placeholder="ITEM# で検索…"
-          oninput="S.homeItemNoSearch=this.value;_applyHomeItemSearch()"
-          style="width:100%;padding:9px 32px 9px 12px;border:1px solid ${inq?'var(--k)':'var(--g200)'};border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
-        <button id="home-itemno-search-clear" onclick="S.homeItemNoSearch='';this.style.display='none';document.getElementById('home-itemno-search').value='';_applyHomeItemSearch()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px;display:${inq?'block':'none'}">×</button>
+        <input id="home-itemid-search" type="text" value="${esc(S.homeItemIdSearch)}" placeholder="ID で検索…"
+          oninput="S.homeItemIdSearch=this.value;_applyHomeItemSearch()"
+          style="width:100%;padding:9px 32px 9px 12px;border:1px solid ${iiq?'var(--k)':'var(--g200)'};border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);outline:none;color:var(--g800);box-sizing:border-box">
+        <button id="home-itemid-search-clear" onclick="S.homeItemIdSearch='';this.style.display='none';document.getElementById('home-itemid-search').value='';_applyHomeItemSearch()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;padding:2px;display:${iiq?'block':'none'}">×</button>
       </div>
       ${sortActive.length
         ?`<div class="home-sec" style="display:flex;align-items:center;justify-content:space-between"><span>ACTIVE${q?' ('+sortActive.length+'件)':''}</span>${_simpleMode?'':`<div style="display:flex;gap:6px">${sortBtns}</div>`}</div>${sortActive.map(e=>_simpleMode?_simpleCardFn(e):invCardHtml(e,false)).join('')}`
@@ -3269,9 +3269,9 @@ function render(){
           oninput="_onCustRefSearch(this.value)" onclick="event.stopPropagation()">
       </div>
       <div style="padding:4px 20px 0">
-        <input id="itemno-search-input" type="search" value="${esc(S.itemNoSearch||'')}" placeholder="ITEM# を検索..."
+        <input id="itemid-search-input" type="search" value="${esc(S.itemIdSearch||'')}" placeholder="ID を検索..."
           style="width:100%;box-sizing:border-box;padding:7px 12px;border:1px solid var(--g200);border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:var(--w);color:var(--k)"
-          oninput="_onItemNoSearch(this.value)" onclick="event.stopPropagation()">
+          oninput="_onItemIdSearch(this.value)" onclick="event.stopPropagation()">
       </div>
       <div style="display:flex;align-items:center;gap:6px;padding:8px 20px 14px">
         ${[['rx','RX'],['sun','SUN'],['parts','PARTS']].map(([k,l])=>{const on=S.tagFilter.includes(k);return `<button onclick="(()=>{const f=S.tagFilter.includes('${k}')?S.tagFilter.filter(x=>x!=='${k}'):[...S.tagFilter,'${k}'];S.tagFilter=f;render()})()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:3px;border:1px solid ${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g200)'};background:${on?(k==='parts'?'var(--tealL)':k==='sun'?'var(--amberL)':'var(--blueL)'):'transparent'};color:${on?(k==='parts'?'var(--teal)':k==='sun'?'var(--amber)':'var(--blue)'):'var(--g400)'};cursor:pointer;font-family:inherit;font-weight:600">${l}</button>`;}).join('')}
@@ -3302,7 +3302,7 @@ function render(){
               const _grpScBadge=_isStockClaimCustRef(it.custRef)?`<span class="sc-badge">Stock Claim</span>`:'';
               const _grpSbBadge=_isShopBreakageCustRef(it.custRef)?`<span class="sb-badge">${(it.custRef||'').toLowerCase().includes('shop breakage')?'Shop Breakage':'Def Stock'}</span>`:'';
               const _grpDnpBadge=_isDefNewProdCustRef(it.custRef)?`<span class="dnp-badge">Def New Prod</span>`:'';
-              html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemno="${esc(it.itemNo||'')}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
+              html+=`<div class="grp-hdr" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemid="${esc(it.itemId||'')}" style="cursor:pointer" onclick="toggleGrp('${it.subOf}')">
                 <div class="item-no" style="min-width:22px;font-size:10px;color:var(--g400);text-align:right;font-weight:500;flex-shrink:0">${it.subOf}</div>
                 <div style="flex:1;min-width:0">
                   <div class="item-tags">${catTag}${_grpPuBadge}${_grpSbBadge}${_grpDnpBadge}${_grpPnBadge}</div>
@@ -3333,7 +3333,7 @@ function render(){
                 ?`<div style="padding:3px 0 3px 32px">
                     <button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--amber)':'var(--g200)'};background:${it.smDone?'var(--amber)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫CSVから除外':'入庫'}</button>
                   </div>`:'';
-              html+=`<div class="sub-item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemno="${esc(it.itemNo||'')}">
+              html+=`<div class="sub-item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemid="${esc(it.itemId||'')}">
                 <div class="sub-item-row">
                   <div class="sub-bar"></div>
                   <div class="sub-idx">${it.subIdx}/${it.subTotal}</div>
@@ -3355,7 +3355,7 @@ function render(){
               const _showSmChip=it.status==='ok'&&(it.cat==='rx'||it.cat==='sun'||(it.cat==='parts'&&_pnMatches.length>0));
               const smChip=_showSmChip
                 ?`<button onclick="event.stopPropagation();toggleSmDone('${it.no}')" style="display:inline-flex;align-items:center;margin-top:4px;font-size:9px;letter-spacing:.5px;padding:2px 10px;border-radius:10px;border:1px solid ${it.smDone?'var(--amber)':'var(--g200)'};background:${it.smDone?'var(--amber)':'transparent'};color:${it.smDone?'#fff':'var(--g400)'};cursor:pointer;font-family:inherit">${it.smDone?'✓ 入庫CSVから除外':'入庫'}</button>`:'';
-              html+=`<div class="item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemno="${esc(it.itemNo||'')}">
+              html+=`<div class="item" data-search-name="${esc(it.name)}" data-search-custref="${esc(it.custRef||'')}" data-search-itemid="${esc(it.itemId||'')}">
                 <div class="item-row">
                   <div class="item-no">${it.no}</div>
                   <div class="item-body">

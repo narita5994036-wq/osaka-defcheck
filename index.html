@@ -1007,7 +1007,7 @@ const MK_SM_QTY_ALERT='mykita_dc_sm_qty_alert';
 function getSmQtyAlert(){const v=parseInt(localStorage.getItem(MK_SM_QTY_ALERT));return(isNaN(v)||v<1)?20:v;}
 function setSmQtyAlert(v){const n=parseInt(v);if(!isNaN(n)&&n>=1)localStorage.setItem(MK_SM_QTY_ALERT,n);}
 function _dispRows(inv,excludeCompleted){
-  return inv.items.filter(i=>i.status==='defective'&&(!excludeCompleted||!i.receiving)).map(it=>[
+  return inv.items.filter(i=>i.status==='defective'&&(!excludeCompleted||(!i.receiving&&!i.noReplacement))).map(it=>[
     inv.number||'',
     it.subOf||it.no,
     it.name||'',

@@ -1090,15 +1090,45 @@ function exportActiveListCSV(){
 }
 function exportAllDefCSV(includeCompleted){
   const list=loadList();
-  const allRows=[];
+  // Load all invoices first
+  const allInvs=[];
   list.forEach(entry=>{
     const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
     if(!d)return;
-    try{
-      const inv=JSON.parse(d);
-      const rows=_dispRows(inv,!includeCompleted);
-      if(rows.length)allRows.push(...rows);
-    }catch(e){}
+    try{allInvs.push(JSON.parse(d));}catch(e){}
+  });
+  // When excluding completed: build set of pns that have a matching replacement item
+  // (pn appears as orderNo in some item across any invoice = replacement was delivered)
+  const replacedPns=new Set();
+  if(!includeCompleted){
+    allInvs.forEach(inv=>{
+      inv.items.forEach(it=>{
+        if(it.orderNo&&it.orderNo.trim())replacedPns.add(it.orderNo.trim());
+      });
+    });
+  }
+  const allRows=[];
+  allInvs.forEach(inv=>{
+    if(includeCompleted){
+      allRows.push(..._dispRows(inv));
+    }else{
+      inv.items.filter(i=>
+        i.status==='defective'
+        &&!i.receiving
+        &&!i.noReplacement
+        &&!(i.pn&&replacedPns.has(i.pn.trim()))
+      ).forEach(it=>{
+        allRows.push([
+          inv.number||'',
+          it.subOf||it.no,
+          it.name||'',
+          it.pn||'',
+          [it.colorCode?'C'+it.colorCode:'',it.itemId||''].filter(Boolean).join('/'),
+          it.remark||'',
+          it.disp?it.disp.charAt(0).toUpperCase()+it.disp.slice(1):''
+        ]);
+      });
+    }
   });
   if(!allRows.length){alert('Defective itemsがありません');return;}
   const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();

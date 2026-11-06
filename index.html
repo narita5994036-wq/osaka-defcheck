@@ -932,7 +932,7 @@ function saveDispSheet(){
     if(idx>=0){
       const defItems=_dispSheet.inv.items.filter(i=>i.status==='defective');
       list[idx].dispTotal=defItems.length;
-      list[idx].dispSet=defItems.filter(i=>i.pn).length;
+      list[idx].dispSet=defItems.filter(i=>i.pn||i.noReplacement).length;
       list[idx].receCount=defItems.filter(i=>i.receiving).length;
       {const _sid=_dispSheet.id;const _ss=_dispSyncSnap[_sid];const defs=_dispSheet.inv.items.filter(i=>i.status==='defective');if(_ss){if(defs.some(it=>(it.disp||null)!==(_ss[it.no]||null)))_dispDirtyIds.add(_sid);else _dispDirtyIds.delete(_sid);}else if(_dispIsDirty())_dispDirtyIds.add(_sid);}
       saveList(list);
@@ -1537,7 +1537,7 @@ async function _gistDoPull(){
         if(_invLoaded[e.id]){
           const inv=JSON.parse(_invLoaded[e.id]);
           const defItems=inv.items.filter(i=>i.status==='defective');
-          newList.push({id:e.id,number:inv.number||e.number,date:inv.date||e.date,createdAt:e.createdAt,archived:e.archived,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.pn).length,receCount:defItems.filter(i=>i.receiving).length,updatedAt:e.updatedAt});
+          newList.push({id:e.id,number:inv.number||e.number,date:inv.date||e.date,createdAt:e.createdAt,archived:e.archived,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.pn||i.noReplacement).length,receCount:defItems.filter(i=>i.receiving).length,updatedAt:e.updatedAt});
         }else{newList.push(e);}
         seen.add(e.id);
       }
@@ -1545,7 +1545,7 @@ async function _gistDoPull(){
         if(!seen.has(iid)){
           const inv=JSON.parse(c);
           const defItems=inv.items.filter(i=>i.status==='defective');
-          newList.unshift({id:iid,number:inv.number||'',date:inv.date||'',createdAt:inv.createdAt||new Date().toISOString(),archived:false,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.pn).length,receCount:defItems.filter(i=>i.receiving).length});
+          newList.unshift({id:iid,number:inv.number||'',date:inv.date||'',createdAt:inv.createdAt||new Date().toISOString(),archived:false,tot:inv.items.length,pend:inv.items.filter(i=>i.status==='pending').length,dispTotal:defItems.length,dispSet:defItems.filter(i=>i.pn||i.noReplacement).length,receCount:defItems.filter(i=>i.receiving).length});
         }
       }
       saveList(newList);
@@ -1699,7 +1699,7 @@ function save(){
       list[idx].date=S.invoice.date||'';
       const defItems=S.invoice.items.filter(i=>i.status==='defective');
       list[idx].dispTotal=defItems.length;
-      list[idx].dispSet=defItems.filter(i=>i.pn).length;
+      list[idx].dispSet=defItems.filter(i=>i.pn||i.noReplacement).length;
       list[idx].receCount=defItems.filter(i=>i.receiving).length;
       list[idx].memoCount=S.invoice.items.filter(i=>i.smDone&&i.smDoneNote).length;
       list[idx].updatedAt=new Date().toISOString();
@@ -2123,7 +2123,7 @@ async function handleReparseByNumber(f){
       const defs=merged.filter(i=>i.status==='defective');
       list[idx].tot=merged.length;list[idx].pend=merged.filter(i=>i.status==='pending').length;
       list[idx].number=mergedInv.number||list[idx].number;
-      list[idx].dispTotal=defs.length;list[idx].dispSet=defs.filter(i=>i.disp).length;
+      list[idx].dispTotal=defs.length;list[idx].dispSet=defs.filter(i=>i.disp||i.noReplacement).length;
       list[idx].receCount=defs.filter(i=>i.receiving).length;
       saveList(list);
     }
@@ -2911,7 +2911,7 @@ function discardAndLeave(){
         list[idx].pend=inv.items.filter(i=>i.status==='pending').length;
         const defItems=inv.items.filter(i=>i.status==='defective');
         list[idx].dispTotal=defItems.length;
-        list[idx].dispSet=defItems.filter(i=>i.pn).length;
+        list[idx].dispSet=defItems.filter(i=>i.pn||i.noReplacement).length;
         list[idx].receCount=defItems.filter(i=>i.receiving).length;
         localStorage.setItem(SK_LIST,JSON.stringify(list));
       }

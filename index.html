@@ -349,6 +349,7 @@ const _DSW=80,_DSW2=160;
 let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_dispRemarkEditPrevMsg='',_dispRemarkEditPrevNoRep=false;
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
 let _clEditNo=null;
+let _xlsxAllDlConfirm=false;
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
@@ -1005,8 +1006,8 @@ function _applySmMask(rows){const s=getSmFieldSettings();return rows.map(r=>r.ma
 const MK_SM_QTY_ALERT='mykita_dc_sm_qty_alert';
 function getSmQtyAlert(){const v=parseInt(localStorage.getItem(MK_SM_QTY_ALERT));return(isNaN(v)||v<1)?20:v;}
 function setSmQtyAlert(v){const n=parseInt(v);if(!isNaN(n)&&n>=1)localStorage.setItem(MK_SM_QTY_ALERT,n);}
-function _dispRows(inv){
-  return inv.items.filter(i=>i.status==='defective').map(it=>[
+function _dispRows(inv,excludeCompleted){
+  return inv.items.filter(i=>i.status==='defective'&&(!excludeCompleted||!i.receiving)).map(it=>[
     inv.number||'',
     it.subOf||it.no,
     it.name||'',
@@ -1086,6 +1087,23 @@ function exportActiveListCSV(){
   const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
   _downloadCSV(`DEFECTIVE ITEM LIST_${ts}.csv`,allRows);
   S.showXlsxSel=false;S.xlsxSelIds=null;render();
+}
+function exportAllDefCSV(includeCompleted){
+  const list=loadList();
+  const allRows=[];
+  list.forEach(entry=>{
+    const d=localStorage.getItem('mykita_dc_inv_'+entry.id);
+    if(!d)return;
+    try{
+      const inv=JSON.parse(d);
+      const rows=_dispRows(inv,!includeCompleted);
+      if(rows.length)allRows.push(...rows);
+    }catch(e){}
+  });
+  if(!allRows.length){alert('Defective itemsがありません');return;}
+  const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;})();
+  _downloadCSV(`DEFECTIVE ITEM LIST_ALL_${ts}.csv`,allRows);
+  _xlsxAllDlConfirm=false;S.showXlsxSel=false;S.xlsxSelIds=null;render();
 }
 function openCsvSel(){
   const list=loadList().filter(e=>!e.archived);
@@ -3445,9 +3463,9 @@ function render(){
     const allIds=candidates.map(c=>c.entry.id);
     const selCnt=S.xlsxSelIds.size;
     const allSel=allIds.every(id=>S.xlsxSelIds.has(id));
-    return `<div class="overlay" onclick="if(event.target===this){S.showXlsxSel=false;S.xlsxSelIds=null;render()}">
+    return `<div class="overlay" onclick="if(event.target===this){_xlsxAllDlConfirm=false;S.showXlsxSel=false;S.xlsxSelIds=null;render()}">
       <div class="sheet">
-        <div class="sheet-tit">EXPORT ACTIVE LIST — Select Invoices<button class="close-btn" onclick="S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
+        <div class="sheet-tit">EXPORT ACTIVE LIST — Select Invoices<button class="close-btn" onclick="_xlsxAllDlConfirm=false;S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} selected</span>
           <button onclick="toggleAllXlsxInv()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
@@ -3467,6 +3485,16 @@ function render(){
           }).join('')}
         </div>
         <button class="btn blk" style="opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportActiveListCSV()':'void 0'}">DOWNLOAD${selCnt?' ('+selCnt+')':''}</button>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--g100)">
+          <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:8px">全インボイス一括DL</div>
+          ${_xlsxAllDlConfirm
+            ?`<div style="display:flex;gap:8px">
+                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--g400);color:var(--g700)" onclick="_xlsxAllDlConfirm=false;render()">キャンセル</button>
+                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--blue);color:var(--blue)" onclick="exportAllDefCSV(false)">完了を除く</button>
+                <button class="btn blk" style="flex:1;font-size:11px" onclick="exportAllDefCSV(true)">完了を含める</button>
+              </div>`
+            :`<button class="btn out" style="width:100%;font-size:11px;letter-spacing:.5px" onclick="_xlsxAllDlConfirm=true;render()">全アイテムをまとめてDL</button>`}
+        </div>
       </div>
     </div>`;
   })();

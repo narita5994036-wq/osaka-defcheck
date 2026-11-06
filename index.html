@@ -3466,6 +3466,16 @@ function render(){
     return `<div class="overlay" onclick="if(event.target===this){_xlsxAllDlConfirm=false;S.showXlsxSel=false;S.xlsxSelIds=null;render()}">
       <div class="sheet">
         <div class="sheet-tit">EXPORT ACTIVE LIST — Select Invoices<button class="close-btn" onclick="_xlsxAllDlConfirm=false;S.showXlsxSel=false;S.xlsxSelIds=null;render()">×</button></div>
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--g100)">
+          <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:8px">ALL INVOICES</div>
+          ${_xlsxAllDlConfirm
+            ?`<div style="display:flex;gap:8px">
+                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--g400);color:var(--g700)" onclick="_xlsxAllDlConfirm=false;render()">CANCEL</button>
+                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--blue);color:var(--blue)" onclick="exportAllDefCSV(false)">EXCL. COMPLETED</button>
+                <button class="btn blk" style="flex:1;font-size:11px" onclick="exportAllDefCSV(true)">INCL. COMPLETED</button>
+              </div>`
+            :`<button class="btn out" style="width:100%;font-size:11px;letter-spacing:.5px" onclick="_xlsxAllDlConfirm=true;render()">DOWNLOAD ALL</button>`}
+        </div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <span style="font-size:10px;color:var(--g600)">${selCnt} / ${candidates.length} selected</span>
           <button onclick="toggleAllXlsxInv()" style="font-size:9px;letter-spacing:1px;padding:3px 10px;border:1px solid var(--g200);border-radius:3px;background:none;cursor:pointer;color:var(--g600);font-family:inherit">${allSel?'DESELECT ALL':'SELECT ALL'}</button>
@@ -3485,16 +3495,6 @@ function render(){
           }).join('')}
         </div>
         <button class="btn blk" style="opacity:${selCnt?1:0.4}" onclick="${selCnt?'exportActiveListCSV()':'void 0'}">DOWNLOAD${selCnt?' ('+selCnt+')':''}</button>
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--g100)">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:8px">全インボイス一括DL</div>
-          ${_xlsxAllDlConfirm
-            ?`<div style="display:flex;gap:8px">
-                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--g400);color:var(--g700)" onclick="_xlsxAllDlConfirm=false;render()">キャンセル</button>
-                <button class="btn out" style="flex:1;font-size:11px;border-color:var(--blue);color:var(--blue)" onclick="exportAllDefCSV(false)">完了を除く</button>
-                <button class="btn blk" style="flex:1;font-size:11px" onclick="exportAllDefCSV(true)">完了を含める</button>
-              </div>`
-            :`<button class="btn out" style="width:100%;font-size:11px;letter-spacing:.5px" onclick="_xlsxAllDlConfirm=true;render()">全アイテムをまとめてDL</button>`}
-        </div>
       </div>
     </div>`;
   })();

@@ -2749,7 +2749,7 @@ function printClaimLabels(id){
   const isSB=(claim.claimType||'stock')==='breakage';
   const typeLabel=isSB?'SHOP BREAKAGE':'STOCK CLAIM';
   const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};
-  const dateStr=fmtD(claim.created);
+  const dateStr=claim.claimDate?(()=>{const p=claim.claimDate.split('-');return `${p[0]}/${p[1]}/${p[2]}`;})():fmtD(claim.created);
   const _respLabel={return:'Return',sample_full:'Sample Full',sample_parts:'Sample Parts'};
   const _respCls={return:'lc-resp--ret',sample_full:'lc-resp--smp',sample_parts:'lc-resp--smp-p'};
   const cells=claim.frames.map(f=>{
@@ -2777,13 +2777,14 @@ function printClaimLabels(id){
 function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
 function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
 function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:'',rpn:'',frameResponse:''};}
-function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false,claimDate:''};}
 function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
 function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
 function closeClaimForm(){_claimDraft=null;S.showClaimForm=false;render();}
 function deleteClaim(id){if(!confirm('このクレームを削除しますか？'))return;saveClaims(loadClaims().filter(c=>c.id!==id));render();}
 function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
+function setClaimDate(id,val){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.claimDate=val;cl.updated=Date.now();saveClaims(list);}render();}
 function claimSetFrameRpn(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.rpn=val.trim();}cl.updated=Date.now();saveClaims(list);}}
 function claimSetFrameResponse(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.frameResponse=f.frameResponse===val?'':val;}cl.updated=Date.now();saveClaims(list);}render();}
 function toggleClaimRpn(id){if(_claimRpnOpen.has(id))_claimRpnOpen.delete(id);else _claimRpnOpen.add(id);render();}
@@ -3292,7 +3293,7 @@ function render(){
             <div style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="openEditClaim('${cl.id}')">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
                 <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                  <input type="date" value="${cl.claimDate||new Date(cl.created).toISOString().slice(0,10)}" style="font-size:10px;color:var(--g400);border:none;background:transparent;padding:0;font-family:inherit;cursor:pointer;outline:none;width:auto" onchange="setClaimDate('${cl.id}',this.value)" onclick="event.stopPropagation()">
                   ${(cl.claimType||'stock')==='breakage'
                     ?`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--amberL);color:var(--amber);font-weight:600">SHOP BREAKAGE</span>`
                     :`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--tealL);color:var(--teal);font-weight:600">STOCK CLAIM</span>`}
@@ -4312,7 +4313,7 @@ function render(){
     }catch(x){}
   }
   // SC / SB claim frames with RPN
-  loadClaims().forEach(claim=>{const isSB=(claim.claimType||'stock')==='breakage';const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};claim.frames.forEach(f=>{if(!f.rpn||!f.rpn.trim())return;_defItems.push({it:{pn:f.rpn.trim(),name:f.name||'(no name)',colorCode:f.colorCode||'',itemId:f.itemId||'',status:'claim',no:f.fid,remark:f.remark||'',frameResponse:f.frameResponse||'',receiving:false,disp:'',noReplacement:false},inv:{number:fmtD(claim.created)},invId:'claim|'+claim.id,isClaimFrame:true,claimFrame:f,claim,isSB});});});
+  loadClaims().forEach(claim=>{const isSB=(claim.claimType||'stock')==='breakage';const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};const claimDateStr=claim.claimDate?(()=>{const p=claim.claimDate.split('-');return `${p[0]}/${p[1]}/${p[2]}`;})():fmtD(claim.created);claim.frames.forEach(f=>{if(!f.rpn||!f.rpn.trim())return;_defItems.push({it:{pn:f.rpn.trim(),name:f.name||'(no name)',colorCode:f.colorCode||'',itemId:f.itemId||'',status:'claim',no:f.fid,remark:f.remark||'',frameResponse:f.frameResponse||'',receiving:false,disp:'',noReplacement:false},inv:{number:claimDateStr},invId:'claim|'+claim.id,isClaimFrame:true,claimFrame:f,claim,isSB});});});
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
   // Build rank map: when multiple items share the same pn, track X/N position
   const _pnRank=new Map();

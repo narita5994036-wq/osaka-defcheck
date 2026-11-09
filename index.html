@@ -2874,14 +2874,18 @@ function claimDefEntryHtml(fid,d,idx,total){
 function buildEmail(){
   const inv=S.invoice;
   const defs=inv.items.filter(i=>i.status==='defective');
+  const _claimRpnTypeMap={};
+  loadClaims().forEach(claim=>{const isSB=(claim.claimType||'stock')==='breakage';claim.frames.forEach(f=>{if(!f.rpn||!f.rpn.trim())return;_claimRpnTypeMap[f.rpn.trim()]=isSB?'Shop Breakage':'Stock Claim';});});
   const blocks=defs.map(it=>{
     const posLabel=it.subOf||it.no;
+    const claimOrigin=it.pn?_claimRpnTypeMap[it.pn.trim()]:null;
     return [
       `Position Number/Item : ${posLabel}. ${it.name}`,
       `Stamp Number: ${(it.stampNo&&it.stampNo.trim())||'none'}`,
       `Color Number/ID Number : ${[it.colorCode?'C'+it.colorCode:'',normalizeId(it.itemId)].filter(Boolean).join('/')||'none'}`,
       `Defective Parts/Conditions : ${it.remark||''}`,
-    ].filter(l=>!l.endsWith(': ')).join('\n');
+      claimOrigin?`Note: This item was originally delivered as a ${claimOrigin} replacement.`:'',
+    ].filter(l=>l!==''&&!l.endsWith(': ')).join('\n');
   }).join('\n\n');
   S.emailTo='d.duong@mykita.com';
   S.emailSubj=`🟥DEFECTIVE REPORT/MYKITA Osaka`;

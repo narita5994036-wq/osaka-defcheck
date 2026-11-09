@@ -352,6 +352,7 @@ let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListC
 let _clEditNo=null;
 let _xlsxAllDlConfirm=false;
 let _claimDraft=null;
+let _claimRpnOpen=new Set();
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
@@ -1488,12 +1489,7 @@ function invCardTap(id,scrollToDef){
     if(el){el.style.transition='transform .2s ease';el.style.transform='translateX(0)';}
     _sw.openId=null;_sw.openDir=null;return;
   }
-  if(navigator.maxTouchPoints===0){
-    const now=Date.now();
-    if(_invTapLast.id===id&&now-_invTapLast.t<400){_invTapLast={id:null,t:0};openInvoice(id,scrollToDef);}
-    else{_invTapLast={id,t:now};}
-    return;
-  }
+  if(navigator.maxTouchPoints===0){openInvoice(id,scrollToDef);return;}
   openInvoice(id,scrollToDef);
 }
 
@@ -2787,6 +2783,7 @@ function deleteClaim(id){if(!confirm('このクレームを削除しますか？
 function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
 function claimSetFrameRpn(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.rpn=val.trim();}cl.updated=Date.now();saveClaims(list);}}
 function claimSetFrameResponse(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.frameResponse=f.frameResponse===val?'':val;}cl.updated=Date.now();saveClaims(list);}render();}
+function toggleClaimRpn(id){if(_claimRpnOpen.has(id))_claimRpnOpen.delete(id);else _claimRpnOpen.add(id);render();}
 function claimSyncRemark(frame){
   const parts=frame.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');const detail=d.partDetail?` (${d.partDetail})`:'';
@@ -3181,6 +3178,8 @@ function render(){
   const _sy=window.scrollY||0;
   const _pnSheetEl=document.getElementById('pn-list-sheet');
   const _pnSy=_pnSheetEl?_pnSheetEl.scrollTop:0;
+  const _sheetEl=document.querySelector('.overlay .sheet');
+  const _sheetSy=_sheetEl?_sheetEl.scrollTop:0;
   const inv=S.invoice;
   const pend=inv?inv.items.filter(i=>i.status==='pending').length:0;
   const ok=inv?inv.items.filter(i=>i.status==='ok').length:0;
@@ -3243,7 +3242,7 @@ function render(){
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
       <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:4px;border-style:dashed;border-color:var(--amber);color:var(--amber)" onclick="S.screen='claims';render()">STOCK CLAIM / SHOP BREAKAGE REPORT</button>
+      <button class="home-new" style="margin-top:4px;border-style:dashed;border-color:#9a7b0a;color:#9a7b0a" onclick="S.screen='claims';render()">STOCK CLAIM / SHOP BREAKAGE REPORT</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}
@@ -3307,21 +3306,24 @@ function render(){
               <button onclick="deleteClaim('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--red);font-family:inherit">DEL</button>
             </div>
             ${cl.sent?`
-            <div style="padding:10px 14px;border-top:1px solid var(--g100);background:var(--g50)" onclick="event.stopPropagation()">
-              ${cl.frames.map(f=>{
-                const rsp=f.frameResponse||'';
-                return `<div style="padding:8px 0;border-bottom:1px solid var(--g100)">
-                  <div style="font-size:12px;font-weight:500;color:var(--k);margin-bottom:6px">${esc(f.name||'(no name)')}</div>
-                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <button class="disp-btn${rsp==='return'?' ret':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','return')">Return</button>
-                    <button class="disp-btn${rsp==='sample_full'?' smp':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_full')">Sample Full</button>
-                    <button class="disp-btn${rsp==='sample_parts'?' smp-p':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_parts')">Sample Parts</button>
-                    <input type="tel" value="${esc(f.rpn||'')}" placeholder="RPN"
-                      style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                      onblur="claimSetFrameRpn('${cl.id}','${f.fid}',this.value)" onclick="event.stopPropagation()">
-                  </div>
-                </div>`;
-              }).join('')}
+            <div onclick="event.stopPropagation()">
+              <button onclick="toggleClaimRpn('${cl.id}')" style="width:100%;padding:8px 14px;border:none;border-top:1px solid var(--g100);background:var(--g50);cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--blue);font-family:inherit;text-align:left;display:flex;justify-content:space-between;align-items:center">RPN / RESPONSE<span style="font-size:10px">${_claimRpnOpen.has(cl.id)?'▲':'▼'}</span></button>
+              ${_claimRpnOpen.has(cl.id)?`<div style="padding:10px 14px;border-top:1px solid var(--g100);background:var(--g50)">
+                ${cl.frames.map(f=>{
+                  const rsp=f.frameResponse||'';
+                  return `<div style="padding:8px 0;border-bottom:1px solid var(--g100)">
+                    <div style="font-size:12px;font-weight:500;color:var(--k);margin-bottom:6px">${esc(f.name||'(no name)')}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                      <button class="disp-btn${rsp==='return'?' ret':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','return')">Return</button>
+                      <button class="disp-btn${rsp==='sample_full'?' smp':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_full')">Sample Full</button>
+                      <button class="disp-btn${rsp==='sample_parts'?' smp-p':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_parts')">Sample Parts</button>
+                      <input type="tel" value="${esc(f.rpn||'')}" placeholder="RPN"
+                        style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                        onblur="claimSetFrameRpn('${cl.id}','${f.fid}',this.value)" onclick="event.stopPropagation()">
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>`:''}
             </div>`:''}
           </div>
         `).join('')}
@@ -4541,6 +4543,7 @@ ${(()=>{
     else if(_scrollToInvId){const _el=document.querySelector(`.inv-swipe-wrap[data-id="${_scrollToInvId}"]`);if(_el){_el.scrollIntoView({block:'center'});}else{window.scrollTo(0,_sy);}_scrollToInvId=null;}
     else{window.scrollTo(0,_sy);}
     const _pnS=document.getElementById('pn-list-sheet');if(_pnS)_pnS.scrollTop=_pnSy;
+    if(_sheetSy>0){const _shEl=document.querySelector('.overlay .sheet');if(_shEl)_shEl.scrollTop=_sheetSy;}
   });
   if(_focId){const el=document.getElementById(_focId);if(el){el.focus();if(_focSS!=null&&el.setSelectionRange)try{el.setSelectionRange(_focSS,_focSE!=null?_focSE:_focSS);}catch(e){}}}
   _applyItemSearch();_applyPnNameSearch();_applyHomeItemSearch();

@@ -3207,7 +3207,7 @@ function render(){
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
       <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:4px;margin-left:30px;width:calc(100% - 60px);padding:10px;font-size:9px;letter-spacing:1.5px;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">SHOP CLAIM / BREAKAGE REPORT</button>
+      <button class="home-new" style="margin-top:4px;border-style:solid;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">SHOP CLAIM / BREAKAGE REPORT</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}

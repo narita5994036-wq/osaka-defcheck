@@ -2051,6 +2051,7 @@ async function toggleSent(id){
     if(!confirm('現在のフェーズ: UNSENT\n= DEFECTIVE REPORTメール未送信\n\nOK = SENT（送信済み）に変更\nキャンセル = 中止'))return;
   }
   list[idx].sent=!cur;
+  if(!cur)list[idx].sentAt=Date.now();else delete list[idx].sentAt;
   saveList(list);render();
   if(!cur){
     if(_simpleMode){
@@ -2096,6 +2097,31 @@ function quickMail(id){
     if(!defs.length){alert('Defectiveのアイテムがありません');return;}
     _checkPendingAndBuild();
   }catch(e){console.warn('quickMail failed:',e);}
+}
+function checkRpnReminders(){
+  const ONE_WEEK=7*24*60*60*1000;
+  const now=Date.now();
+  const lines=[];
+  loadList().forEach(entry=>{
+    if(!entry.sent||!entry.sentAt)return;
+    if(now-entry.sentAt<ONE_WEEK)return;
+    try{
+      const inv=JSON.parse(localStorage.getItem('mykita_dc_inv_'+entry.id)||'null');
+      if(!inv)return;
+      const pending=inv.items.filter(i=>i.status==='defective'&&!i.noReplacement&&(!i.rpn||!i.rpn.trim())).map(i=>i.name||'(no name)');
+      if(pending.length){lines.push(`[DEF] INV ${entry.number}`);pending.forEach(n=>lines.push(`  - ${n}`));}
+    }catch(e){}
+  });
+  loadClaims().forEach(claim=>{
+    if(!claim.sent||!claim.sentAt)return;
+    if(now-claim.sentAt<ONE_WEEK)return;
+    const isSB=(claim.claimType||'stock')==='breakage';
+    const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};
+    const dateStr=claim.claimDate?(()=>{const[y,m,d]=claim.claimDate.split('-');return `${y}/${m}/${d}`;})():fmtD(claim.created);
+    const pending=claim.frames.filter(f=>!f.rpn||!f.rpn.trim()).map(f=>f.name||'(no name)');
+    if(pending.length){lines.push(`[${isSB?'SB':'SC'}] ${dateStr}`);pending.forEach(n=>lines.push(`  - ${n}`));}
+  });
+  if(lines.length)alert('⚠ RPN未入力リマインド（送信から1週間以上経過）\n\n'+lines.join('\n')+'\n\nRPNを入力してください。');
 }
 function initApp(){
   try{
@@ -2783,7 +2809,7 @@ function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
 function closeClaimForm(){_claimDraft=null;S.showClaimForm=false;render();}
 function deleteClaim(id){if(!confirm('このクレームを削除しますか？'))return;saveClaims(loadClaims().filter(c=>c.id!==id));render();}
-function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
+function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;if(v)cl.sentAt=Date.now();else delete cl.sentAt;saveClaims(list);}render();}
 function setClaimDate(id,val){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.claimDate=val;cl.updated=Date.now();saveClaims(list);}render();}
 function claimSetFrameRpn(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.rpn=val.trim();}cl.updated=Date.now();saveClaims(list);}}
 function claimSetFrameResponse(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.frameResponse=f.frameResponse===val?'':val;}cl.updated=Date.now();saveClaims(list);}render();}
@@ -4572,6 +4598,7 @@ _listSnap=_listForSnap(loadList());
   list.forEach(e=>{if(e.id!==newest.id)_smCollapsed.add(e.id);});
 })();
 render(); gistAutoSync();
+setTimeout(checkRpnReminders,500);
 
 function fabAtBottom(){const sh=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);return window.innerHeight+window.scrollY>=sh-20;}
 function fabTap(){

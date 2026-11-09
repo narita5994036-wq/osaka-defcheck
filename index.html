@@ -2751,7 +2751,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}
 function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
 function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
 function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:''};}
-function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',sent:false};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false};}
 function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
 function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
@@ -2783,18 +2783,25 @@ function claimAddFrame(){if(!_claimDraft)return;_claimDraft.frames.push(newClaim
 function claimRemoveFrame(fid){if(!_claimDraft)return;if(_claimDraft.frames.length<=1){alert('フレームは最低1つ必要です');return;}_claimDraft.frames=_claimDraft.frames.filter(f=>f.fid!==fid);saveClaimDraft();render();}
 function claimSetFrameField(fid,field,value){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid===fid?{...f,[field]:value}:f);}
 function claimSetStaff(val){if(!_claimDraft)return;_claimDraft.staff=val;saveClaimDraft();render();}
+function claimSetType(val){if(!_claimDraft)return;_claimDraft.claimType=val;saveClaimDraft();render();}
 function claimFinish(){if(!_claimDraft)return;if(!_claimDraft.frames.some(f=>f.name&&f.name.trim())){alert('フレーム名を入力してください');return;}saveClaimDraft();_claimDraft=null;S.showClaimForm=false;render();}
 function claimAllItemNames(){const list=loadList();const names=new Set();list.forEach(entry=>{const d=localStorage.getItem('mykita_dc_inv_'+entry.id);if(!d)return;try{const inv=JSON.parse(d);inv.items.forEach(it=>{if(it.name)names.add(it.name);});}catch(e){}});return Array.from(names).sort();}
 function openClaimEmail(id){const list=loadClaims();const c=list.find(x=>x.id===id);if(c)buildClaimEmail(c);}
 function buildClaimEmail(claim){
+  const isSB=(claim.claimType||'stock')==='breakage';
   const blocks=claim.frames.map(f=>[
-    `Item :  ${f.name||'(no name)'}`,
+    isSB?`Position Number/Item : ${f.name||'(no name)'}`:`Item :  ${f.name||'(no name)'}`,
     `Color Number/ID Number : ${[f.colorCode?'C'+f.colorCode:'',f.itemId||''].filter(Boolean).join('/')||'—'}`,
     `Defective Parts/Conditions : ${f.remark||''}`,
   ].join('\n')).join('\n\n');
   S.emailTo='d.duong@mykita.com';
-  S.emailSubj='🟩STOCK CLAIM/MYKITA Osaka';
-  S.emailBody=['Dear Diana-san','','I like to report stock claim for the following frame','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  if(isSB){
+    S.emailSubj='🟨SHOP BREAKAGE ORDER/MYKITA Osaka';
+    S.emailBody=['Dear Diana-san','','I would like to order below parts as Shop-breakage.','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  }else{
+    S.emailSubj='🟩STOCK CLAIM/MYKITA Osaka';
+    S.emailBody=['Dear Diana-san','','I like to report stock claim for the following frame','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  }
   S.showClaimEmail=true;render();
 }
 function claimDefEntryHtml(fid,d,idx,total){
@@ -3207,7 +3214,7 @@ function render(){
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
       <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:4px;border-style:solid;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">SHOP CLAIM / BREAKAGE REPORT</button>
+      <button class="home-new" style="margin-top:4px;border-style:solid;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">STOCK CLAIM / SHOP BREAKAGE REPORT</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}
@@ -3253,7 +3260,12 @@ function render(){
           <div style="margin:10px 20px 0;border:1px solid var(--g200);border-radius:8px;overflow:hidden;background:var(--w)">
             <div style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="openEditClaim('${cl.id}')">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-                <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                  ${(cl.claimType||'stock')==='breakage'
+                    ?`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--amberL);color:var(--amber);font-weight:600">SHOP BREAKAGE</span>`
+                    :`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--tealL);color:var(--teal);font-weight:600">STOCK CLAIM</span>`}
+                </div>
                 ${cl.sent?`<span style="font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:var(--blue);color:#fff;font-weight:600">SENT</span>`:''}
               </div>
               <div style="font-size:12px;font-weight:600;color:var(--k);margin-bottom:3px">${esc(cl.frames.map(f=>f.name||'(no name)').join(' / '))}</div>
@@ -3597,7 +3609,14 @@ function render(){
   const claimFormModal=(S.showClaimForm&&_claimDraft)?`
     <div class="overlay" onclick="if(event.target===this)closeClaimForm()">
       <div class="sheet" style="max-height:85vh;overflow-y:auto">
-        <div class="sheet-tit">SHOP CLAIM / BREAKAGE REPORT<button class="close-btn" onclick="closeClaimForm()">×</button></div>
+        <div class="sheet-tit">STOCK CLAIM / SHOP BREAKAGE REPORT<button class="close-btn" onclick="closeClaimForm()">×</button></div>
+        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:8px">TYPE</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="claimSetType('stock')" style="flex:1;padding:9px;border-radius:4px;border:1px solid ${(_claimDraft.claimType||'stock')==='stock'?'var(--teal)':'var(--g200)'};background:${(_claimDraft.claimType||'stock')==='stock'?'var(--tealL)':'transparent'};color:${(_claimDraft.claimType||'stock')==='stock'?'var(--teal)':'var(--g600)'};font-size:10px;letter-spacing:.5px;cursor:pointer;font-family:inherit;font-weight:${(_claimDraft.claimType||'stock')==='stock'?'600':'400'}">STOCK CLAIM</button>
+            <button onclick="claimSetType('breakage')" style="flex:1;padding:9px;border-radius:4px;border:1px solid ${(_claimDraft.claimType||'stock')==='breakage'?'var(--amber)':'var(--g200)'};background:${(_claimDraft.claimType||'stock')==='breakage'?'var(--amberL)':'transparent'};color:${(_claimDraft.claimType||'stock')==='breakage'?'var(--amber)':'var(--g600)'};font-size:10px;letter-spacing:.5px;cursor:pointer;font-family:inherit;font-weight:${(_claimDraft.claimType||'stock')==='breakage'?'600':'400'}">SHOP BREAKAGE</button>
+          </div>
+        </div>
         ${_claimDraft.frames.map((f,fi)=>`
           <div style="margin-bottom:16px;padding-bottom:16px;${fi>0?'border-top:1px solid var(--g100);padding-top:16px':''}">
             ${_claimDraft.frames.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:9px;letter-spacing:2px;color:var(--g400)">FRAME ${fi+1}</span><button onclick="claimRemoveFrame('${f.fid}')" style="font-size:9px;color:var(--red);background:none;border:none;cursor:pointer;padding:0">× remove</button></div>`:''}
@@ -3649,9 +3668,9 @@ function render(){
   const claimEmailModal=S.showClaimEmail?`
     <div class="overlay" onclick="if(event.target===this){S.showClaimEmail=false;render()}">
       <div class="sheet">
-        <div class="sheet-tit">STOCK CLAIM EMAIL DRAFT<button class="close-btn" onclick="S.showClaimEmail=false;render()">×</button></div>
-        <div style="margin-bottom:14px;padding:10px 12px;background:#ecfdf5;border-radius:4px;border:1px solid #a7f3d0">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--teal);font-weight:600">STOCK CLAIM / MYKITA OSAKA</div>
+        <div class="sheet-tit">${S.emailSubj.includes('BREAKAGE')?'SHOP BREAKAGE':'STOCK CLAIM'} EMAIL DRAFT<button class="close-btn" onclick="S.showClaimEmail=false;render()">×</button></div>
+        <div style="margin-bottom:14px;padding:10px 12px;background:${S.emailSubj.includes('BREAKAGE')?'var(--amberL)':'#ecfdf5'};border-radius:4px;border:1px solid ${S.emailSubj.includes('BREAKAGE')?'#fed7aa':'#a7f3d0'}">
+          <div style="font-size:9px;letter-spacing:2px;color:${S.emailSubj.includes('BREAKAGE')?'var(--amber)':'var(--teal)'};font-weight:600">${S.emailSubj.includes('BREAKAGE')?'🟨 SHOP BREAKAGE ORDER':'🟩 STOCK CLAIM'} / MYKITA OSAKA</div>
         </div>
         <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="d.duong@mykita.com"></div>
         <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>

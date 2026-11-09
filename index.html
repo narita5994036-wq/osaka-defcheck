@@ -3727,7 +3727,7 @@ function render(){
                   style="width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);color:var(--g800);outline:none;box-sizing:border-box">
               </div>
             </div>
-            <div class="dpick">
+            <div class="dpick" style="margin-left:0">
               ${f.defects.map((d,i)=>claimDefEntryHtml(f.fid,d,i,f.defects.length)).join('<div class="dpick-divider"></div>')}
               <button class="dpick-add" onclick="claimAddDefect('${f.fid}')">+ Add another defect</button>
               ${f.remark?`<div style="margin-top:10px;font-size:11px;color:var(--red);font-weight:500;letter-spacing:.3px">▸ ${esc(f.remark)}</div>`:''}

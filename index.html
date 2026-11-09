@@ -2777,8 +2777,8 @@ function printClaimLabels(id){
 /* SHOP CLAIMS */
 function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
 function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
-function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:'',rpn:''};}
-function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false,claimResponse:''};}
+function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:'',rpn:'',frameResponse:''};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false};}
 function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
 function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
@@ -2786,7 +2786,7 @@ function closeClaimForm(){_claimDraft=null;S.showClaimForm=false;render();}
 function deleteClaim(id){if(!confirm('このクレームを削除しますか？'))return;saveClaims(loadClaims().filter(c=>c.id!==id));render();}
 function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
 function claimSetFrameRpn(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.rpn=val.trim();}cl.updated=Date.now();saveClaims(list);}}
-function claimSetClaimResponse(id,val){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.claimResponse=cl.claimResponse===val?'':val;cl.updated=Date.now();saveClaims(list);}render();}
+function claimSetFrameResponse(claimId,fid,val){const list=loadClaims();const cl=list.find(c=>c.id===claimId);if(cl){const f=cl.frames.find(x=>x.fid===fid);if(f){f.frameResponse=f.frameResponse===val?'':val;}cl.updated=Date.now();saveClaims(list);}render();}
 function claimSyncRemark(frame){
   const parts=frame.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');const detail=d.partDetail?` (${d.partDetail})`:'';
@@ -3308,15 +3308,26 @@ function render(){
             </div>
             ${cl.sent?`
             <div style="padding:10px 14px;border-top:1px solid var(--g100);background:var(--g50)" onclick="event.stopPropagation()">
-              ${cl.frames.map(f=>`
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                <span style="font-size:10px;color:var(--g600);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name||'(no name)')}</span>
-                <span style="font-size:9px;font-weight:600;color:var(--g400);letter-spacing:.5px;white-space:nowrap">RPN</span>
-                <input type="text" value="${esc(f.rpn||'')}" onblur="claimSetFrameRpn('${cl.id}','${f.fid}',this.value)" placeholder="—" style="width:90px;border:1px solid var(--g200);border-radius:4px;padding:4px 7px;font-size:12px;font-family:inherit;background:var(--w);color:var(--k)">
-              </div>`).join('')}
-              <div style="display:flex;gap:4px;margin-top:4px">
-                ${['Return','Sample Full','Sample Parts'].map(opt=>{const sel=cl.claimResponse===opt;const c=(cl.claimType||'stock')==='breakage'?'var(--amber)':'var(--teal)';const bg=(cl.claimType||'stock')==='breakage'?'var(--amberL)':'var(--tealL)';return `<button onclick="claimSetClaimResponse('${cl.id}','${opt}')" style="flex:1;padding:5px 2px;border:1px solid ${sel?c:'var(--g200)'};border-radius:4px;background:${sel?bg:'transparent'};color:${sel?c:'var(--g400)'};font-size:9px;letter-spacing:.3px;cursor:pointer;font-family:inherit;font-weight:${sel?'700':'400'}">${opt}</button>`;}).join('')}
-              </div>
+              ${cl.frames.map(f=>{
+                const isSB=(cl.claimType||'stock')==='breakage';
+                const tc=isSB?'var(--amber)':'var(--teal)';
+                const tl=isSB?'var(--amberL)':'var(--tealL)';
+                const respOpts=[['return','Return'],['sample_full','Sample Full'],['sample_parts','Sample Parts']];
+                const respLabel={'return':'RETURN','sample_full':'SAMPLE FULL','sample_parts':'SAMPLE PARTS'};
+                return `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--g100)">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                    <span style="font-size:11px;font-weight:600;color:var(--k)">${esc(f.name||'(no name)')}</span>
+                    ${f.frameResponse?`<span style="font-size:8px;letter-spacing:.5px;font-weight:700;color:${tc}">${respLabel[f.frameResponse]||f.frameResponse}</span>`:''}
+                  </div>
+                  <div style="display:flex;gap:4px;margin-bottom:5px">
+                    ${respOpts.map(([val,lbl])=>{const sel=f.frameResponse===val;return `<button onclick="claimSetFrameResponse('${cl.id}','${f.fid}','${val}')" style="flex:1;padding:4px 2px;border:1px solid ${sel?tc:'var(--g200)'};border-radius:4px;background:${sel?tl:'transparent'};color:${sel?tc:'var(--g400)'};font-size:8px;letter-spacing:.3px;cursor:pointer;font-family:inherit;font-weight:${sel?'700':'400'}">${lbl}</button>`;}).join('')}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:9px;font-weight:600;color:var(--g400);letter-spacing:.5px">RPN</span>
+                    <input type="text" value="${esc(f.rpn||'')}" onblur="claimSetFrameRpn('${cl.id}','${f.fid}',this.value)" placeholder="—" style="flex:1;border:1px solid var(--g200);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--w);color:var(--k)">
+                  </div>
+                </div>`;
+              }).join('')}
             </div>`:''}
           </div>
         `).join('')}

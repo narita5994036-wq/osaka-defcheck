@@ -335,11 +335,12 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const SK='mykita_dc_v9'; // legacy migration only
 const SK_LIST='mykita_dc_list';
+const SK_CLAIMS='mykita_dc_claims';
 const STATS=['pending','ok','defective','warranty'];
 const CYCLE_STATS=['pending','defective','ok'];
 const SLBL={pending:'—',ok:'OK',defective:'D',warranty:'W'};
 const SCLS={pending:'',ok:'ok',defective:'def',warranty:'war'};
-let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',homeItemIdSearch:'',itemSearch:'',custRefSearch:'',itemIdSearch:'',uploadDate:''};
+let S={screen:'home',loading:false,rawText:'',parseErr:'',invoiceId:null,invoice:null,showEmail:false,emailTo:'',emailSubj:'',emailBody:'',filter:'ALL',tagFilter:[],pickerOpen:{},partDetailOpen:{},grpCollapsed:{},showArchive:false,showSettings:false,showXlsxSel:false,xlsxSelIds:null,showCsvSel:false,csvSelIds:null,showCsvPicker:false,csvPickerId:null,showLeavePrompt:false,showClaimForm:false,showClaimEmail:false,homeSort:'created',homeSortDir:'desc',pushing:false,homeSearch:'',homeItemSearch:'',homeItemIdSearch:'',itemSearch:'',custRefSearch:'',itemIdSearch:'',uploadDate:''};
 let _sw={state:null,openId:null,openDir:null,moved:false};
 let _dispSheet=null,_dispOrigDisp={},_dispOrigPn={},_dispOrigReceiving={},_dispOrigRecDate={},_dispOrigRemark={},_dispOrigItemId={},_dispOrigMsg={},_dispOrigNoRep={};
 let _recDatePicker=null;
@@ -350,6 +351,7 @@ let _dispRemarkEditNo=null,_dispRemarkEditPrev='',_dispRemarkEditPrevId='',_disp
 let _pnListOpen=false,_pnItemDetail=null,_defDetailNo=null,_pnSearch='',_pnListChanges={},_clDetailNo=null,_processModal=null;
 let _clEditNo=null;
 let _xlsxAllDlConfirm=false;
+let _claimDraft=null;
 let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
@@ -2745,6 +2747,92 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
+/* SHOP CLAIMS */
+function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
+function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
+function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:''};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',sent:false};}
+function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
+function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
+function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
+function closeClaimForm(){_claimDraft=null;S.showClaimForm=false;render();}
+function deleteClaim(id){if(!confirm('このクレームを削除しますか？'))return;saveClaims(loadClaims().filter(c=>c.id!==id));render();}
+function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
+function claimSyncRemark(frame){
+  const parts=frame.defects.map(d=>{
+    const partStr=d.part||(d.partOther||'');const detail=d.partDetail?` (${d.partDetail})`:'';
+    const partDisplay=partStr+detail;
+    const loc=partStr?(d.side==='Both'&&partStr==='Lens'&&!d.partDetail?'Both lenses':d.side==='Both'&&partStr==='Temple'?'Both temples':d.side?d.side+' '+partDisplay.toLowerCase():partDisplay):(d.side||'');
+    const conds=[...d.cond,...(d.condOther?[d.condOther]:[])].map(c=>c==='Scratch'?'Scratches':c);
+    return[loc,conds.join(', ')].filter(Boolean).join(' / ');
+  }).filter(Boolean);
+  return{...frame,remark:parts.join(' | ')};
+}
+function claimUpdDefect(fid,idx,fn){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid!==fid?f:claimSyncRemark({...f,defects:f.defects.map((d,i)=>i===idx?fn(d):d)}));saveClaimDraft();render();}
+function claimToggleDefPart(fid,idx,val){claimUpdDefect(fid,idx,d=>{const p=d.part===val?'':val;return{...d,part:p,partDetail:p==='Front Parts'?d.partDetail:null,cond:d.cond.filter(c=>(DEF_COND_MAP[p]||DEF_COND_MAP['']).includes(c))};});}
+function claimSetDefSide(fid,idx,val){claimUpdDefect(fid,idx,d=>({...d,side:d.side===val?'':val}));}
+function claimToggleDefCond(fid,idx,val){claimUpdDefect(fid,idx,d=>{const cond=d.cond.includes(val)?d.cond.filter(v=>v!==val):[...d.cond,val];return{...d,cond};});}
+function claimToggleDefPartOther(fid,idx){claimUpdDefect(fid,idx,d=>({...d,partOther:d.partOther===null?'':null}));}
+function claimSetDefPartOther(fid,idx,v){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid!==fid?f:claimSyncRemark({...f,defects:f.defects.map((d,i)=>i===idx?{...d,partOther:v}:d)}));saveClaimDraft();}
+function claimToggleDefCondOther(fid,idx){claimUpdDefect(fid,idx,d=>({...d,condOther:d.condOther===null?'':null}));}
+function claimSetDefCondOther(fid,idx,v){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid!==fid?f:claimSyncRemark({...f,defects:f.defects.map((d,i)=>i===idx?{...d,condOther:v}:d)}));saveClaimDraft();}
+function claimAddDefect(fid){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid!==fid?f:{...f,defects:[...f.defects,newDefect()]});saveClaimDraft();render();}
+function claimRemoveDefect(fid,idx){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>{if(f.fid!==fid)return f;const defects=f.defects.filter((_,i)=>i!==idx);return claimSyncRemark({...f,defects:defects.length?defects:[newDefect()]});});saveClaimDraft();render();}
+function claimSetPartDetail(fid,idx,val){const k=fid+'_'+idx;S.partDetailOpen[k]=false;claimUpdDefect(fid,idx,d=>({...d,partDetail:d.partDetail===val?null:val}));}
+function claimAddFrame(){if(!_claimDraft)return;_claimDraft.frames.push(newClaimFrame());saveClaimDraft();render();}
+function claimRemoveFrame(fid){if(!_claimDraft)return;if(_claimDraft.frames.length<=1){alert('フレームは最低1つ必要です');return;}_claimDraft.frames=_claimDraft.frames.filter(f=>f.fid!==fid);saveClaimDraft();render();}
+function claimSetFrameField(fid,field,value){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid===fid?{...f,[field]:value}:f);}
+function claimSetStaff(val){if(!_claimDraft)return;_claimDraft.staff=val;saveClaimDraft();render();}
+function claimFinish(){if(!_claimDraft)return;if(!_claimDraft.frames.some(f=>f.name&&f.name.trim())){alert('フレーム名を入力してください');return;}saveClaimDraft();_claimDraft=null;S.showClaimForm=false;render();}
+function claimAllItemNames(){const list=loadList();const names=new Set();list.forEach(entry=>{const d=localStorage.getItem('mykita_dc_inv_'+entry.id);if(!d)return;try{const inv=JSON.parse(d);inv.items.forEach(it=>{if(it.name)names.add(it.name);});}catch(e){}});return Array.from(names).sort();}
+function openClaimEmail(id){const list=loadClaims();const c=list.find(x=>x.id===id);if(c)buildClaimEmail(c);}
+function buildClaimEmail(claim){
+  const blocks=claim.frames.map(f=>[
+    `Item :  ${f.name||'(no name)'}`,
+    `Color Number/ID Number : ${[f.colorCode?'C'+f.colorCode:'',f.itemId||''].filter(Boolean).join('/')||'—'}`,
+    `Defective Parts/Conditions : ${f.remark||''}`,
+  ].join('\n')).join('\n\n');
+  S.emailTo='d.duong@mykita.com';
+  S.emailSubj='🟩STOCK CLAIM/MYKITA Osaka';
+  S.emailBody=['Dear Diana-san','','I like to report stock claim for the following frame','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  S.showClaimEmail=true;render();
+}
+function claimDefEntryHtml(fid,d,idx,total){
+  const partOtherOn=d.partOther!==null&&d.partOther!==undefined;
+  const condOtherOn=d.condOther!==null&&d.condOther!==undefined;
+  const detailOpen=!!(S.partDetailOpen[fid+'_'+idx]);
+  return `<div class="dpick-entry">
+    ${total>1
+      ?`<div class="dpick-entry-hd"><span class="dpick-entry-num">defect ${idx+1}</span><button class="dpick-del" onclick="claimRemoveDefect('${fid}',${idx})">× remove</button></div>`
+      :`<div class="dpick-entry-hd"><span class="dpick-entry-num"></span><div></div></div>`}
+    <div class="dpick-row">
+      <div class="dpick-label">PART</div>
+      <div class="dpick-pills">
+        ${DEF_PART.map(v=>`<span class="pill${d.part===v?' sel':''}" onclick="claimToggleDefPart('${fid}',${idx},'${v}')">${v}</span>`).join('')}
+        <span class="pill-other${partOtherOn?' sel':''}" onclick="claimToggleDefPartOther('${fid}',${idx})">Other</span>
+      </div>
+      ${partOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.partOther)}" placeholder="e.g. Hinge, Screw..." oninput="claimSetDefPartOther('${fid}',${idx},this.value)" onblur="saveClaimDraft()"></div>`:''}
+      ${(d.part==='Front Parts'||d.part==='Temple')?`<div style="margin-top:4px">
+        <button class="dpick-detail-toggle${d.partDetail?' has-val':''}" onclick="togglePartDetailOpen('${fid}',${idx})">${d.partDetail?'▸ '+d.partDetail:'+ detail'}</button>
+        ${detailOpen?`<div class="dpick-pills" style="margin-top:6px">${(d.part==='Temple'?DEF_TEMPLE_DETAIL:DEF_PART_DETAIL).map(v=>`<span class="pill${d.partDetail===v?' sel':''}" onclick="claimSetPartDetail('${fid}',${idx},'${v}')">${v}</span>`).join('')}</div>`:''}
+      </div>`:''}
+    </div>
+    <div class="dpick-row">
+      <div class="dpick-label">SIDE</div>
+      <div class="dpick-pills">
+        ${DEF_SIDE.map(v=>`<span class="pill${d.side===v?' sel':''}" onclick="claimSetDefSide('${fid}',${idx},'${v}')">${v}</span>`).join('')}
+      </div>
+    </div>
+    <div class="dpick-row" style="margin-bottom:0">
+      <div class="dpick-label">CONDITION</div>
+      <div class="dpick-pills">
+        ${(DEF_COND_MAP[d.part]||DEF_COND_MAP['']).map(v=>`<span class="pill-wrap"><span class="pill${d.cond.includes(v)?' sel':''}" onclick="claimToggleDefCond('${fid}',${idx},'${v}')">${v}</span><span class="pill-tip">${DEF_COND_JP[v]||''}</span></span>`).join('')}
+        <span class="pill-wrap"><span class="pill-other${condOtherOn?' sel':''}" onclick="claimToggleDefCondOther('${fid}',${idx})">Other</span><span class="pill-tip">その他</span></span>
+      </div>
+      ${condOtherOn?`<div class="dpick-other-input"><input type="text" value="${esc(d.condOther||'')}" placeholder="e.g. Bent, Missing part..." oninput="claimSetDefCondOther('${fid}',${idx},this.value)" onblur="saveClaimDraft()"></div>`:''}
+    </div>
+  </div>`;
+}
 /* EMAIL */
 function buildEmail(){
   const inv=S.invoice;
@@ -2903,7 +2991,7 @@ function copyEmail(){
   const b=g('em-b')?.value||S.emailBody;
   navigator.clipboard.writeText(b).then(()=>{const btn=g('cbtn');if(btn){btn.textContent='COPIED';setTimeout(()=>btn.textContent='本文をコピー',1500)}});
 }
-function resetApp(scrollToId){_scrollToInvId=scrollToId||S.invoiceId||null;S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,filter:'ALL',tagFilter:[],pickerOpen:{},showLeavePrompt:false};render()}
+function resetApp(scrollToId){_claimDraft=null;_scrollToInvId=scrollToId||S.invoiceId||null;S={...S,screen:'home',invoiceId:null,invoice:null,rawText:'',parseErr:'',loading:false,showEmail:false,showClaimForm:false,showClaimEmail:false,filter:'ALL',tagFilter:[],pickerOpen:{},showLeavePrompt:false};render()}
 function completeAndLeave(){
   if(gPat()&&gId()&&_dirty){
     if(confirm('変更をPUSHしてホームに戻りますか？\nOK = Push して戻る\nキャンセル = Push せず戻る')){
@@ -3119,6 +3207,7 @@ function render(){
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
       <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
+      <button class="home-new" style="margin-top:4px;margin-left:30px;width:calc(100% - 60px);padding:10px;font-size:9px;letter-spacing:1.5px;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">SHOP CLAIM / BREAKAGE REPORT</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}
@@ -3150,6 +3239,34 @@ function render(){
         </div>
         ${S.showArchive?archived.map(e=>_simpleMode?_simpleCardFn(e):invCardHtml(e,true)).join(''):''}
       `:q?`<div class="home-sec">ARCHIVED (0)</div>`:''}`;
+  }
+
+  // CLAIMS
+  if(S.screen==='claims'){
+    const claims=loadClaims();
+    const fmtDate=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};
+    body=`
+      <button class="home-new" style="margin-top:16px" onclick="openNewClaim()">+ NEW CLAIM</button>
+      ${claims.length===0
+        ?`<div style="text-align:center;padding:40px 20px;font-size:12px;color:var(--g400)">クレームはまだありません</div>`
+        :claims.slice().reverse().map(cl=>`
+          <div style="margin:10px 20px 0;border:1px solid var(--g200);border-radius:8px;overflow:hidden;background:var(--w)">
+            <div style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="openEditClaim('${cl.id}')">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                ${cl.sent?`<span style="font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:var(--blue);color:#fff;font-weight:600">SENT</span>`:''}
+              </div>
+              <div style="font-size:12px;font-weight:600;color:var(--k);margin-bottom:3px">${esc(cl.frames.map(f=>f.name||'(no name)').join(' / '))}</div>
+              <div style="font-size:10px;color:var(--g400)">${cl.frames.length} frame${cl.frames.length!==1?'s':''} · ${cl.staff||'—'}</div>
+            </div>
+            <div style="display:flex;border-top:1px solid var(--g100)">
+              <button onclick="openClaimEmail('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:var(--teal);font-family:inherit;border-right:1px solid var(--g100)">EMAIL</button>
+              <button onclick="markClaimSent('${cl.id}',${!cl.sent})" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:${cl.sent?'var(--blue)':'var(--g400)'};font-family:inherit;border-right:1px solid var(--g100)">${cl.sent?'✓ SENT':'MARK SENT'}</button>
+              <button onclick="deleteClaim('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:var(--red);font-family:inherit">DELETE</button>
+            </div>
+          </div>
+        `).join('')}
+    `;
   }
 
   // UPLOAD
@@ -3457,6 +3574,84 @@ function render(){
             const pos=it.subOf||it.no;
             return `<div style="font-size:11px;margin-bottom:4px;color:#000"><span style="color:var(--g400);margin-right:6px">${pos}.</span><b>${esc(it.name)}</b>${it.remark?'<span style="color:var(--red)"> · '+esc(it.remark)+'</span>':' <span style="color:var(--redM);font-style:italic">no details</span>'}</div>`;
           }).join('')}
+        </div>
+        <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="d.duong@mykita.com"></div>
+        <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>
+        <div class="ef"><label>BODY</label><textarea id="em-b" style="min-height:280px">${esc(S.emailBody)}</textarea></div>
+        ${(()=>{
+          const signedIn=!!_msalAccount;
+          return `<div class="eacts" style="flex-direction:column;align-items:stretch;gap:8px">
+            ${signedIn
+              ?`<div style="font-size:10px;color:var(--green);margin-bottom:2px">${esc(_msalAccount.username)}</div>
+                <button class="btn blk" id="ms-send-btn" onclick="sendViaGraph()">SEND</button>`
+              :`<button class="btn blk" onclick="msSignIn()">Microsoftでサインイン</button>`}
+            <div style="display:flex;gap:8px">
+              <button class="btn out" id="cbtn" style="flex:1;margin-top:0" onclick="copyEmail()">本文をコピー</button>
+            </div>
+          </div>`;
+        })()}
+      </div>
+    </div>`:'';
+
+  const _claimAllNames=S.showClaimForm?claimAllItemNames():[];
+  const claimFormModal=(S.showClaimForm&&_claimDraft)?`
+    <div class="overlay" onclick="if(event.target===this)closeClaimForm()">
+      <div class="sheet" style="max-height:85vh;overflow-y:auto">
+        <div class="sheet-tit">SHOP CLAIM / BREAKAGE REPORT<button class="close-btn" onclick="closeClaimForm()">×</button></div>
+        ${_claimDraft.frames.map((f,fi)=>`
+          <div style="margin-bottom:16px;padding-bottom:16px;${fi>0?'border-top:1px solid var(--g100);padding-top:16px':''}">
+            ${_claimDraft.frames.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:9px;letter-spacing:2px;color:var(--g400)">FRAME ${fi+1}</span><button onclick="claimRemoveFrame('${f.fid}')" style="font-size:9px;color:var(--red);background:none;border:none;cursor:pointer;padding:0">× remove</button></div>`:''}
+            <div style="margin-bottom:6px">
+              <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:4px">FRAME NAME</div>
+              <input type="text" list="cl-ac-${f.fid}" value="${esc(f.name)}" placeholder="フレーム名を入力…"
+                oninput="claimSetFrameField('${f.fid}','name',this.value)"
+                onblur="claimSetFrameField('${f.fid}','name',this.value);saveClaimDraft()"
+                style="width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);color:var(--g800);outline:none;box-sizing:border-box">
+              <datalist id="cl-ac-${f.fid}">${_claimAllNames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <div style="flex:1">
+                <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:4px">COLOR CODE</div>
+                <input type="text" value="${esc(f.colorCode)}" placeholder="e.g. 231"
+                  oninput="claimSetFrameField('${f.fid}','colorCode',this.value)"
+                  onblur="claimSetFrameField('${f.fid}','colorCode',this.value);saveClaimDraft()"
+                  style="width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);color:var(--g800);outline:none;box-sizing:border-box">
+              </div>
+              <div style="flex:1">
+                <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:4px">ID NUMBER</div>
+                <input type="text" value="${esc(f.itemId)}" placeholder="e.g. 1234"
+                  oninput="claimSetFrameField('${f.fid}','itemId',this.value)"
+                  onblur="claimSetFrameField('${f.fid}','itemId',this.value);saveClaimDraft()"
+                  style="width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:4px;font-size:12px;font-family:inherit;background:var(--g50);color:var(--g800);outline:none;box-sizing:border-box">
+              </div>
+            </div>
+            <div class="dpick">
+              ${f.defects.map((d,i)=>claimDefEntryHtml(f.fid,d,i,f.defects.length)).join('<div class="dpick-divider"></div>')}
+              <button class="dpick-add" onclick="claimAddDefect('${f.fid}')">+ Add another defect</button>
+              ${f.remark?`<div style="margin-top:10px;font-size:11px;color:var(--red);font-weight:500;letter-spacing:.3px">▸ ${esc(f.remark)}</div>`:''}
+            </div>
+          </div>
+        `).join('')}
+        <button onclick="claimAddFrame()" style="display:block;width:100%;padding:10px;border:1px dashed var(--g300);border-radius:6px;background:none;color:var(--g500);font-size:10px;letter-spacing:1.5px;cursor:pointer;font-family:inherit;margin-bottom:14px">+ ADD FRAME</button>
+        <div style="margin-bottom:14px">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:8px">STAFF</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${['Ken','Kureha','Osamu','Shun'].map(s=>`<button onclick="claimSetStaff('${s}')" style="padding:6px 14px;border-radius:4px;border:1px solid ${_claimDraft.staff===s?'var(--k)':'var(--g200)'};background:${_claimDraft.staff===s?'var(--k)':'transparent'};color:${_claimDraft.staff===s?'var(--w)':'var(--g600)'};font-size:11px;cursor:pointer;font-family:inherit">${s}</button>`).join('')}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn out" style="flex:1;margin-top:0" onclick="closeClaimForm()">CANCEL</button>
+          <button class="btn blk" style="flex:1;margin-top:0" onclick="claimFinish()">SAVE</button>
+        </div>
+      </div>
+    </div>`:'';
+
+  const claimEmailModal=S.showClaimEmail?`
+    <div class="overlay" onclick="if(event.target===this){S.showClaimEmail=false;render()}">
+      <div class="sheet">
+        <div class="sheet-tit">STOCK CLAIM EMAIL DRAFT<button class="close-btn" onclick="S.showClaimEmail=false;render()">×</button></div>
+        <div style="margin-bottom:14px;padding:10px 12px;background:#ecfdf5;border-radius:4px;border:1px solid #a7f3d0">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--teal);font-weight:600">STOCK CLAIM / MYKITA OSAKA</div>
         </div>
         <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="d.duong@mykita.com"></div>
         <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>
@@ -3826,10 +4021,10 @@ function render(){
       <div><div class="ey">MYKITA OSAKA</div><div class="ti">DEFECTIVE CHECK</div></div>
       <div class="hdr-acts">
         ${S.screen==='home'?`${_syncSt==='push'||_syncSt==='pull'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--g600);padding:6px 2px;font-weight:500">SYNC</span>`:''}${_syncSt==='ok'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--green);padding:6px 2px;font-weight:500">DONE</span>`:''}${_syncSt==='err'?`<span style="font-size:9px;letter-spacing:1.5px;color:var(--red);padding:6px 2px;font-weight:500">ERR</span>`:''}<button class="ibtn" style="font-size:11px;letter-spacing:1.5px;font-weight:600;color:${_dirty?'var(--red)':'var(--g600)'}" onclick="S.showSettings=!S.showSettings;render()">${_dirty?'UPLOAD':'SET'}</button>`:''}
-        ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="leaveChecklist()">←</button>`:(S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:''}
+        ${S.screen==='stamp'?`<button class="ibtn" onclick="S.screen='checklist';render()">←</button>`:S.screen==='checklist'?`<button class="ibtn" onclick="leaveChecklist()">←</button>`:(S.screen==='upload'||S.screen==='parsing')?`<button class="ibtn" onclick="resetApp()">←</button>`:S.screen==='claims'?`<button class="ibtn" onclick="S.screen='home';render()">←</button>`:''}
       </div>
     </div>
-    ${body}<div class="bot"></div>${emailModal}${(()=>{
+    ${body}<div class="bot"></div>${emailModal}${claimFormModal}${claimEmailModal}${(()=>{
   if(!_dispSheet)return '';
   const ds=_dispSheet;
   const defs=ds.inv.items.filter(i=>i.status==='defective');
@@ -4260,7 +4455,7 @@ ${(()=>{
   </div>`;
 })()}
     `;
-  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_trainPop||!!_confirmDlg;
+  const _hasModal=!!_dispSheet||_pnListOpen||!!_processModal||S.showSettings||S.showEmail||S.showClaimForm||S.showClaimEmail||!!_recDatePicker||S.showXlsxSel||S.showCsvSel||S.showCsvPicker||S.showLeavePrompt||!!_trainPop||!!_confirmDlg;
   document.body.style.overflow=_hasModal?'hidden':'';
   requestAnimationFrame(()=>{
     if(_scrollToDef){_scrollToDef=false;setTimeout(()=>{const _ds=document.getElementById('def-sum');if(_ds){const _top=_ds.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:_top,behavior:'smooth'});}},80);}else if(_forceScrollTop){_forceScrollTop=false;window.scrollTo(0,0);}

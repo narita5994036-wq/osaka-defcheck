@@ -2693,6 +2693,7 @@ function printDefLabels(){
     <span class="lc-inv">${esc(inv.number)}</span>
     <span class="lc-pos">Pos. ${esc(pos)}</span>
   </div>
+  <div class="lc-title lc-title--def">DEFECTIVE　${esc(inv.number)}　Pos.${esc(pos)}</div>
   <div class="lc-name">${esc(it.name)}</div>
   <div class="lc-data">
     <div class="lc-row"><span class="lk">ORDER NO.</span><span class="lv">${esc(orderVal)}</span></div>
@@ -2715,11 +2716,13 @@ function printDefLabels(){
 body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}
 .page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(6,1fr);gap:3mm;width:100%;height:calc(297mm - 16mm);page-break-after:always}
 .page:last-child{page-break-after:auto}
-.label-cell{border:1px solid #bbb;border-radius:3px;padding:2.5mm 3.5mm;display:flex;flex-direction:column;gap:1.5mm;overflow:hidden;min-height:0}
+.label-cell{border:1.5px solid #c62828;border-radius:3px;padding:2.5mm 3.5mm;display:flex;flex-direction:column;gap:1.5mm;overflow:hidden;min-height:0}
 .label-cell--empty{border-style:dashed;border-color:#ddd}
 .lc-header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:0.5pt solid #eee;padding-bottom:1mm}
 .lc-inv{font-size:8pt;color:#888;letter-spacing:0.5px}
 .lc-pos{font-size:8pt;color:#555;font-weight:700;letter-spacing:0.5px}
+.lc-title{font-size:9pt;font-weight:800;letter-spacing:.5px;padding:0.5mm 0}
+.lc-title--def{color:#c62828}
 .lc-name{font-size:10.5pt;font-weight:700;line-height:1.25;word-break:break-word}
 .lc-data{display:flex;flex-direction:column;gap:0;margin-top:auto;border-top:0.5pt solid #eee;padding-top:1mm}
 .lc-row{display:flex;align-items:baseline;gap:2mm;padding:0.7mm 0}
@@ -2747,11 +2750,39 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
+function printClaimLabels(id){
+  const list=loadClaims();
+  const claim=list.find(c=>c.id===id);
+  if(!claim){alert('クレームが見つかりません');return;}
+  const isSB=(claim.claimType||'stock')==='breakage';
+  const typeLabel=isSB?'SHOP BREAKAGE':'STOCK CLAIM';
+  const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};
+  const dateStr=fmtD(claim.created);
+  const cells=claim.frames.map(f=>{
+    const colorVal=f.colorCode?'C'+f.colorCode:'—';
+    const idVal=f.itemId&&f.itemId.trim()?f.itemId.trim():'—';
+    const remarkVal=f.remark||'—';
+    return `\n<div class="label-cell">\n  <div class="lc-header"><span class="lc-type ${isSB?'lc-sb':'lc-sc'}">${typeLabel}</span><span class="lc-pos">${dateStr}</span></div>\n  <div class="lc-title ${isSB?'lc-title--sb':'lc-title--sc'}">${typeLabel}</div>\n  <div class="lc-name">${esc(f.name||'(no name)')}</div>\n  <div class="lc-data"><div class="lc-row"><span class="lk">COLOR NO.</span><span class="lv">${esc(colorVal)}</span></div><div class="lc-row"><span class="lk">ID NO.</span><span class="lv">${esc(idVal)}</span></div><div class="lc-row"><span class="lk">DEFECT</span><span class="lv lv-defect">${esc(remarkVal)}</span></div></div>\n</div>`;
+  });
+  while(cells.length%12!==0)cells.push('<div class="label-cell label-cell--empty"></div>');
+  const html=`<!DOCTYPE html>\n<html><head><meta charset="utf-8">\n<title>${typeLabel} Labels — ${dateStr}</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\n@page{size:A4 portrait;margin:8mm}\nbody{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}\n.page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(6,1fr);gap:3mm;width:100%;height:calc(297mm - 16mm);page-break-after:always}\n.page:last-child{page-break-after:auto}\n.label-cell{border:1.5px solid ${isSB?'#e65100':'#00695c'};border-radius:3px;padding:2.5mm 3.5mm;display:flex;flex-direction:column;gap:1.5mm;overflow:hidden;min-height:0}\n.label-cell--empty{border-style:dashed;border-color:#ddd}\n.lc-header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:0.5pt solid #eee;padding-bottom:1mm}\n.lc-type{font-size:7pt;font-weight:700;letter-spacing:.5px;padding:0.5mm 1.5mm;border-radius:1.5mm}\n.lc-sc{background:#e0f2f1;color:#00695c}\n.lc-sb{background:#fff3e0;color:#e65100}\n.lc-pos{font-size:8pt;color:#555;letter-spacing:.5px}\n.lc-title{font-size:9pt;font-weight:800;letter-spacing:.5px;padding:.5mm 0}\n.lc-title--sc{color:#00695c}\n.lc-title--sb{color:#e65100}\n.lc-name{font-size:10.5pt;font-weight:700;line-height:1.25;word-break:break-word}\n.lc-data{display:flex;flex-direction:column;gap:0;margin-top:auto;border-top:0.5pt solid #eee;padding-top:1mm}\n.lc-row{display:flex;align-items:baseline;gap:2mm;padding:.7mm 0}\n.lc-row+.lc-row{border-top:.5pt solid #f0f0f0}\n.lk{font-size:5.5pt;color:#999;letter-spacing:1px;white-space:nowrap;min-width:18mm}\n.lv{font-size:8pt;font-family:'Courier New',monospace;flex:1}\n.lv-defect{font-size:7.5pt;font-family:inherit;line-height:1.3}\n@media screen{body{background:#e0e0e0;padding:8mm}.page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);margin-bottom:8mm;padding:8mm;height:calc(297mm - 16mm)}}\n</style>\n</head><body>`;
+  let pages='';
+  for(let p=0;p<cells.length;p+=12)pages+=`<div class="page">${cells.slice(p,p+12).join('')}</div>`;
+  const full=html+pages+'</body></html>';
+  const blob=new Blob([full],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const ts=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;})();
+  a.download=`${isSB?'shop-breakage':'stock-claim'}-labels-${ts}.html`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
 /* SHOP CLAIMS */
 function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
 function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
 function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:''};}
-function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',sent:false};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false};}
 function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
 function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
@@ -2783,18 +2814,25 @@ function claimAddFrame(){if(!_claimDraft)return;_claimDraft.frames.push(newClaim
 function claimRemoveFrame(fid){if(!_claimDraft)return;if(_claimDraft.frames.length<=1){alert('フレームは最低1つ必要です');return;}_claimDraft.frames=_claimDraft.frames.filter(f=>f.fid!==fid);saveClaimDraft();render();}
 function claimSetFrameField(fid,field,value){if(!_claimDraft)return;_claimDraft.frames=_claimDraft.frames.map(f=>f.fid===fid?{...f,[field]:value}:f);}
 function claimSetStaff(val){if(!_claimDraft)return;_claimDraft.staff=val;saveClaimDraft();render();}
+function claimSetType(val){if(!_claimDraft)return;_claimDraft.claimType=val;saveClaimDraft();render();}
 function claimFinish(){if(!_claimDraft)return;if(!_claimDraft.frames.some(f=>f.name&&f.name.trim())){alert('フレーム名を入力してください');return;}saveClaimDraft();_claimDraft=null;S.showClaimForm=false;render();}
 function claimAllItemNames(){const list=loadList();const names=new Set();list.forEach(entry=>{const d=localStorage.getItem('mykita_dc_inv_'+entry.id);if(!d)return;try{const inv=JSON.parse(d);inv.items.forEach(it=>{if(it.name)names.add(it.name);});}catch(e){}});return Array.from(names).sort();}
 function openClaimEmail(id){const list=loadClaims();const c=list.find(x=>x.id===id);if(c)buildClaimEmail(c);}
 function buildClaimEmail(claim){
+  const isSB=(claim.claimType||'stock')==='breakage';
   const blocks=claim.frames.map(f=>[
-    `Item :  ${f.name||'(no name)'}`,
+    isSB?`Position Number/Item : ${f.name||'(no name)'}`:`Item :  ${f.name||'(no name)'}`,
     `Color Number/ID Number : ${[f.colorCode?'C'+f.colorCode:'',f.itemId||''].filter(Boolean).join('/')||'—'}`,
     `Defective Parts/Conditions : ${f.remark||''}`,
   ].join('\n')).join('\n\n');
   S.emailTo='d.duong@mykita.com';
-  S.emailSubj='🟩STOCK CLAIM/MYKITA Osaka';
-  S.emailBody=['Dear Diana-san','','I like to report stock claim for the following frame','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  if(isSB){
+    S.emailSubj='🟨SHOP BREAKAGE ORDER/MYKITA Osaka';
+    S.emailBody=['Dear Diana-san','','I would like to order below parts as Shop-breakage.','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  }else{
+    S.emailSubj='🟩STOCK CLAIM/MYKITA Osaka';
+    S.emailBody=['Dear Diana-san','','I like to report stock claim for the following frame','',blocks,'','Damages are shown in the pictures attached at file section.','Please confirm to validate.','','','Best Wishes,',claim.staff||'','MYKITA Osaka'].join('\n');
+  }
   S.showClaimEmail=true;render();
 }
 function claimDefEntryHtml(fid,d,idx,total){
@@ -3207,7 +3245,7 @@ function render(){
     const _simpleCardFn=e=>simpleModeCardHtml(e);
     body=`
       <button class="home-new" onclick="_tgate('newInvoice',()=>{S.screen='upload';render()})">+ NEW INVOICE</button>
-      <button class="home-new" style="margin-top:4px;margin-left:30px;width:calc(100% - 60px);padding:10px;font-size:9px;letter-spacing:1.5px;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">SHOP CLAIM / BREAKAGE REPORT</button>
+      <button class="home-new" style="margin-top:4px;border-style:solid;border-color:var(--teal);color:var(--teal)" onclick="S.screen='claims';render()">STOCK CLAIM / SHOP BREAKAGE REPORT</button>
       ${_simpleMode?'':`<button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--red);color:var(--red);letter-spacing:1.5px" onclick="openXlsxSel()">DEFECTIVE LIST CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--teal);color:var(--teal);letter-spacing:1.5px" onclick="openCsvSel()">SMAREGI RECEIVING CSV (.csv)</button>
       <button class="home-new" style="margin-top:8px;border-style:solid;border-color:var(--k);color:var(--k);letter-spacing:1.5px" onclick="openPnList()">RPN SEARCH / Receiving process</button>`}
@@ -3253,16 +3291,22 @@ function render(){
           <div style="margin:10px 20px 0;border:1px solid var(--g200);border-radius:8px;overflow:hidden;background:var(--w)">
             <div style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="openEditClaim('${cl.id}')">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-                <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:10px;color:var(--g400)">${fmtDate(cl.created)}</span>
+                  ${(cl.claimType||'stock')==='breakage'
+                    ?`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--amberL);color:var(--amber);font-weight:600">SHOP BREAKAGE</span>`
+                    :`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--tealL);color:var(--teal);font-weight:600">STOCK CLAIM</span>`}
+                </div>
                 ${cl.sent?`<span style="font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:var(--blue);color:#fff;font-weight:600">SENT</span>`:''}
               </div>
               <div style="font-size:12px;font-weight:600;color:var(--k);margin-bottom:3px">${esc(cl.frames.map(f=>f.name||'(no name)').join(' / '))}</div>
               <div style="font-size:10px;color:var(--g400)">${cl.frames.length} frame${cl.frames.length!==1?'s':''} · ${cl.staff||'—'}</div>
             </div>
             <div style="display:flex;border-top:1px solid var(--g100)">
-              <button onclick="openClaimEmail('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:var(--teal);font-family:inherit;border-right:1px solid var(--g100)">EMAIL</button>
-              <button onclick="markClaimSent('${cl.id}',${!cl.sent})" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:${cl.sent?'var(--blue)':'var(--g400)'};font-family:inherit;border-right:1px solid var(--g100)">${cl.sent?'✓ SENT':'MARK SENT'}</button>
-              <button onclick="deleteClaim('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1.5px;color:var(--red);font-family:inherit">DELETE</button>
+              <button onclick="printClaimLabels('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--g600);font-family:inherit;border-right:1px solid var(--g100)">LABEL</button>
+              <button onclick="openClaimEmail('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--teal);font-family:inherit;border-right:1px solid var(--g100)">EMAIL</button>
+              <button onclick="markClaimSent('${cl.id}',${!cl.sent})" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:${cl.sent?'var(--blue)':'var(--g400)'};font-family:inherit;border-right:1px solid var(--g100)">${cl.sent?'✓ SENT':'SENT'}</button>
+              <button onclick="deleteClaim('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--red);font-family:inherit">DEL</button>
             </div>
           </div>
         `).join('')}
@@ -3597,7 +3641,14 @@ function render(){
   const claimFormModal=(S.showClaimForm&&_claimDraft)?`
     <div class="overlay" onclick="if(event.target===this)closeClaimForm()">
       <div class="sheet" style="max-height:85vh;overflow-y:auto">
-        <div class="sheet-tit">SHOP CLAIM / BREAKAGE REPORT<button class="close-btn" onclick="closeClaimForm()">×</button></div>
+        <div class="sheet-tit">STOCK CLAIM / SHOP BREAKAGE REPORT<button class="close-btn" onclick="closeClaimForm()">×</button></div>
+        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--g100)">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--g400);margin-bottom:8px">TYPE</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="claimSetType('stock')" style="flex:1;padding:9px;border-radius:4px;border:1px solid ${(_claimDraft.claimType||'stock')==='stock'?'var(--teal)':'var(--g200)'};background:${(_claimDraft.claimType||'stock')==='stock'?'var(--tealL)':'transparent'};color:${(_claimDraft.claimType||'stock')==='stock'?'var(--teal)':'var(--g600)'};font-size:10px;letter-spacing:.5px;cursor:pointer;font-family:inherit;font-weight:${(_claimDraft.claimType||'stock')==='stock'?'600':'400'}">STOCK CLAIM</button>
+            <button onclick="claimSetType('breakage')" style="flex:1;padding:9px;border-radius:4px;border:1px solid ${(_claimDraft.claimType||'stock')==='breakage'?'var(--amber)':'var(--g200)'};background:${(_claimDraft.claimType||'stock')==='breakage'?'var(--amberL)':'transparent'};color:${(_claimDraft.claimType||'stock')==='breakage'?'var(--amber)':'var(--g600)'};font-size:10px;letter-spacing:.5px;cursor:pointer;font-family:inherit;font-weight:${(_claimDraft.claimType||'stock')==='breakage'?'600':'400'}">SHOP BREAKAGE</button>
+          </div>
+        </div>
         ${_claimDraft.frames.map((f,fi)=>`
           <div style="margin-bottom:16px;padding-bottom:16px;${fi>0?'border-top:1px solid var(--g100);padding-top:16px':''}">
             ${_claimDraft.frames.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:9px;letter-spacing:2px;color:var(--g400)">FRAME ${fi+1}</span><button onclick="claimRemoveFrame('${f.fid}')" style="font-size:9px;color:var(--red);background:none;border:none;cursor:pointer;padding:0">× remove</button></div>`:''}
@@ -3649,9 +3700,9 @@ function render(){
   const claimEmailModal=S.showClaimEmail?`
     <div class="overlay" onclick="if(event.target===this){S.showClaimEmail=false;render()}">
       <div class="sheet">
-        <div class="sheet-tit">STOCK CLAIM EMAIL DRAFT<button class="close-btn" onclick="S.showClaimEmail=false;render()">×</button></div>
-        <div style="margin-bottom:14px;padding:10px 12px;background:#ecfdf5;border-radius:4px;border:1px solid #a7f3d0">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--teal);font-weight:600">STOCK CLAIM / MYKITA OSAKA</div>
+        <div class="sheet-tit">${S.emailSubj.includes('BREAKAGE')?'SHOP BREAKAGE':'STOCK CLAIM'} EMAIL DRAFT<button class="close-btn" onclick="S.showClaimEmail=false;render()">×</button></div>
+        <div style="margin-bottom:14px;padding:10px 12px;background:${S.emailSubj.includes('BREAKAGE')?'var(--amberL)':'#ecfdf5'};border-radius:4px;border:1px solid ${S.emailSubj.includes('BREAKAGE')?'#fed7aa':'#a7f3d0'}">
+          <div style="font-size:9px;letter-spacing:2px;color:${S.emailSubj.includes('BREAKAGE')?'var(--amber)':'var(--teal)'};font-weight:600">${S.emailSubj.includes('BREAKAGE')?'🟨 SHOP BREAKAGE ORDER':'🟩 STOCK CLAIM'} / MYKITA OSAKA</div>
         </div>
         <div class="ef"><label>TO</label><input id="em-t" type="email" value="${esc(S.emailTo)}" placeholder="d.duong@mykita.com"></div>
         <div class="ef"><label>SUBJECT</label><input id="em-s" type="text" value="${esc(S.emailSubj)}"></div>

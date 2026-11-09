@@ -4306,6 +4306,8 @@ function render(){
       inv.items.filter(i=>i.status==='defective'&&i.pn).forEach(it=>{const _k=e.id+'|'+it.no;const _p=_pnListChanges[_k];_defItems.push({it:_p!==undefined?{...it,..._p}:it,inv,invId:e.id});});
     }catch(x){}
   }
+  // SC / SB claim frames with RPN
+  loadClaims().forEach(claim=>{const isSB=(claim.claimType||'stock')==='breakage';const fmtD=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;};claim.frames.forEach(f=>{if(!f.rpn||!f.rpn.trim())return;_defItems.push({it:{pn:f.rpn.trim(),name:f.name||'(no name)',colorCode:f.colorCode||'',itemId:f.itemId||'',status:'claim',no:f.fid,remark:f.remark||'',frameResponse:f.frameResponse||'',receiving:false,disp:'',noReplacement:false},inv:{number:fmtD(claim.created)},invId:'claim|'+claim.id,isClaimFrame:true,claimFrame:f,claim,isSB});});});
   _defItems.sort((a,b)=>(a.it.pn||'').localeCompare(b.it.pn||''));
   // Build rank map: when multiple items share the same pn, track X/N position
   const _pnRank=new Map();
@@ -4343,9 +4345,14 @@ function render(){
   const _curPage=Math.min(_pnPage,_totalPages-1);
   const _pageItems=_filteredVisible.slice(_curPage*_pnPageSize,(_curPage+1)*_pnPageSize);
   // Unique invoice numbers for filter dropdown
-  const _invNums=[...new Set(_defItems.map(({inv})=>inv.number||'').filter(Boolean))].sort();
+  const _invNums=[...new Set(_defItems.filter(d=>!d.isClaimFrame).map(({inv})=>inv.number||'').filter(Boolean))].sort();
   const _badge=(pn,allDone=false,allDef=false)=>{const tag=getDnpSc(pn,_om);if(!tag)return '';const _spacer=`<span class="pn-badge" style="opacity:0;animation:none;white-space:nowrap;pointer-events:none">Put in stock</span>`;if(allDone){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle">${_spacer}<span class="pn-badge" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--teal);border-color:var(--teal);animation:badge-matched 3s step-end infinite">Matched</span><span class="pn-badge" style="position:absolute;left:0;white-space:nowrap;color:var(--teal);border-color:var(--teal);animation:badge-all-done 3s step-end infinite">Put in stock</span></span>`;}if(allDef){return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle">${_spacer}<span class="pn-badge" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--red);border-color:var(--red)">Matched</span></span>`;}return `<span style="position:relative;display:inline-flex;margin-left:4px;vertical-align:middle">${_spacer}<span class="pn-badge" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">Matched</span></span>`;};
-  const rows=_pageItems.map(({it,inv,invId})=>{
+  const rows=_pageItems.map((item_)=>{
+    const {it,inv,invId,isClaimFrame=false,isSB:isItemSB=false}=item_;
+    if(isClaimFrame){
+      const tc=isItemSB?'var(--amber)':'var(--teal)';const tl=isItemSB?'var(--amberL)':'var(--tealL)';const typeLbl=isItemSB?'SHOP BREAKAGE':'STOCK CLAIM';const respLabel={'return':'RETURN','sample_full':'SAMPLE FULL','sample_parts':'SAMPLE PARTS'};
+      return `<div style="border-bottom:1px solid var(--g100)"><div style="padding:10px 0;display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;font-family:monospace;color:var(--k)">${esc(it.pn)}</div><div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div><div style="font-size:9px;margin-top:2px;display:flex;align-items:center;gap:5px"><span style="font-size:8px;letter-spacing:.5px;padding:1px 5px;border-radius:3px;background:${tl};color:${tc};font-weight:600">${typeLbl}</span><span style="color:var(--g400)">${esc(inv.number)}</span></div></div><div style="text-align:right;flex-shrink:0;padding-top:4px">${it.frameResponse?`<span style="font-size:9px;letter-spacing:.5px;font-weight:700;color:${tc}">${respLabel[it.frameResponse]||it.frameResponse}</span>`:''}</div></div></div>`;
+    }
     const key=invId+'|'+it.no;
     const isOpen=_pnItemDetail===key;
     const dispStr=dispLabel(it.disp);
@@ -4489,21 +4496,27 @@ ${(()=>{
     ok:             {icon:'✅', label:'OK',              color:'var(--teal)'},
     pending:        {icon:'⏳', label:'PENDING',         color:'var(--amber)'},
     no_replacement: {icon:'🚫', label:'NO REPLACEMENT',  color:'var(--red)'},
+    sc_claim:       {icon:'🟩', label:'STOCK CLAIM',     color:'var(--teal)'},
+    sb_claim:       {icon:'🟨', label:'SHOP BREAKAGE',   color:'var(--amber)'},
   };
-  const html=_pmSteps.map((s,i)=>{
+  const _claimRpnMap={};
+  loadClaims().forEach(claim=>{claim.frames.forEach(f=>{if(!f.rpn||!f.rpn.trim())return;const rpn=f.rpn.trim();if(!_claimRpnMap[rpn])_claimRpnMap[rpn]=[];_claimRpnMap[rpn].push({claim,frame:f});});});
+  const _pmStepsAug=_pmSteps.map((s,i)=>{if(s.type==='pending'&&i>0&&_pmSteps[i-1].type==='pn'){const rpn=_pmSteps[i-1].pn;const hits=_claimRpnMap[rpn]||[];if(hits.length){const{claim,frame}=hits[0];const isSB=(claim.claimType||'stock')==='breakage';return{type:isSB?'sb_claim':'sc_claim',frameName:frame.name,rpn,response:frame.frameResponse};}}return s;});
+  const html=_pmStepsAug.map((s,i)=>{
     const d=_defs[s.type]||{icon:'·',label:s.type,color:'var(--g400)'};
     const _label=(s.type==='defective'&&s.missing)?'DEFECTIVE (MISSING)':d.label;
-    const isLast=i===_pmSteps.length-1;
+    const isLast=i===_pmStepsAug.length-1;
     let sub='';
     if(s.type==='order'||s.type==='delivery'){sub=`${s.invNumber} · ${(s.cat||'').toUpperCase()} · pos ${s.no}`;}
     else if(s.type==='pn'){sub=s.pn;}
     else if(s.type==='ok_receiving'){sub=s.invNumber?`INV ${esc(s.invNumber)}`:'';}
+    else if(s.type==='sc_claim'||s.type==='sb_claim'){const rspLabel={'return':'Return','sample_full':'Sample Full','sample_parts':'Sample Parts'};sub=esc(s.frameName||'')+(s.response?(' · '+(rspLabel[s.response]||s.response)):'');}
     const delay=i*150;
     return `<div class="proc-step" style="animation-delay:${delay}ms">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
           <div style="width:28px;height:28px;border-radius:50%;background:${d.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">${d.icon}</div>
-          ${(!isLast&&(_pmSteps[i+1]||{}).type!=='no_replacement')?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
+          ${(!isLast&&(_pmStepsAug[i+1]||{}).type!=='no_replacement')?`<div class="proc-conn" style="animation-delay:${delay+180}ms"></div>`:''}
         </div>
         <div style="padding:5px 0">
           <div style="font-size:9px;letter-spacing:1.5px;font-weight:700;color:${d.color}">${_label}</div>

@@ -2689,11 +2689,7 @@ function printDefLabels(){
     const orderVal=it.orderNo||'—';
     return `
 <div class="label-cell">
-  <div class="lc-header">
-    <span class="lc-inv">${esc(inv.number)}</span>
-    <span class="lc-pos">Pos. ${esc(pos)}</span>
-  </div>
-  <div class="lc-title lc-title--def">DEFECTIVE　${esc(inv.number)}　Pos.${esc(pos)}</div>
+  <div class="lc-header lc-title lc-title--def">DEFECTIVE　${esc(inv.number)}　Pos.${esc(pos)}</div>
   <div class="lc-name">${esc(it.name)}</div>
   <div class="lc-data">
     <div class="lc-row"><span class="lk">ORDER NO.</span><span class="lv">${esc(orderVal)}</span></div>
@@ -2762,7 +2758,7 @@ function printClaimLabels(id){
     const colorVal=f.colorCode?'C'+f.colorCode:'—';
     const idVal=f.itemId&&f.itemId.trim()?f.itemId.trim():'—';
     const remarkVal=f.remark||'—';
-    return `\n<div class="label-cell">\n  <div class="lc-header"><span class="lc-type ${isSB?'lc-sb':'lc-sc'}">${typeLabel}</span><span class="lc-pos">${dateStr}</span></div>\n  <div class="lc-title ${isSB?'lc-title--sb':'lc-title--sc'}">${typeLabel}</div>\n  <div class="lc-name">${esc(f.name||'(no name)')}</div>\n  <div class="lc-data"><div class="lc-row"><span class="lk">COLOR NO.</span><span class="lv">${esc(colorVal)}</span></div><div class="lc-row"><span class="lk">ID NO.</span><span class="lv">${esc(idVal)}</span></div><div class="lc-row"><span class="lk">DEFECT</span><span class="lv lv-defect">${esc(remarkVal)}</span></div></div>\n</div>`;
+    return `\n<div class="label-cell">\n  <div class="lc-header"><span class="lc-title ${isSB?'lc-title--sb':'lc-title--sc'}">${typeLabel}</span><span class="lc-pos">${dateStr}</span></div>\n  <div class="lc-name">${esc(f.name||'(no name)')}</div>\n  <div class="lc-data"><div class="lc-row"><span class="lk">COLOR NO.</span><span class="lv">${esc(colorVal)}</span></div><div class="lc-row"><span class="lk">ID NO.</span><span class="lv">${esc(idVal)}</span></div><div class="lc-row"><span class="lk">DEFECT</span><span class="lv lv-defect">${esc(remarkVal)}</span></div></div>\n</div>`;
   });
   while(cells.length%12!==0)cells.push('<div class="label-cell label-cell--empty"></div>');
   const html=`<!DOCTYPE html>\n<html><head><meta charset="utf-8">\n<title>${typeLabel} Labels — ${dateStr}</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\n@page{size:A4 portrait;margin:8mm}\nbody{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}\n.page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(6,1fr);gap:3mm;width:100%;height:calc(297mm - 16mm);page-break-after:always}\n.page:last-child{page-break-after:auto}\n.label-cell{border:1.5px solid ${isSB?'#e65100':'#00695c'};border-radius:3px;padding:2.5mm 3.5mm;display:flex;flex-direction:column;gap:1.5mm;overflow:hidden;min-height:0}\n.label-cell--empty{border-style:dashed;border-color:#ddd}\n.lc-header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:0.5pt solid #eee;padding-bottom:1mm}\n.lc-type{font-size:7pt;font-weight:700;letter-spacing:.5px;padding:0.5mm 1.5mm;border-radius:1.5mm}\n.lc-sc{background:#e0f2f1;color:#00695c}\n.lc-sb{background:#fff3e0;color:#e65100}\n.lc-pos{font-size:8pt;color:#555;letter-spacing:.5px}\n.lc-title{font-size:9pt;font-weight:800;letter-spacing:.5px;padding:.5mm 0}\n.lc-title--sc{color:#00695c}\n.lc-title--sb{color:#e65100}\n.lc-name{font-size:10.5pt;font-weight:700;line-height:1.25;word-break:break-word}\n.lc-data{display:flex;flex-direction:column;gap:0;margin-top:auto;border-top:0.5pt solid #eee;padding-top:1mm}\n.lc-row{display:flex;align-items:baseline;gap:2mm;padding:.7mm 0}\n.lc-row+.lc-row{border-top:.5pt solid #f0f0f0}\n.lk{font-size:5.5pt;color:#999;letter-spacing:1px;white-space:nowrap;min-width:18mm}\n.lv{font-size:8pt;font-family:'Courier New',monospace;flex:1}\n.lv-defect{font-size:7.5pt;font-family:inherit;line-height:1.3}\n@media screen{body{background:#e0e0e0;padding:8mm}.page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);margin-bottom:8mm;padding:8mm;height:calc(297mm - 16mm)}}\n</style>\n</head><body>`;
@@ -2782,13 +2778,15 @@ function printClaimLabels(id){
 function loadClaims(){try{return JSON.parse(localStorage.getItem(SK_CLAIMS)||'[]');}catch(e){return[];}}
 function saveClaims(list){localStorage.setItem(SK_CLAIMS,JSON.stringify(list));}
 function newClaimFrame(){return {fid:'f'+Date.now()+Math.random().toString(36).slice(2,8),name:'',colorCode:'',itemId:'',defects:[newDefect()],remark:''};}
-function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false};}
+function newClaimEntry(){return {id:'cl'+Date.now(),created:Date.now(),updated:Date.now(),frames:[newClaimFrame()],staff:'',claimType:'stock',sent:false,rpn:'',claimResponse:''};}
 function openNewClaim(){_claimDraft=newClaimEntry();S.showClaimForm=true;render();}
 function openEditClaim(id){const list=loadClaims();const cl=list.find(c=>c.id===id);if(!cl)return;_claimDraft=JSON.parse(JSON.stringify(cl));S.showClaimForm=true;render();}
 function saveClaimDraft(){if(!_claimDraft)return;_claimDraft.updated=Date.now();const list=loadClaims();const idx=list.findIndex(c=>c.id===_claimDraft.id);if(idx>=0)list[idx]=_claimDraft;else list.push(_claimDraft);saveClaims(list);}
 function closeClaimForm(){_claimDraft=null;S.showClaimForm=false;render();}
 function deleteClaim(id){if(!confirm('このクレームを削除しますか？'))return;saveClaims(loadClaims().filter(c=>c.id!==id));render();}
 function markClaimSent(id,v){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.sent=v;saveClaims(list);}render();}
+function claimSetRpn(id,val){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.rpn=val.trim();cl.updated=Date.now();saveClaims(list);}}
+function claimSetClaimResponse(id,val){const list=loadClaims();const cl=list.find(c=>c.id===id);if(cl){cl.claimResponse=cl.claimResponse===val?'':val;cl.updated=Date.now();saveClaims(list);}render();}
 function claimSyncRemark(frame){
   const parts=frame.defects.map(d=>{
     const partStr=d.part||(d.partOther||'');const detail=d.partDetail?` (${d.partDetail})`:'';
@@ -3308,6 +3306,16 @@ function render(){
               <button onclick="markClaimSent('${cl.id}',${!cl.sent})" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:${cl.sent?'var(--blue)':'var(--g400)'};font-family:inherit;border-right:1px solid var(--g100)">${cl.sent?'✓ SENT':'SENT'}</button>
               <button onclick="deleteClaim('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--red);font-family:inherit">DEL</button>
             </div>
+            ${cl.sent?`
+            <div style="padding:10px 14px;border-top:1px solid var(--g100);background:var(--g50)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <span style="font-size:10px;font-weight:600;color:var(--g500);min-width:32px;letter-spacing:.5px">RPN</span>
+                <input type="text" value="${esc(cl.rpn||'')}" onblur="claimSetRpn('${cl.id}',this.value)" onclick="event.stopPropagation()" placeholder="Return Parts Number" style="flex:1;border:1px solid var(--g200);border-radius:4px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--w);color:var(--k)">
+              </div>
+              <div style="display:flex;gap:4px">
+                ${['Return','Sample Full','Sample Parts'].map(opt=>{const sel=cl.claimResponse===opt;const c=(cl.claimType||'stock')==='breakage'?'var(--amber)':'var(--teal)';const bg=(cl.claimType||'stock')==='breakage'?'var(--amberL)':'var(--tealL)';return `<button onclick="event.stopPropagation();claimSetClaimResponse('${cl.id}','${opt}')" style="flex:1;padding:5px 2px;border:1px solid ${sel?c:'var(--g200)'};border-radius:4px;background:${sel?bg:'transparent'};color:${sel?c:'var(--g400)'};font-size:9px;letter-spacing:.3px;cursor:pointer;font-family:inherit;font-weight:${sel?'700':'400'}">${opt}</button>`;}).join('')}
+              </div>
+            </div>`:''}
           </div>
         `).join('')}
     `;

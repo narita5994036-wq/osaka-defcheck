@@ -2703,16 +2703,20 @@ function printDefLabels(){
   if(!defs.length){alert('ディフェクティブアイテムがありません');return;}
 
   // A4: 210x297mm — 2col x 6row = 12 cells per page (~43mm per cell)
+  const _dRespCls={return:'lc-resp--ret',sample_full:'lc-resp--smp',sample_parts:'lc-resp--smp-p'};
+  const _dRespLbl={return:'Return',sample_full:'Sample Full',sample_parts:'Sample Parts'};
   const cells=defs.map(it=>{
     const pos=it.subOf||it.no;
     const colorVal=it.colorCode?'C'+it.colorCode:'—';
     const idVal=it.itemId&&it.itemId.trim()?it.itemId.trim():'—';
     const remarkVal=it.remark||'—';
     const orderVal=it.orderNo||'—';
+    const rpnVal=it.pn&&it.pn.trim()?it.pn.trim():'';
+    const respBadge=`<div class="lc-resp-col">${rpnVal?`<div class="lc-rpn">${esc(rpnVal)}</div>`:''}<div class="lc-resp-row">${['return','sample_full','sample_parts'].map(k=>`<span class="lc-resp ${it.disp===k?_dRespCls[k]:'lc-resp--none'}">${_dRespLbl[k]}</span>`).join('')}</div></div>`;
     return `
 <div class="label-cell">
   <div class="lc-header lc-title lc-title--def">DEFECTIVE　${esc(inv.number)}　Pos.${esc(pos)}</div>
-  <div class="lc-name">${esc(it.name)}</div>
+  <div class="lc-name-wrap"><div class="lc-name">${esc(it.name)}</div>${respBadge}</div>
   <div class="lc-data">
     <div class="lc-row"><span class="lk">ORDER NO.</span><span class="lv">${esc(orderVal)}</span></div>
     <div class="lc-row"><span class="lk">COLOR NO.</span><span class="lv">${esc(colorVal)}</span></div>
@@ -2741,7 +2745,16 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#000}
 .lc-pos{font-size:8pt;color:#555;font-weight:700;letter-spacing:0.5px}
 .lc-title{font-size:9pt;font-weight:800;letter-spacing:.5px;padding:0.5mm 0}
 .lc-title--def{color:#c62828}
-.lc-name{font-size:10.5pt;font-weight:700;line-height:1.25;word-break:break-word}
+.lc-name-wrap{display:flex;justify-content:space-between;align-items:flex-end;gap:2mm}
+.lc-name{font-size:10.5pt;font-weight:700;line-height:1.25;word-break:break-word;flex:1}
+.lc-resp-col{display:flex;flex-direction:column;align-items:flex-end;gap:1mm;flex-shrink:0}
+.lc-rpn{font-size:6pt;font-family:'Courier New',monospace;color:#555;font-weight:700;letter-spacing:.5px}
+.lc-resp-row{display:flex;gap:1mm}
+.lc-resp{font-size:5.5pt;font-weight:700;letter-spacing:.3px;padding:.7mm 2mm;border-radius:1mm;white-space:nowrap;border:0.5pt solid currentColor}
+.lc-resp--none{color:#bbb;border-color:#ccc;background:#fff}
+.lc-resp--ret{background:#e3f2fd;color:#1565c0}
+.lc-resp--smp{background:#e0f2f1;color:#00695c}
+.lc-resp--smp-p{background:#fff3e0;color:#e65100}
 .lc-data{display:flex;flex-direction:column;gap:0;margin-top:auto;border-top:0.5pt solid #eee;padding-top:1mm}
 .lc-row{display:flex;align-items:baseline;gap:2mm;padding:0.7mm 0}
 .lc-row+.lc-row{border-top:0.5pt solid #f0f0f0}

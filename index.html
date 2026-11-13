@@ -788,6 +788,7 @@ function buildProcessChain(rootInvId,rootItemNo){
   return{steps,title:rootItem.name+(rootItem.colorCode?' #'+rootItem.colorCode:'')};
 }
 function openProcessModal(invId,no){_processModal={invId,no};render();}
+function openClaimFrameProcess(rpn){const m=(buildOrderNoMap()[rpn]||[]);if(!m.length){alert('配送アイテムがまだありません');return;}openProcessModal(m[0].invId,m[0].itemNo);}
 function parseMsgForPns(raw){
   const blocks=raw.split(/Position\s+Number\/Item\s*:/i);
   const results=[];
@@ -873,7 +874,7 @@ function buildOrderNoMap(){
       for(const it of inv.items){
         if(it.orderNo){
           if(!map[it.orderNo])map[it.orderNo]=[];
-          map[it.orderNo].push({custRef:it.custRef||'',invNumber:inv.number||e.id,invId:e.id,itemName:it.name||''});
+          map[it.orderNo].push({custRef:it.custRef||'',invNumber:inv.number||e.id,invId:e.id,itemName:it.name||'',itemNo:it.no||''});
         }
       }
     }catch(x){}
@@ -4400,7 +4401,27 @@ function render(){
     const {it,inv,invId,isClaimFrame=false,isSB:isItemSB=false}=item_;
     if(isClaimFrame){
       const tc=isItemSB?'var(--amber)':'var(--teal)';const tl=isItemSB?'var(--amberL)':'var(--tealL)';const typeLbl=isItemSB?'SHOP BREAKAGE':'STOCK CLAIM';const respLabel={'return':'RETURN','sample_full':'SAMPLE FULL','sample_parts':'SAMPLE PARTS'};
-      return `<div style="border-bottom:1px solid var(--g100)"><div style="padding:10px 0;display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;font-family:monospace;color:var(--k)">${esc(it.pn)}</div><div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div><div style="font-size:9px;margin-top:2px;display:flex;align-items:center;gap:5px"><span style="font-size:8px;letter-spacing:.5px;padding:1px 5px;border-radius:3px;background:${tl};color:${tc};font-weight:600">${typeLbl}</span><span style="color:var(--g400)">${esc(inv.number)}</span></div></div><div style="text-align:right;flex-shrink:0;padding-top:4px">${it.frameResponse?`<span style="font-size:9px;letter-spacing:.5px;font-weight:700;color:${tc}">${respLabel[it.frameResponse]||it.frameResponse}</span>`:''}</div></div></div>`;
+      const cfKey='claim|'+item_.claim.id+'|'+it.no;
+      const cfOpen=_pnItemDetail===cfKey;
+      const cfMatches=_om[it.pn]||[];
+      const cfMatchBadge=cfMatches.length>0?`<span class="pn-badge" style="color:var(--teal);border-color:var(--teal)">Matched</span>`:'';
+      return `<div style="border-bottom:1px solid var(--g100)">
+        <div style="padding:10px 0;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="togglePnDetail('${cfKey}')">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;font-weight:700;font-family:monospace;color:var(--k)">${esc(it.pn)}${cfMatchBadge}</div>
+            <div style="font-size:11px;color:var(--g600);margin-top:2px">${esc(it.name)}${it.colorCode?` <span style="color:var(--g400)">#${it.colorCode}</span>`:''}</div>
+            <div style="font-size:9px;margin-top:2px;display:flex;align-items:center;gap:5px"><span style="font-size:8px;letter-spacing:.5px;padding:1px 5px;border-radius:3px;background:${tl};color:${tc};font-weight:600">${typeLbl}</span><span style="color:var(--g400)">${esc(inv.number)}</span></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;padding-top:4px">${it.frameResponse?`<span style="font-size:9px;letter-spacing:.5px;font-weight:700;color:${tc}">${respLabel[it.frameResponse]||it.frameResponse}</span>`:''}</div>
+          <span style="font-size:11px;color:var(--g400)">${cfOpen?'▲':'▼'}</span>
+        </div>
+        ${cfOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
+          ${cfMatches.length>0?`<div style="margin-bottom:6px;padding-top:4px;border-top:1px solid var(--g100)"><div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:2px">ORDER MATCH</div>${cfMatches.map(m=>`<div><span style="color:var(--g800)">${esc(m.invNumber)}</span>${m.custRef?` — <span style="color:${m.custRef.toLowerCase().includes('def')?'var(--red)':'inherit'}">${esc(m.custRef)}</span>`:''}</div>`).join('')}</div>`:''}
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button onclick="event.stopPropagation();openClaimFrameProcess('${esc(it.pn)}')" style="padding:4px 14px;border:1px solid var(--blue);border-radius:3px;font-size:9px;letter-spacing:1px;font-family:inherit;background:var(--w);color:var(--blue);cursor:pointer">SHOW PROCESS</button>
+          </div>
+        </div>`:''}
+      </div>`;
     }
     const key=invId+'|'+it.no;
     const isOpen=_pnItemDetail===key;

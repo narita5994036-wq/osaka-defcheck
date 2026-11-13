@@ -353,7 +353,7 @@ let _clEditNo=null;
 let _xlsxAllDlConfirm=false;
 let _claimDraft=null;
 let _claimRpnOpen=new Set();
-let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
+let _pnNameSearch='',_pnInvFilterFrom='',_pnInvFilterTo='',_pnMatchFilter='all',_pnTypeFilter='all',_pnSortOrder='desc',_pnHideDone=false,_pnPage=0;
 const _pnPageSize=20;
 function _swXY(e){if(e.touches&&e.touches.length)return[e.touches[0].clientX,e.touches[0].clientY];return[e.clientX,e.clientY];}
 function defSwStart(e,no){
@@ -660,8 +660,8 @@ function openDefSheet(id){
     _dispSheet={id,inv,pnOnly:true};render();
   }catch(e){console.warn('openDefSheet failed:',e);}
 }
-function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilterFrom='';_pnInvFilterTo='';_pnMatchFilter='all';_pnPage=0;render();}
-function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilterFrom='';_pnInvFilterTo='';_pnMatchFilter='all';_pnPage=0;render();}
+function openPnList(){_pnListOpen=true;_pnItemDetail=null;_defDetailNo=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilterFrom='';_pnInvFilterTo='';_pnMatchFilter='all';_pnTypeFilter='all';_pnPage=0;render();}
+function closePnList(){_pnListOpen=false;_pnItemDetail=null;_pnSearch='';_pnListChanges={};_pnNameSearch='';_pnInvFilterFrom='';_pnInvFilterTo='';_pnMatchFilter='all';_pnTypeFilter='all';_pnPage=0;render();}
 function tryClosePnList(){
   if(Object.keys(_pnListChanges).length>0){
     if(confirm('変更があります。保存して閉じますか？\n\nOK = 保存して閉じる\nキャンセル = 保存せず閉じる')){
@@ -4373,15 +4373,17 @@ function render(){
   const _cnSeen=new Set();
   _defItems.forEach(({it})=>{const pn=(it.pn||'').trim();const oNo=(it.orderNo||'').trim();if(oNo&&pn&&oNo!==pn&&_allDefPns.has(oNo)){const k=oNo+'→'+pn;if(!_cnSeen.has(k)){_cnSeen.add(k);(_chainNext[oNo]||=[]).push(pn);}}});
   const _nameWords=_pnNameSearch?_pnNameSearch.toLowerCase().trim().split(/\s+/).filter(Boolean):[];
-  const _hasFilter=_q||_pnInvFilterFrom||_pnInvFilterTo||_pnMatchFilter!=='all'||_nameWords.length;
+  const _hasFilter=_q||_pnInvFilterFrom||_pnInvFilterTo||_pnMatchFilter!=='all'||_pnTypeFilter!=='all'||_nameWords.length;
   const _filtered=_hasFilter
-    ?_defItems.filter(({it,inv})=>{
+    ?_defItems.filter(({it,inv,isClaimFrame})=>{
         if(_q&&!(it.pn||'').startsWith(_q))return false;
         const _n=inv.number||'';
         if(_pnInvFilterFrom&&_n<_pnInvFilterFrom)return false;
         if(_pnInvFilterTo&&_n>_pnInvFilterTo)return false;
         if(_pnMatchFilter==='matched'&&!(_om[it.pn]||[]).length)return false;
         if(_pnMatchFilter==='unmatched'&&(_om[it.pn]||[]).length)return false;
+        if(_pnTypeFilter==='sc_sb'&&!isClaimFrame)return false;
+        if(_pnTypeFilter==='def'&&isClaimFrame)return false;
         if(_nameWords.length){const _nm=(it.name||'').toLowerCase();const _id=(it.itemId||'').toLowerCase();if(!_nameWords.every(w=>_nm.includes(w)||_id.includes(w)))return false;}
         return true;
       })
@@ -4404,7 +4406,7 @@ function render(){
       const cfKey='claim|'+item_.claim.id+'|'+it.no;
       const cfOpen=_pnItemDetail===cfKey;
       const cfMatches=_om[it.pn]||[];
-      const cfMatchBadge=cfMatches.length>0?`<span class="pn-badge" style="color:var(--teal);border-color:var(--teal)">Matched</span>`:'';
+      const cfMatchBadge=cfMatches.length>0?`<span class="pn-badge" style="color:var(--teal);border-color:var(--teal);margin-left:6px">Matched</span>`:'';
       return `<div style="border-bottom:1px solid var(--g100)">
         <div style="padding:10px 0;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="togglePnDetail('${cfKey}')">
           <div style="flex:1;min-width:0">
@@ -4496,6 +4498,9 @@ function render(){
         </div>
         <button onclick="_pnSortOrder=_pnSortOrder==='asc'?'desc':'asc';_pnPage=0;render()" style="flex-shrink:0;padding:6px 10px;border-radius:4px;border:1px solid var(--g200);background:transparent;color:var(--g600);font-size:9px;letter-spacing:.5px;font-family:inherit;cursor:pointer">${_pnSortOrder==='asc'?'↑ ASC':'↓ DESC'}</button>
         <button onclick="_pnHideDone=!_pnHideDone;_pnPage=0;render()" style="flex-shrink:0;padding:6px 10px;border-radius:4px;border:1px solid ${_pnHideDone?'var(--teal)':'var(--g200)'};background:${_pnHideDone?'var(--teal)':'transparent'};color:${_pnHideDone?'#fff':'var(--g600)'};font-size:9px;letter-spacing:.5px;font-family:inherit;cursor:pointer;font-weight:${_pnHideDone?'700':'400'}">完了除外</button>
+      </div>
+      <div style="display:flex;gap:3px;margin-bottom:10px">
+        ${[['all','ALL'],['sc_sb','SC / SB'],['def','DEF ONLY']].map(([v,lbl])=>{const active=_pnTypeFilter===v;return `<button onclick="_pnTypeFilter='${v}';_pnPage=0;render()" style="flex:1;padding:6px 4px;border-radius:4px;border:1px solid ${active?(v==='sc_sb'?'var(--amber)':'var(--blue)'):'var(--g200)'};background:${active?(v==='sc_sb'?'var(--amber)':'var(--blue)'):'transparent'};color:${active?'#fff':'var(--g600)'};font-size:9px;letter-spacing:.5px;font-family:inherit;cursor:pointer;font-weight:${active?'700':'400'}">${lbl}</button>`;}).join('')}
       </div>
       <div style="font-size:9px;letter-spacing:1px;color:var(--g400);margin-bottom:6px">${_filteredVisible.length}件${(_hasFilter||_pnHideDone)?' / '+_defItems.length+'件中':''}${_totalPages>1?` — ${_curPage+1}/${_totalPages}ページ`:''}</div>
       ${_totalPages>1?`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--g100)">

@@ -3333,7 +3333,9 @@ function render(){
       ${claims.length===0
         ?`<div style="text-align:center;padding:40px 20px;font-size:12px;color:var(--g400)">クレームはまだありません</div>`
         :claims.slice().reverse().map(cl=>`
-          <div style="margin:10px 20px 0;border:1px solid var(--g200);border-radius:8px;overflow:hidden;background:var(--w)">
+          ${(()=>{const _clDone=cl.sent&&cl.frames.length>0&&cl.frames.every(f=>f.rpn&&f.rpn.trim());return `
+          <div style="margin:10px 20px 0;border:1px solid ${_clDone?'var(--teal)':'var(--g200)'};border-radius:8px;overflow:hidden;background:var(--w)${_clDone?';box-shadow:0 0 0 1px var(--teal)':''}">
+            ${_clDone?`<div style="height:3px;background:var(--teal)"></div>`:''}
             <div style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="openEditClaim('${cl.id}')">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
                 <div style="display:flex;align-items:center;gap:6px">
@@ -3342,11 +3344,14 @@ function render(){
                     ?`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--amberL);color:var(--amber);font-weight:600">SHOP BREAKAGE</span>`
                     :`<span style="font-size:8px;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:var(--tealL);color:var(--teal);font-weight:600">STOCK CLAIM</span>`}
                 </div>
-                ${cl.sent?`<span style="font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:var(--blue);color:#fff;font-weight:600">SENT</span>`:''}
+                <div style="display:flex;align-items:center;gap:5px">
+                  ${_clDone?`<span style="font-size:8px;letter-spacing:.5px;padding:2px 8px;border-radius:10px;background:var(--teal);color:#fff;font-weight:600">✓ COMPLETE</span>`:''}
+                  ${cl.sent?`<span style="font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:var(--blue);color:#fff;font-weight:600">SENT</span>`:''}
+                </div>
               </div>
               <div style="font-size:12px;font-weight:600;color:var(--k);margin-bottom:3px">${esc(cl.frames.map(f=>f.name||'(no name)').join(' / '))}</div>
               <div style="font-size:10px;color:var(--g400)">${cl.frames.length} frame${cl.frames.length!==1?'s':''} · ${cl.staff||'—'}</div>
-            </div>
+            </div>`;})()}
             <div style="display:flex;border-top:1px solid var(--g100)">
               <button onclick="printClaimLabels('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--g600);font-family:inherit;border-right:1px solid var(--g100)">LABEL</button>
               <button onclick="openClaimEmail('${cl.id}')" style="flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:9px;letter-spacing:1px;color:var(--teal);font-family:inherit;border-right:1px solid var(--g100)">EMAIL</button>
@@ -3359,14 +3364,18 @@ function render(){
               ${_claimRpnOpen.has(cl.id)?`<div style="padding:10px 14px;border-top:1px solid var(--g100);background:var(--g50)">
                 ${cl.frames.map(f=>{
                   const rsp=f.frameResponse||'';
-                  return `<div style="padding:8px 0;border-bottom:1px solid var(--g100)">
-                    <div style="font-size:12px;font-weight:500;color:var(--k);margin-bottom:6px">${esc(f.name||'(no name)')}</div>
+                  const fHasRpn=!!(f.rpn&&f.rpn.trim());
+                  return `<div style="padding:8px 0 8px ${fHasRpn?'10':'10'}px;border-bottom:1px solid var(--g100);border-left:3px solid ${fHasRpn?'var(--teal)':'var(--amber)'};padding-left:10px;background:${fHasRpn?'rgba(0,105,92,0.04)':'transparent'}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                      <div style="font-size:12px;font-weight:500;color:var(--k)">${esc(f.name||'(no name)')}</div>
+                      ${fHasRpn?`<span style="font-size:9px;letter-spacing:.5px;padding:1px 7px;border-radius:10px;background:var(--teal);color:#fff;font-weight:600">✓ RPN: ${esc(f.rpn)}</span>`:`<span style="font-size:9px;letter-spacing:.5px;padding:1px 7px;border-radius:10px;background:var(--amberL);color:var(--amber);font-weight:600">RPN待ち</span>`}
+                    </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                       <button class="disp-btn${rsp==='return'?' ret':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','return')">Return</button>
                       <button class="disp-btn${rsp==='sample_full'?' smp':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_full')">Sample Full</button>
                       <button class="disp-btn${rsp==='sample_parts'?' smp-p':''}" onclick="claimSetFrameResponse('${cl.id}','${f.fid}','sample_parts')">Sample Parts</button>
-                      <input type="tel" value="${esc(f.rpn||'')}" placeholder="RPN"
-                        style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                      <input type="tel" value="${esc(f.rpn||'')}" placeholder="RPN番号"
+                        style="flex:1;min-width:80px;padding:4px 10px;border:1px solid ${fHasRpn?'var(--teal)':'var(--g200)'};border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
                         onblur="claimSetFrameRpn('${cl.id}','${f.fid}',this.value)" onclick="event.stopPropagation()">
                     </div>
                   </div>`;

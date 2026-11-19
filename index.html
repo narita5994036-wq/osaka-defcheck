@@ -492,6 +492,12 @@ function smReceToggle(no){
     render();
   }
 }
+function setSmRecePn(no,val){
+  if(!_smReceSheet)return;
+  _smReceSheet.inv.items=_smReceSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:val.trim()});
+  const btn=document.querySelector('[data-smrpn="'+no+'"]');
+  if(btn)btn.style.borderColor=val.trim()?'var(--teal)':'var(--g200)';
+}
 function saveSmReceSheet(){
   if(!_smReceSheet)return;
   const inv=_smReceSheet.inv;
@@ -2109,7 +2115,7 @@ function checkRpnReminders(){
     try{
       const inv=JSON.parse(localStorage.getItem('mykita_dc_inv_'+entry.id)||'null');
       if(!inv)return;
-      const pending=inv.items.filter(i=>i.status==='defective'&&!i.noReplacement&&(!i.rpn||!i.rpn.trim())).map(i=>i.name||'(no name)');
+      const pending=inv.items.filter(i=>i.status==='defective'&&!i.noReplacement&&(!i.pn||!i.pn.trim())).map(i=>i.name||'(no name)');
       if(pending.length){lines.push(`[DEF] INV ${entry.number}`);pending.forEach(n=>lines.push(`  - ${n}`));}
     }catch(e){}
   });
@@ -2122,7 +2128,7 @@ function checkRpnReminders(){
     const pending=claim.frames.filter(f=>!f.rpn||!f.rpn.trim()).map(f=>f.name||'(no name)');
     if(pending.length){lines.push(`[${isSB?'SB':'SC'}] ${dateStr}`);pending.forEach(n=>lines.push(`  - ${n}`));}
   });
-  if(lines.length)alert('⚠ RPN未入力リマインド（送信から1週間以上経過）\n\n'+lines.join('\n')+'\n\nRPNを入力してください。');
+  if(lines.length)alert('⚠ RPN未入力リマインド（送信から1週間以上経過）\n\n'+lines.join('\n')+'\n\n─────────────────\nRPNの入力場所:\n・DEFアイテム → インボイスを開いて「DISP」ボタン → RPN欄\n・SC/SBアイテム → STOCK CLAIMカードの「RPN / RESPONSE」パネル');
 }
 function initApp(){
   try{
@@ -4280,7 +4286,12 @@ function render(){
             <span style="font-size:11px;color:var(--g400);flex-shrink:0">${_isOpen?'▲':'▼'}</span>
           </div>
           ${_isOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
-            ${it.pn?`<div><span style="color:var(--g400)">RPN</span> <span style="font-family:monospace;font-weight:700;color:var(--k)">${esc(it.pn)}</span></div>`:''}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="color:var(--g400);flex-shrink:0">RPN</span>
+              <input type="tel" data-smrpn="${it.no}" value="${esc(it.pn||'')}" placeholder="RPN番号を入力"
+                style="flex:1;padding:5px 10px;border:1px solid ${it.pn?'var(--teal)':'var(--g200)'};border-radius:3px;font-size:12px;font-family:monospace;font-weight:700;outline:none;background:var(--w);color:var(--k)"
+                onblur="setSmRecePn('${it.no}',this.value)" onclick="event.stopPropagation()">
+            </div>
             ${it.itemId?`<div><span style="color:var(--g400)">ID</span> <span style="font-family:monospace;color:var(--g800);font-weight:600">${esc(it.itemId)}</span></div>`:''}
             ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace">${esc(it.orderNo)}</span></div>`:''}
             ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> ${esc(it.custRef)}</div>`:''}

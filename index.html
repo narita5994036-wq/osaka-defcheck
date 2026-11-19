@@ -1598,6 +1598,11 @@ async function _gistDoPull(){
       saveList(newList);
       _skipped=_skipped.filter(s=>s!=='list');
     }
+    // SC/SBクレームデータを復元
+    if(data.files['claims.json']){
+      const c=await getC(data.files['claims.json']);
+      if(c){try{localStorage.setItem(SK_CLAIMS,c);}catch(e){}}
+    }
     // Repo設定を他デバイスへ自動反映・写真同期（エラーがあってもインボイス表示をブロックしない）
     try{
       if(data.files['settings.json']){
@@ -1626,6 +1631,8 @@ async function gistPush(){
     list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)invFiles['inv_'+e.id+'.json']={content:d};});
     // Step2: リマートのlist.jsonと合算（他デバイスのインボイスを消さない）—失敗しても続行
     let mergedList=[...list];
+    const localClaims=loadClaims();
+    let mergedClaims=[...localClaims];
     let _cur=null;
     if(gistId){
       try{
@@ -1635,9 +1642,15 @@ async function gistPush(){
           const rc=lf.truncated?await fetch(lf.raw_url,{headers:{'Authorization':'token '+gPat()}}).then(r=>r.text()):lf.content;
           if(rc){const remoteList=JSON.parse(rc);const localIds=new Set(list.map(e=>e.id));for(const e of remoteList){if(!localIds.has(e.id))mergedList.push(e);}}
         }
+        const cf=_cur.files['claims.json'];
+        if(cf){
+          const rc=cf.truncated?await fetch(cf.raw_url,{headers:{'Authorization':'token '+gPat()}}).then(r=>r.text()):cf.content;
+          if(rc){const remoteClaims=JSON.parse(rc);const localClaimIds=new Set(localClaims.map(c=>c.id));for(const c of remoteClaims){if(!localClaimIds.has(c.id))mergedClaims.push(c);}}
+        }
       }catch(fetchErr){console.warn('Gist fetch for merge skipped:',fetchErr.message);}
     }
     invFiles['list.json']={content:JSON.stringify(mergedList)};
+    invFiles['claims.json']={content:JSON.stringify(mergedClaims)};
     // Step3: インボイスデータのみGist PATCH（写真は一切含まない）
     let data;
     if(gistId){
@@ -2042,6 +2055,8 @@ async function _silentGistPush(){
     const invFiles={};
     list.forEach(e=>{const d=localStorage.getItem('mykita_dc_inv_'+e.id);if(d)invFiles['inv_'+e.id+'.json']={content:d};});
     let mergedList=[...list];
+    const _slClaims=loadClaims();
+    let _slMergedClaims=[..._slClaims];
     if(gistId){
       try{
         const _cur=await _gFetch('https://api.github.com/gists/'+gistId+'?_t='+Date.now());
@@ -2050,9 +2065,15 @@ async function _silentGistPush(){
           const rc=lf.truncated?await fetch(lf.raw_url,{headers:{'Authorization':'token '+gPat()}}).then(r=>r.text()):lf.content;
           if(rc){const remoteList=JSON.parse(rc);const localIds=new Set(list.map(e=>e.id));for(const e of remoteList){if(!localIds.has(e.id))mergedList.push(e);}}
         }
+        const cf=_cur.files['claims.json'];
+        if(cf){
+          const rc=cf.truncated?await fetch(cf.raw_url,{headers:{'Authorization':'token '+gPat()}}).then(r=>r.text()):cf.content;
+          if(rc){const remote=JSON.parse(rc);const localIds=new Set(_slClaims.map(c=>c.id));for(const c of remote){if(!localIds.has(c.id))_slMergedClaims.push(c);}}
+        }
       }catch(e){/* merge skip */}
     }
     invFiles['list.json']={content:JSON.stringify(mergedList)};
+    invFiles['claims.json']={content:JSON.stringify(_slMergedClaims)};
     if(gistId){await _gFetch('https://api.github.com/gists/'+gistId,{method:'PATCH',body:JSON.stringify({files:invFiles})});}
     else{const d=await _gFetch('https://api.github.com/gists',{method:'POST',body:JSON.stringify({description:'MYKITA Osaka DC',public:false,files:invFiles})});localStorage.setItem(GK_ID,d.id);}
     localStorage.setItem(GK_AT,new Date().toISOString());

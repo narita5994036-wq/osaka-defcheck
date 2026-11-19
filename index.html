@@ -2715,8 +2715,8 @@ function stampAllFilled(){
   return defs.length>0 && defs.every(i=>i.stampNo&&i.stampNo.trim());
 }
 
-function printDefLabels(){
-  const inv=S.invoice;
+function printDefLabels(inv){
+  if(!inv)inv=S.invoice;
   if(!inv)return;
   const defs=inv.items.filter(i=>i.status==='defective');
   if(!defs.length){alert('ディフェクティブアイテムがありません');return;}
@@ -4177,11 +4177,12 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
       <div class="sheet-tit">${ds.pnOnly?'DEFECTIVE LIST':'DISPOSITION'}<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">${esc(ds.inv.number||'—')}</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 14px" onclick="exportDispCSV()">CSV 出力</button>
-          ${_dsSent?`<button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 14px" onclick="document.getElementById('msg-input').click()">MSG入力</button>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);flex-shrink:0">${esc(ds.inv.number||'—')}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="printDefLabels(_dispSheet&&_dispSheet.inv)">LABEL</button>
+          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="exportDispCSV()">CSV</button>
+          ${_dsSent?`<button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="document.getElementById('msg-input').click()">MSG</button>`:''}
         </div>
       </div>
       ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`

@@ -494,9 +494,12 @@ function smReceToggle(no){
 }
 function setSmRecePn(no,val){
   if(!_smReceSheet)return;
-  _smReceSheet.inv.items=_smReceSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:val.trim()});
+  const isNone=val.trim().toLowerCase()==='none';
+  const hasVal=val.trim()&&!isNone;
+  _smReceSheet.inv.items=_smReceSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:isNone?'':val.trim(),noReplacement:isNone?true:(hasVal?false:it.noReplacement)});
+  if(isNone){render();return;}
   const btn=document.querySelector('[data-smrpn="'+no+'"]');
-  if(btn)btn.style.borderColor=val.trim()?'var(--teal)':'var(--g200)';
+  if(btn)btn.style.borderColor=hasVal?'var(--teal)':'var(--g200)';
 }
 function saveSmReceSheet(){
   if(!_smReceSheet)return;
@@ -958,6 +961,15 @@ function setPnInSheet(no,val){
   if(_dispSheet.pnOnly){
     const btn=document.getElementById('disp-done-btn');
     if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
+  }
+}
+function finalizePnInSheet(no,val){
+  if(!_dispSheet)return;
+  const isNone=val.trim().toLowerCase()==='none';
+  const hasVal=val.trim()&&!isNone;
+  if(isNone||hasVal){
+    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:isNone?'':val.trim(),noReplacement:isNone?true:(hasVal?false:it.noReplacement)});
+    render();
   }
 }
 function setRemarkInSheet(no,val){
@@ -4219,9 +4231,9 @@ function render(){
               <button class="disp-btn${it.disp==='sample_parts'?' smp-p':''}" onclick="setDispInSheet('${it.no}','sample_parts')">Sample Parts</button>`}
               ${isOk
                 ?`<button onclick="defToggleOk('${it.no}')" style="font-size:10px;letter-spacing:1px;color:var(--green);font-weight:600;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">→ OK &nbsp;UNDO</button>`
-                :(_dsSent?`<input type="tel" value="${esc(it.pn||'')}" placeholder="RPN"
-                  style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                  oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`:it.pn?`<span style="font-family:monospace;font-size:11px;color:var(--g600);padding:4px 6px">${esc(it.pn)}</span>`:'')}
+                :(_dsSent?`<input type="tel" value="${esc(it.pn||'')}" placeholder="${it.noReplacement?'NO REPL (noneで設定)':'RPN / none→NO REPL'}"
+                  style="flex:1;min-width:80px;padding:4px 10px;border:1px solid ${it.noReplacement?'var(--red)':'var(--g200)'};border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                  oninput="setPnInSheet('${it.no}',this.value)" onblur="finalizePnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`:it.pn?`<span style="font-family:monospace;font-size:11px;color:var(--g600);padding:4px 6px">${esc(it.pn)}</span>`:'')}
             </div>`;
           if(ds.pnOnly){
             return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
@@ -4278,7 +4290,10 @@ function render(){
         :_srDefs.map(it=>{const _isOpen=_smReceDetail===it.no;const _om2=buildOrderNoMap();const _matches=_om2[it.pn]||[];return`<div style="border-bottom:1px solid var(--g100)">
           <div style="display:flex;align-items:center;gap:12px;padding:13px 0;cursor:pointer" onclick="_smReceDetail=_smReceDetail==='${it.no}'?null:'${it.no}';render()">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</div>
+              <div style="display:flex;align-items:center;gap:5px;overflow:hidden">
+                <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</div>
+                ${it.noReplacement?`<span style="flex-shrink:0;font-size:8px;letter-spacing:1px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red);color:#fff">NO REPL</span>`:''}
+              </div>
               ${it.remark?`<div style="font-size:10px;color:var(--red);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.remark)}</div>`:''}
               ${it.receiving?`<div style="font-size:10px;color:var(--teal);margin-top:2px">${esc(it.receivingDate||'')}</div>`:''}
             </div>
@@ -4288,8 +4303,8 @@ function render(){
           ${_isOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <span style="color:var(--g400);flex-shrink:0">RPN</span>
-              <input type="tel" data-smrpn="${it.no}" value="${esc(it.pn||'')}" placeholder="RPN番号を入力"
-                style="flex:1;padding:5px 10px;border:1px solid ${it.pn?'var(--teal)':'var(--g200)'};border-radius:3px;font-size:12px;font-family:monospace;font-weight:700;outline:none;background:var(--w);color:var(--k)"
+              <input type="tel" data-smrpn="${it.no}" value="${esc(it.pn||'')}" placeholder="${it.noReplacement?'NO REPL (noneで設定)':'RPN番号 / none→NO REPL'}"
+                style="flex:1;padding:5px 10px;border:1px solid ${it.noReplacement?'var(--red)':it.pn?'var(--teal)':'var(--g200)'};border-radius:3px;font-size:12px;font-family:monospace;font-weight:700;outline:none;background:var(--w);color:var(--k)"
                 onblur="setSmRecePn('${it.no}',this.value)" onclick="event.stopPropagation()">
             </div>
             ${it.itemId?`<div><span style="color:var(--g400)">ID</span> <span style="font-family:monospace;color:var(--g800);font-weight:600">${esc(it.itemId)}</span></div>`:''}

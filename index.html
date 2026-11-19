@@ -492,6 +492,15 @@ function smReceToggle(no){
     render();
   }
 }
+function setSmRecePn(no,val){
+  if(!_smReceSheet)return;
+  const isNone=val.trim().toLowerCase()==='none';
+  const hasVal=val.trim()&&!isNone;
+  _smReceSheet.inv.items=_smReceSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:isNone?'':val.trim(),noReplacement:isNone?true:(hasVal?false:it.noReplacement)});
+  if(isNone){render();return;}
+  const btn=document.querySelector('[data-smrpn="'+no+'"]');
+  if(btn)btn.style.borderColor=hasVal?'var(--teal)':'var(--g200)';
+}
 function saveSmReceSheet(){
   if(!_smReceSheet)return;
   const inv=_smReceSheet.inv;
@@ -952,6 +961,15 @@ function setPnInSheet(no,val){
   if(_dispSheet.pnOnly){
     const btn=document.getElementById('disp-done-btn');
     if(btn)btn.style.opacity=_dispIsDirty()?'1':'0.35';
+  }
+}
+function finalizePnInSheet(no,val){
+  if(!_dispSheet)return;
+  const isNone=val.trim().toLowerCase()==='none';
+  const hasVal=val.trim()&&!isNone;
+  if(isNone||hasVal){
+    _dispSheet.inv.items=_dispSheet.inv.items.map(it=>it.no!==no?it:{...it,pn:isNone?'':val.trim(),noReplacement:isNone?true:(hasVal?false:it.noReplacement)});
+    render();
   }
 }
 function setRemarkInSheet(no,val){
@@ -2109,7 +2127,7 @@ function checkRpnReminders(){
     try{
       const inv=JSON.parse(localStorage.getItem('mykita_dc_inv_'+entry.id)||'null');
       if(!inv)return;
-      const pending=inv.items.filter(i=>i.status==='defective'&&!i.noReplacement&&(!i.rpn||!i.rpn.trim())).map(i=>i.name||'(no name)');
+      const pending=inv.items.filter(i=>i.status==='defective'&&!i.noReplacement&&(!i.pn||!i.pn.trim())).map(i=>i.name||'(no name)');
       if(pending.length){lines.push(`[DEF] INV ${entry.number}`);pending.forEach(n=>lines.push(`  - ${n}`));}
     }catch(e){}
   });
@@ -2122,7 +2140,7 @@ function checkRpnReminders(){
     const pending=claim.frames.filter(f=>!f.rpn||!f.rpn.trim()).map(f=>f.name||'(no name)');
     if(pending.length){lines.push(`[${isSB?'SB':'SC'}] ${dateStr}`);pending.forEach(n=>lines.push(`  - ${n}`));}
   });
-  if(lines.length)alert('⚠ RPN未入力リマインド（送信から1週間以上経過）\n\n'+lines.join('\n')+'\n\nRPNを入力してください。');
+  if(lines.length)alert('⚠ RPN未入力リマインド（送信から1週間以上経過）\n\n'+lines.join('\n')+'\n\n─────────────────\nRPNの入力場所:\n・DEFアイテム → インボイスを開いて「DISP」ボタン → RPN欄\n・SC/SBアイテム → STOCK CLAIMカードの「RPN / RESPONSE」パネル');
 }
 function initApp(){
   try{
@@ -2697,8 +2715,8 @@ function stampAllFilled(){
   return defs.length>0 && defs.every(i=>i.stampNo&&i.stampNo.trim());
 }
 
-function printDefLabels(){
-  const inv=S.invoice;
+function printDefLabels(inv){
+  if(!inv)inv=S.invoice;
   if(!inv)return;
   const defs=inv.items.filter(i=>i.status==='defective');
   if(!defs.length){alert('ディフェクティブアイテムがありません');return;}
@@ -4159,11 +4177,12 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)tryCloseDispSheet()">
     <div class="sheet">
       <div class="sheet-tit">${ds.pnOnly?'DEFECTIVE LIST':'DISPOSITION'}<button class="close-btn" onclick="tryCloseDispSheet()">×</button></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400)">${esc(ds.inv.number||'—')}</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 14px" onclick="exportDispCSV()">CSV 出力</button>
-          ${_dsSent?`<button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 14px" onclick="document.getElementById('msg-input').click()">MSG入力</button>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);flex-shrink:0">${esc(ds.inv.number||'—')}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="printDefLabels(_dispSheet&&_dispSheet.inv)">LABEL</button>
+          <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="exportDispCSV()">CSV</button>
+          ${_dsSent?`<button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="document.getElementById('msg-input').click()">MSG</button>`:''}
         </div>
       </div>
       ${defs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
@@ -4213,9 +4232,9 @@ function render(){
               <button class="disp-btn${it.disp==='sample_parts'?' smp-p':''}" onclick="setDispInSheet('${it.no}','sample_parts')">Sample Parts</button>`}
               ${isOk
                 ?`<button onclick="defToggleOk('${it.no}')" style="font-size:10px;letter-spacing:1px;color:var(--green);font-weight:600;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">→ OK &nbsp;UNDO</button>`
-                :(_dsSent?`<input type="tel" value="${esc(it.pn||'')}" placeholder="RPN"
-                  style="flex:1;min-width:80px;padding:4px 10px;border:1px solid var(--g200);border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
-                  oninput="setPnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`:it.pn?`<span style="font-family:monospace;font-size:11px;color:var(--g600);padding:4px 6px">${esc(it.pn)}</span>`:'')}
+                :(_dsSent?`<input type="tel" value="${esc(it.pn||'')}" placeholder="${it.noReplacement?'NO REPL (noneで設定)':'RPN / none→NO REPL'}"
+                  style="flex:1;min-width:80px;padding:4px 10px;border:1px solid ${it.noReplacement?'var(--red)':'var(--g200)'};border-radius:3px;font-size:11px;font-family:monospace;outline:none;background:var(--w);color:var(--k)"
+                  oninput="setPnInSheet('${it.no}',this.value)" onblur="finalizePnInSheet('${it.no}',this.value)" onclick="event.stopPropagation()">`:it.pn?`<span style="font-family:monospace;font-size:11px;color:var(--g600);padding:4px 6px">${esc(it.pn)}</span>`:'')}
             </div>`;
           if(ds.pnOnly){
             return `<div style="position:relative;overflow:hidden;margin-bottom:1px">
@@ -4272,7 +4291,10 @@ function render(){
         :_srDefs.map(it=>{const _isOpen=_smReceDetail===it.no;const _om2=buildOrderNoMap();const _matches=_om2[it.pn]||[];return`<div style="border-bottom:1px solid var(--g100)">
           <div style="display:flex;align-items:center;gap:12px;padding:13px 0;cursor:pointer" onclick="_smReceDetail=_smReceDetail==='${it.no}'?null:'${it.no}';render()">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</div>
+              <div style="display:flex;align-items:center;gap:5px;overflow:hidden">
+                <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</div>
+                ${it.noReplacement?`<span style="flex-shrink:0;font-size:8px;letter-spacing:1px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red);color:#fff">NO REPL</span>`:''}
+              </div>
               ${it.remark?`<div style="font-size:10px;color:var(--red);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.remark)}</div>`:''}
               ${it.receiving?`<div style="font-size:10px;color:var(--teal);margin-top:2px">${esc(it.receivingDate||'')}</div>`:''}
             </div>
@@ -4280,7 +4302,12 @@ function render(){
             <span style="font-size:11px;color:var(--g400);flex-shrink:0">${_isOpen?'▲':'▼'}</span>
           </div>
           ${_isOpen?`<div style="padding:0 0 12px;font-size:10px;color:var(--g600);line-height:1.8">
-            ${it.pn?`<div><span style="color:var(--g400)">RPN</span> <span style="font-family:monospace;font-weight:700;color:var(--k)">${esc(it.pn)}</span></div>`:''}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="color:var(--g400);flex-shrink:0">RPN</span>
+              <input type="tel" data-smrpn="${it.no}" value="${esc(it.pn||'')}" placeholder="${it.noReplacement?'NO REPL (noneで設定)':'RPN番号 / none→NO REPL'}"
+                style="flex:1;padding:5px 10px;border:1px solid ${it.noReplacement?'var(--red)':it.pn?'var(--teal)':'var(--g200)'};border-radius:3px;font-size:12px;font-family:monospace;font-weight:700;outline:none;background:var(--w);color:var(--k)"
+                onblur="setSmRecePn('${it.no}',this.value)" onclick="event.stopPropagation()">
+            </div>
             ${it.itemId?`<div><span style="color:var(--g400)">ID</span> <span style="font-family:monospace;color:var(--g800);font-weight:600">${esc(it.itemId)}</span></div>`:''}
             ${it.orderNo?`<div><span style="color:var(--g400)">Order#</span> <span style="font-family:monospace">${esc(it.orderNo)}</span></div>`:''}
             ${it.custRef?`<div><span style="color:var(--g400)">CustRef</span> ${esc(it.custRef)}</div>`:''}

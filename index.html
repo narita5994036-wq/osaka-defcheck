@@ -4308,7 +4308,10 @@ function render(){
   return `<div class="overlay" onclick="if(event.target===this)saveSmReceSheet()" style="z-index:250">
     <div class="sheet">
       <div class="sheet-tit">REPLACEMENT RECEIVING<button class="close-btn" onclick="saveSmReceSheet()">×</button></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);margin-bottom:4px">${esc(_sr.inv.number||'—')}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--g400);flex-shrink:0">${esc(_sr.inv.number||'—')}</div>
+        <button class="btn out" style="margin-top:0;font-size:9px;letter-spacing:1px;padding:6px 12px" onclick="printDefLabels(_smReceSheet&&_smReceSheet.inv)">LABEL</button>
+      </div>
       <div style="font-size:12px;color:${_srRece===_srDefs.length&&_srDefs.length?'var(--green)':'var(--g600)'};margin-bottom:16px;font-weight:600">${_srRece} / ${_srDefs.length} 入庫済</div>
       ${_srDefs.length===0?`<div style="font-size:12px;color:var(--g400);text-align:center;padding:20px 0">Defective items なし</div>`
         :_srDefs.map(it=>{const _isOpen=_smReceDetail===it.no;const _om2=buildOrderNoMap();const _matches=_om2[it.pn]||[];return`<div style="border-bottom:1px solid var(--g100)">
